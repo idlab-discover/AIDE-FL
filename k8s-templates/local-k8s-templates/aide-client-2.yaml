@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aide-fl-client-nf2
+  labels:
+    app.kubernetes.io/name: aide-fl-client
+    app.kubernetes.io/instance: aide-fl-client-nf2
+spec:
+  selector:
+    matchLabels:
+      run: aide-fl-client-nf2
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        run: aide-fl-client-nf2
+    spec:
+      containers:
+      - name: aide-client
+        image: gitlab.ilabt.imec.be:4567/aide-fl/aide-infra/client
+        args: ["--cid", "2", "--experiment", "APFed", "--server", "10.152.183.2:8080"]
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: nf-datasets
+          mountPath: /app/dataset
+      volumes:
+      - name: nf-datasets
+        hostPath:
+          path: /home/dhoogla/PhD/AIDE/nf-datasets
+          type: Directory
+      imagePullSecrets:
+      - name: aide-containerregistry

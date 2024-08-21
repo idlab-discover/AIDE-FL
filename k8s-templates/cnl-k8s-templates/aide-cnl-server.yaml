@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aide-fl-server
+spec:
+  selector:
+    matchLabels:
+      run: aide-fl-server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        run: aide-fl-server
+    spec:
+      containers:
+      - name: aide-server
+        image: gitlab.ilabt.imec.be:4567/aide-fl/aide-infra/cnl-server
+        args: ["--experiment", "APFed", "--server", "0.0.0.0:8080"]
+        ports:
+        - containerPort: 8080        
+      imagePullSecrets:
+      - name: aide-containerregistry

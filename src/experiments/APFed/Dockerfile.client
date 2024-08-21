@@ -1,0 +1,18 @@
+FROM python:3.8-slim
+
+WORKDIR /app
+
+# Copy the installation info and install first to have it cached
+COPY installation/requirements_client.txt /app/installation/
+# Install the required packages
+RUN pip install --no-cache-dir -r /app/installation/requirements_client.txt
+
+# Copy the relevant directories and files
+COPY src /app/src
+COPY client_starter.py /app/
+COPY secret/kaggle.json /root/.kaggle/
+
+# Set the PYTHONPATH to include the src directory
+ENV PYTHONPATH="/app/src"
+
+ENTRYPOINT ["python", "client_starter.py"]
