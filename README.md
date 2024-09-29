@@ -1,6 +1,6 @@
-# 🌸 Federated Learning with Flower Framework 🌸
+# 🌸 AIDE Federated Learning for Robust, Resilient and Adaptive Protection of Systems  🌸
 
-Welcome to the Federated Learning (FL) project using the powerful Flower framework! 🚀 This repository showcases the fascinating world of Federated Learning, where multiple clients join forces with a central server to collaboratively train a model without sharing their data. 🌐🤝
+Welcome to the repository of the AIDE federated learning project! 🚀
 
 ## 📚 Project Overview
 
