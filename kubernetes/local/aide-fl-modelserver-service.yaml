@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aide-fl-modelserver
+  labels:
+    run: aide-fl-modelserver
+spec:
+  clusterIP: 10.152.183.3  # Changed from .2 to .3 to avoid conflict
+  ports:
+  - name: model-http
+    port: 8000
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    run: aide-fl-modelserver
+  type: ClusterIP

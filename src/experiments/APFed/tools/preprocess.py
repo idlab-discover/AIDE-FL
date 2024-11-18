@@ -1,7 +1,7 @@
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 import pandas as pd
-from ..config import MAJORITY_FRAC, SAMPLING_FRAC, TARGET, UNSW_PATH, TON_PATH
+from ....aide_fl.experiments.apfed.config import MAJORITY_FRAC, SAMPLING_FRAC, TARGET, UNSW_PATH, TON_PATH
 import gc
 
 

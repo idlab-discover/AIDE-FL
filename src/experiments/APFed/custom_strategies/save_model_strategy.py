@@ -3,7 +3,6 @@ from typing import List, Tuple, Optional, Dict, Union, Any
 from flwr.common import Parameters, Scalar
 from flwr.server.client_proxy import ClientProxy
 import numpy as np
-from ..model.model import get_model
 import os
 from typing import List, Tuple, Optional, Dict, Union
 

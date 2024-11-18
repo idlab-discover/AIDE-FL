@@ -1,3 +1,4 @@
-dataset/
 docs/
 misc/
+tests/
+model_storage/

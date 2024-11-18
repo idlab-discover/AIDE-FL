@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aide-fl-modelserver
+spec:
+  selector:
+    matchLabels:
+      run: aide-fl-modelserver
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        run: aide-fl-modelserver
+    spec:
+      containers:
+      - name: aide-fl-modelserver
+        image: gitlab.ilabt.imec.be:4567/aide-fl/aide-infra/modelserver
+        args: ["--host", "0.0.0.0", "--port", "8000"]
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - name: models
+          mountPath: /app/models
+      volumes:
+      - name: models
+        hostPath:
+          path: /home/dhoogla/PhD/AIDE/models
+          type: Directory    
+      imagePullSecrets:
+      - name: aide-containerregistry

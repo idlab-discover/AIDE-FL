@@ -1,0 +1,47 @@
+# Use Python slim image
+FROM python:3.10-slim as builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy only requirements first to leverage Docker cache
+COPY installation/requirements-datasetcache.txt requirements.txt
+
+# Create virtual environment and install dependencies
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# Final stage
+FROM python:3.10-slim
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Set working directory
+WORKDIR /app
+
+# Copy only necessary files
+COPY src/aide_fl/dataset_cache /app/dataset_cache
+COPY secret/kaggle.json /root/.kaggle/
+
+# Set proper permissions for Kaggle credentials
+RUN chmod 600 /root/.kaggle/kaggle.json && \
+    mkdir -p /app/temp && \
+    # Clean up
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    # Create non-root user
+    useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app /root/.kaggle
+
+# Switch to non-root user
+USER appuser
+
+# Add virtual environment to path
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Expose ports
+EXPOSE 8000
+
+# Command to run the server
+CMD ["uvicorn", "dataset_cache.datasetcache:app", "--host", "0.0.0.0", "--port", "8000"]
