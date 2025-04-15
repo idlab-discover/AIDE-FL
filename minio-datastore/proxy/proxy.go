@@ -141,35 +141,8 @@ func scenarioHandler(w http.ResponseWriter, r *http.Request, client *minio.Clien
 
 	// Check if dataset already present
 	var status string
-	if !fileExistsInMinio(client, minioDatasetFilename) {
-		zipName, err := downloadFromKaggle(scenario.Dataset)
-		if err != nil {
-			if err == ErrDatasetNotFound {
-				http.Error(w, "Dataset does not exist on Kaggle", http.StatusNotFound)
-			} else {
-				http.Error(w, "Failed to download from Kaggle", http.StatusInternalServerError)
-			}
-			return
-		}
-
-		if err := extractParquetFromZip(zipName, datasetFilename); err != nil {
-			http.Error(w, "Failed to unzip", http.StatusInternalServerError)
-			return
-		}
-
-		if err := uploadToMinio(client, datasetFilename, minioDatasetFilename); err != nil {
-			http.Error(w, "Failed to upload dataset to Minio", http.StatusInternalServerError)
-			return
-		} else {
-			removeLocal(datasetFilename)
-		}
-
-		if err := uploadToMinio(client, scenarioFilename, minioScenarioFilename); err != nil {
-			http.Error(w, "Failed to upload scenario to Minio", http.StatusInternalServerError)
-			return
-		}
-
-		status = "new dataset"
+	if fileExistsInMinio(client, minioIndexFilename) {
+		status = "preprocessed"
 	} else {
 		if !fileExistsInMinio(client, minioScenarioFilename) {
 			log.Printf("Creating file %s\n", scenarioFilename)
@@ -181,15 +154,39 @@ func scenarioHandler(w http.ResponseWriter, r *http.Request, client *minio.Clien
 			if err := uploadToMinio(client, scenarioFilename, minioScenarioFilename); err != nil {
 				http.Error(w, "Failed to upload scenario to Minio", http.StatusInternalServerError)
 				return
+			} else {
+				removeLocal(scenarioFilename)
 			}
 
-			removeLocal(scenarioFilename)
-
 			status = "new scenario"
-		} else if !fileExistsInMinio(client, minioIndexFilename) {
-			status = "not preprocessed"
 		} else {
-			status = "preprocessed"
+			status = "not preprocessed"
+		}
+
+		if !fileExistsInMinio(client, minioDatasetFilename) {
+			zipName, err := downloadFromKaggle(scenario.Dataset)
+			if err != nil {
+				if err == ErrDatasetNotFound {
+					http.Error(w, "Dataset does not exist on Kaggle", http.StatusNotFound)
+				} else {
+					http.Error(w, "Failed to download from Kaggle", http.StatusInternalServerError)
+				}
+				return
+			}
+
+			if err := extractParquetFromZip(zipName, datasetFilename); err != nil {
+				http.Error(w, "Failed to unzip", http.StatusInternalServerError)
+				return
+			}
+
+			if err := uploadToMinio(client, datasetFilename, minioDatasetFilename); err != nil {
+				http.Error(w, "Failed to upload dataset to Minio", http.StatusInternalServerError)
+				return
+			} else {
+				removeLocal(datasetFilename)
+			}
+
+			status = "new dataset"
 		}
 	}
 
