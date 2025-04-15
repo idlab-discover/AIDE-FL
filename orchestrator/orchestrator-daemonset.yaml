@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: orchestrator
+  name: orchestrator-daemonset
+  namespace: aide-fl
+spec:
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+    spec:
+      containers:
+      - name: orchestrator
+        image: ghcr.io/martienskienum1/orchestrator:latest
