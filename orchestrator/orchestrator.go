@@ -26,7 +26,7 @@ type Layer struct {
 	Config    map[string]interface{} `json:"config"`
 }
 
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
+func scenarioHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
 		return
@@ -64,7 +64,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/upload", uploadHandler)
+	http.HandleFunc("/scenario", scenarioHandler)
 
 	log.Println("Listening on http://localhost:8080/upload")
 	log.Fatal(http.ListenAndServe(":8080", nil))
