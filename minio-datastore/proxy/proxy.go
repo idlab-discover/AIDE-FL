@@ -146,6 +146,7 @@ func scenarioHandler(w http.ResponseWriter, r *http.Request, client *minio.Clien
 
 	datasetFilename := scenario.Dataset + ".parquet"
 	minioDatasetFilename := scenario.Dataset + "/" + datasetFilename
+	minioScenarioFilename := scenario.Dataset + "/" + scenarioFilename
 
 	// Check if dataset already present
 	if !fileExistsInMinio(client, minioDatasetFilename) {
@@ -165,10 +166,15 @@ func scenarioHandler(w http.ResponseWriter, r *http.Request, client *minio.Clien
 		}
 
 		if err := uploadToMinio(client, datasetFilename, minioDatasetFilename); err != nil {
-			http.Error(w, "Failed to upload to Minio", http.StatusInternalServerError)
+			http.Error(w, "Failed to upload dataset to Minio", http.StatusInternalServerError)
 			return
 		} else {
 			removeLocal(datasetFilename)
+		}
+
+		if err := uploadToMinio(client, scenarioFilename, minioScenarioFilename); err != nil {
+			http.Error(w, "Failed to upload scenario to Minio", http.StatusInternalServerError)
+			return
 		}
 	}
 
