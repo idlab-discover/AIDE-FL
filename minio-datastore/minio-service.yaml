@@ -6,9 +6,11 @@ spec:
   selector:
     app: minio
   ports:
-    - protocol: TCP
+    - name: ds
+      protocol: TCP
       port: 9090
       targetPort: 9090
-    - protocol: TCP
+    - name: proxy
+      protocol: TCP
       port: 8080
       targetPort: 8080
