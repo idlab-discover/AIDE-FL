@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -145,10 +144,13 @@ func scenarioHandler(w http.ResponseWriter, r *http.Request, client *minio.Clien
 	log.Printf("Scenario saved locally as %s\n", scenarioFilename)
 
 	datasetFilename := scenario.Dataset + ".parquet"
+	indexFilename := scenario.Name + ".INDEX"
 	minioDatasetFilename := scenario.Dataset + "/" + datasetFilename
 	minioScenarioFilename := scenario.Dataset + "/" + scenarioFilename
+	minioIndexFilename := scenario.Dataset + "/" + indexFilename
 
 	// Check if dataset already present
+	var status string
 	if !fileExistsInMinio(client, minioDatasetFilename) {
 		zipName, err := downloadFromKaggle(scenario.Dataset)
 		if err != nil {
@@ -176,12 +178,27 @@ func scenarioHandler(w http.ResponseWriter, r *http.Request, client *minio.Clien
 			http.Error(w, "Failed to upload scenario to Minio", http.StatusInternalServerError)
 			return
 		}
+
+		status = "new dataset"
+	} else {
+		if !fileExistsInMinio(client, minioScenarioFilename) {
+			if err := uploadToMinio(client, scenarioFilename, minioScenarioFilename); err != nil {
+				http.Error(w, "Failed to upload scenario to Minio", http.StatusInternalServerError)
+				return
+			}
+
+			status = "new scenario"
+		} else if !fileExistsInMinio(client, minioIndexFilename) {
+			status = "not preprocessed"
+		} else {
+			status = "preprocessed"
+		}
 	}
 
 	removeLocal(scenarioFilename)
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Scenario saved as %s", scenarioFilename)))
+	w.Write([]byte(status))
 }
 
 func downloadFromKaggle(kaggleDatasetName string) (string, error) {
