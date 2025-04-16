@@ -4,12 +4,12 @@ WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download
+COPY . .
 
-COPY *.go ./
-RUN CGO_ENABLED=0 GOOS=linux go build -o /minio-proxy
+RUN CGO_ENABLED=0 GOOS=linux go build -o /minio-proxy ./main.go
 
 EXPOSE 8080
 
 CMD ["/minio-proxy"]
 
-LABEL org.opencontainers.image.source https://github.com/MartienskieNum1/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/MartienskieNum1/AIDE-FL
