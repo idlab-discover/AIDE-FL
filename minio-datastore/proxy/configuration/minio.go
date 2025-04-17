@@ -15,7 +15,7 @@ func NewMinioClient(config Config) *minio.Client {
 		Creds:  credentials.NewStaticV4(username, password, ""),
 		Secure: false,
 	})
-	exception.PanicLogging(err)
+	exception.PanicLogging(err, "Unable to create Minio client")
 
 	return client
 }

@@ -24,33 +24,33 @@ func NewLocalRepositoryImpl(config configuration.Config) repository.LocalReposit
 
 func (repo *localRepositoryImpl) ScenarioToFile(outFilename string, scenario model.Scenario) {
 	data, err := json.Marshal(scenario)
-	exception.PanicLogging(err)
+	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
 
 	err = os.WriteFile(outFilename, []byte(data), 0644)
-	exception.PanicLogging(err)
+	exception.PanicLogging(err, "Unable to write", "file", outFilename)
 }
 
 func (repo *localRepositoryImpl) RemoveFile(filename string) {
 	err := os.Remove(filename)
-	exception.PanicLogging(err)
+	exception.PanicLogging(err, "Unable to remove", "file", filename)
 }
 
 func (repo *localRepositoryImpl) ExtractParquetFromZip(zipFilename string, outFilename string) {
 	archive, err := zip.OpenReader(zipFilename)
-	exception.PanicLogging(err)
+	exception.PanicLogging(err, "Unable to extract from", "file", zipFilename)
 	defer archive.Close()
 
 	// Extract first parquet file
 	for _, f := range archive.File {
 		if strings.HasSuffix(f.Name, ".parquet") {
 			fileInArchive, err := f.Open()
-			exception.PanicLogging(err)
+			exception.PanicLogging(err, "Unable to open", "file", f.Name)
 
 			dstFile, err := os.Create(outFilename)
-			exception.PanicLogging(err)
+			exception.PanicLogging(err, "Unable to create", "file", outFilename)
 
 			_, err = io.Copy(dstFile, fileInArchive)
-			exception.PanicLogging(err)
+			exception.PanicLogging(err, "Unable to write", "file", dstFile)
 
 			dstFile.Close()
 			fileInArchive.Close()
@@ -66,9 +66,9 @@ func (repo *localRepositoryImpl) ExtractParquetFromZip(zipFilename string, outFi
 func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) string {
 	fileKeyURL := repo.Config.Get("KAGGLE_URL") + strings.Replace(dataset, "-", "/", -1)
 
-	// Downloaden van Kaggle
+	// Download from Kaggle
 	resp, err := http.Get(fileKeyURL)
-	exception.PanicLogging(err)
+	exception.PanicLogging(err, "Unable to download from Kaggle", "dataset", fileKeyURL)
 	defer resp.Body.Close()
 
 	// TODO: error handling
@@ -77,13 +77,13 @@ func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) string {
 	}
 
 	//TODO: use WriteFile
-	outName := dataset + ".zip"
-	file, err := os.Create(outName)
-	exception.PanicLogging(err)
+	outFilename := dataset + ".zip"
+	file, err := os.Create(outFilename)
+	exception.PanicLogging(err, "Unable to create", "file", outFilename)
 	defer file.Close()
 
 	_, err = io.Copy(file, resp.Body)
-	exception.PanicLogging(err)
+	exception.PanicLogging(err, "Unable to write", "file", file)
 
-	return outName
+	return outFilename
 }

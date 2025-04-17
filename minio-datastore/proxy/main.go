@@ -32,5 +32,5 @@ func main() {
 
 	// start app
 	err := app.Listen(config.Get("LISTEN_PORT"))
-	exception.PanicLogging(err)
+	exception.PanicLogging(err, "Unable to start Fiber app")
 }
