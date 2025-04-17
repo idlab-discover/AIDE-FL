@@ -2,12 +2,11 @@ FROM golang:1.24
 
 WORKDIR /app
 
-COPY go.mod ./
-#COPY go.sum ./
-#RUN go mod download
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
 
-COPY *.go ./
-RUN CGO_ENABLED=0 GOOS=linux go build -o /orchestrator
+RUN CGO_ENABLED=0 GOOS=linux go build -o /orchestrator ./main.go
 
 EXPOSE 8080
 
