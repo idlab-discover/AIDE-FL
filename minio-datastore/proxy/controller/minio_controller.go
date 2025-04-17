@@ -33,5 +33,8 @@ func (controller MinioController) Create(c fiber.Ctx) error {
 	exception.PanicLogging(err)
 
 	status := controller.MinioService.Create(c.Context(), request)
-	return c.Status(fiber.StatusCreated).JSON(status)
+	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
+		Message: "Success",
+		Data:    status,
+	})
 }
