@@ -7,6 +7,7 @@ import (
 	repository "github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/repository/impl"
 	service "github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/service/impl"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/logger"
 )
 
 func main() {
@@ -26,6 +27,7 @@ func main() {
 
 	// setup fiber
 	app := fiber.New()
+	app.Use(logger.New())
 
 	// routing
 	minioController.Route(app)

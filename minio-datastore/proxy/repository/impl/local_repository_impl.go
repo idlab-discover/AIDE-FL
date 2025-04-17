@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -23,6 +24,8 @@ func NewLocalRepositoryImpl(config configuration.Config) repository.LocalReposit
 }
 
 func (repo *localRepositoryImpl) ScenarioToFile(outFilename string, scenario model.Scenario) {
+	slog.Info("Converting scenario to file", "file", outFilename)
+
 	data, err := json.Marshal(scenario)
 	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
 
@@ -31,11 +34,15 @@ func (repo *localRepositoryImpl) ScenarioToFile(outFilename string, scenario mod
 }
 
 func (repo *localRepositoryImpl) RemoveFile(filename string) {
+	slog.Info("Removing", "file", filename)
+
 	err := os.Remove(filename)
 	exception.PanicLogging(err, "Unable to remove", "file", filename)
 }
 
 func (repo *localRepositoryImpl) ExtractParquetFromZip(zipFilename string, outFilename string) {
+	slog.Info("Extracting first parquet file from", "zip", zipFilename)
+
 	archive, err := zip.OpenReader(zipFilename)
 	exception.PanicLogging(err, "Unable to extract from", "file", zipFilename)
 	defer archive.Close()
@@ -64,6 +71,8 @@ func (repo *localRepositoryImpl) ExtractParquetFromZip(zipFilename string, outFi
 }
 
 func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) string {
+	slog.Info("Downloading Kaggle", "dataset", dataset)
+
 	fileKeyURL := repo.Config.Get("KAGGLE_URL") + strings.Replace(dataset, "-", "/", -1)
 
 	// Download from Kaggle
