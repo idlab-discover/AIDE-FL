@@ -5,6 +5,7 @@ type Scenario struct {
 	Dataset       string        `json:"dataset"`
 	Preprocessing Preprocessing `json:"preprocessing"`
 	Model         []Layer       `json:"model"`
+	Status        string        `json:"status"`
 }
 
 type Preprocessing struct {

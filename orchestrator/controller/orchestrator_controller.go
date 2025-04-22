@@ -16,17 +16,17 @@ func NewOrchestratorController() *OrchestratorController {
 }
 
 func (controller OrchestratorController) Route(app *fiber.App) {
-	app.Post("/scenario", controller.Start)
+	app.Post("/start", controller.Start)
 }
 
 func (controller OrchestratorController) Start(c fiber.Ctx) error {
-	var request model.Scenario
-	err := json.Unmarshal(c.Body(), &request)
+	var scenario model.Scenario
+	err := json.Unmarshal(c.Body(), &scenario)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
-	status := model.Status{Status: "Started"}
+	scenario.Status = "not preprocessed"
 	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
 		Message: "Success",
-		Data:    status,
+		Data:    scenario,
 	})
 }
