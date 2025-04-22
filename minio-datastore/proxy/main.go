@@ -18,12 +18,14 @@ func main() {
 	// repository
 	minioRepository := repository.NewMinioRepositoryImpl(minioClient, config)
 	localRepository := repository.NewLocalRepositoryImpl(config)
+	kafkaRepository := repository.NewKafkaRepositoryImpl(config)
 
 	// service
 	minioService := service.NewMinioServiceImpl(&minioRepository, &localRepository, config)
+	kafkaService := service.NewKafkaServiceImpl(&kafkaRepository)
 
 	// controller
-	minioController := controller.NewMinioController(&minioService, config)
+	minioController := controller.NewMinioController(&minioService, &kafkaService, config)
 
 	// setup fiber
 	app := fiber.New()

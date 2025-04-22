@@ -12,11 +12,12 @@ import (
 
 type MinioController struct {
 	service.MinioService
+	service.KafkaService
 	configuration.Config
 }
 
-func NewMinioController(minioService *service.MinioService, config configuration.Config) *MinioController {
-	this := &MinioController{MinioService: *minioService, Config: config}
+func NewMinioController(minioService *service.MinioService, kafkaService *service.KafkaService, config configuration.Config) *MinioController {
+	this := &MinioController{MinioService: *minioService, KafkaService: *kafkaService, Config: config}
 
 	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_BUCKET"))
 
@@ -33,6 +34,8 @@ func (controller MinioController) Create(c fiber.Ctx) error {
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
 	status := controller.MinioService.Create(scenario)
+	controller.KafkaService.PublishDatasetStatus(scenario, status)
+
 	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
 		Message: "Success",
 		Data:    status,
