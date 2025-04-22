@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/configuration"
@@ -33,6 +34,8 @@ func NewKafkaRepositoryImpl(config configuration.Config) repository.KafkaReposit
 }
 
 func (repo *kafkaRepository) PublishDatasetStatus(scenario model.Scenario, status model.Status) {
+	slog.Info("Publishing", "scenario", scenario.Name, "status", status.Status)
+
 	msg := kafka.Message{
 		Key:   []byte(scenario.Dataset),
 		Value: []byte(fmt.Sprintf(`{"scenario": "%s", "status": "%s"}`, scenario.Name, status.Status)),
