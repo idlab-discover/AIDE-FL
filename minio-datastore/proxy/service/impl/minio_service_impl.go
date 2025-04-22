@@ -1,8 +1,6 @@
 package impl
 
 import (
-	"context"
-
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/repository"
@@ -19,7 +17,7 @@ func NewMinioServiceImpl(minioRepository *repository.MinioRepository, localRepos
 	return &minioServiceImpl{MinioRepository: *minioRepository, LocalRepository: *localRepository, Config: config}
 }
 
-func (service *minioServiceImpl) Create(ctx context.Context, scenario model.Scenario) model.Status {
+func (service *minioServiceImpl) Create(scenario model.Scenario) model.Status {
 
 	datasetFilename := scenario.Dataset + ".parquet"
 	scenarioFilename := scenario.Name + ".json"

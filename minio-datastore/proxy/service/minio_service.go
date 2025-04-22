@@ -1,12 +1,10 @@
 package service
 
 import (
-	"context"
-
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
 )
 
 type MinioService interface {
-	Create(ctx context.Context, scenario model.Scenario) model.Status
+	Create(scenario model.Scenario) model.Status
 	EnsureBucketExists(bucketName string)
 }
