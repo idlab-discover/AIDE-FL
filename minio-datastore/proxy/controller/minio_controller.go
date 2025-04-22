@@ -33,11 +33,12 @@ func (controller MinioController) Create(c fiber.Ctx) error {
 	err := json.Unmarshal(c.Body(), &scenario)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
-	status := controller.MinioService.Create(scenario)
-	controller.KafkaService.PublishDatasetStatus(scenario, status)
+	// The MinioService returns scenario with Status
+	scenario = controller.MinioService.Create(scenario)
+	controller.KafkaService.PublishDatasetStatus(scenario)
 
 	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
 		Message: "Success",
-		Data:    status,
+		Data:    scenario,
 	})
 }

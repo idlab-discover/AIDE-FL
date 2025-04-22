@@ -17,7 +17,7 @@ func NewMinioServiceImpl(minioRepository *repository.MinioRepository, localRepos
 	return &minioServiceImpl{MinioRepository: *minioRepository, LocalRepository: *localRepository, Config: config}
 }
 
-func (service *minioServiceImpl) Create(scenario model.Scenario) model.Status {
+func (service *minioServiceImpl) Create(scenario model.Scenario) model.Scenario {
 
 	datasetFilename := scenario.Dataset + ".parquet"
 	scenarioFilename := scenario.Name + ".json"
@@ -26,10 +26,8 @@ func (service *minioServiceImpl) Create(scenario model.Scenario) model.Status {
 	minioScenarioFilename := scenario.Dataset + "/" + scenarioFilename
 	minioIndexFilename := scenario.Dataset + "/" + indexFilename
 
-	var status model.Status
-
 	if service.MinioRepository.ObjectExists(minioIndexFilename) {
-		status.Status = "preprocessed"
+		scenario.Status = "preprocessed"
 	} else {
 		if !service.MinioRepository.ObjectExists(minioScenarioFilename) {
 
@@ -37,9 +35,9 @@ func (service *minioServiceImpl) Create(scenario model.Scenario) model.Status {
 			service.MinioRepository.Insert(scenarioFilename, minioScenarioFilename)
 			service.LocalRepository.RemoveFile(scenarioFilename)
 
-			status.Status = "new scenario"
+			scenario.Status = "new scenario"
 		} else {
-			status.Status = "not preprocessed"
+			scenario.Status = "not preprocessed"
 		}
 
 		if !service.MinioRepository.ObjectExists(minioDatasetFilename) {
@@ -48,11 +46,11 @@ func (service *minioServiceImpl) Create(scenario model.Scenario) model.Status {
 			service.MinioRepository.Insert(datasetFilename, minioDatasetFilename)
 			service.LocalRepository.RemoveFile(datasetFilename)
 
-			status.Status = "new dataset"
+			scenario.Status = "new dataset"
 		}
 	}
 
-	return status
+	return scenario
 }
 
 func (service *minioServiceImpl) EnsureBucketExists(bucketName string) {

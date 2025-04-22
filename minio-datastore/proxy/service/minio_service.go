@@ -5,6 +5,6 @@ import (
 )
 
 type MinioService interface {
-	Create(scenario model.Scenario) model.Status
+	Create(scenario model.Scenario) model.Scenario
 	EnsureBucketExists(bucketName string)
 }

@@ -2,7 +2,7 @@ package impl
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -33,16 +33,19 @@ func NewKafkaRepositoryImpl(config configuration.Config) repository.KafkaReposit
 	}
 }
 
-func (repo *kafkaRepository) PublishDatasetStatus(scenario model.Scenario, status model.Status) {
-	slog.Info("Publishing", "scenario", scenario.Name, "status", status.Status)
+func (repo *kafkaRepository) PublishDatasetStatus(scenario model.Scenario) {
+	slog.Info("Publishing", "scenario", scenario.Name)
+
+	byteArray, err := json.Marshal(scenario)
+	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
 
 	msg := kafka.Message{
 		Key:   []byte(scenario.Dataset),
-		Value: []byte(fmt.Sprintf(`{"scenario": "%s", "status": "%s"}`, scenario.Name, status.Status)),
+		Value: byteArray,
 	}
 
-	err := repo.Writer.WriteMessages(context.Background(), msg)
-	exception.PanicLogging(err, "Unable to publish", "scenario", scenario.Name, "status", status.Status)
+	err = repo.Writer.WriteMessages(context.Background(), msg)
+	exception.PanicLogging(err, "Unable to publish", "scenario", scenario.Name)
 }
 
 func (repo *kafkaRepository) Close() {

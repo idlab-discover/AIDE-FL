@@ -14,8 +14,8 @@ func NewKafkaServiceImpl(kafkaRepo *repository.KafkaRepository) service.KafkaSer
 	return &kafkaServiceImpl{KafkaRepository: *kafkaRepo}
 }
 
-func (service *kafkaServiceImpl) PublishDatasetStatus(scenario model.Scenario, status model.Status) {
-	service.KafkaRepository.PublishDatasetStatus(scenario, status)
+func (service *kafkaServiceImpl) PublishDatasetStatus(scenario model.Scenario) {
+	service.KafkaRepository.PublishDatasetStatus(scenario)
 }
 
 func (service *kafkaServiceImpl) Close() {
