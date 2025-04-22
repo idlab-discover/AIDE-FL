@@ -33,7 +33,7 @@ func NewKafkaRepositoryImpl(config configuration.Config) repository.KafkaReposit
 	}
 }
 
-func (repo *kafkaRepository) PublishDatasetStatus(scenario model.Scenario) {
+func (repo *kafkaRepository) PublishScenarioStatus(scenario model.Scenario) {
 	slog.Info("Publishing", "scenario", scenario.Name)
 
 	byteArray, err := json.Marshal(scenario)

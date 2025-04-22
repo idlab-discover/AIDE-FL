@@ -35,7 +35,7 @@ func (controller MinioController) Create(c fiber.Ctx) error {
 
 	// The MinioService returns scenario with Status
 	scenario = controller.MinioService.Create(scenario)
-	controller.KafkaService.PublishDatasetStatus(scenario)
+	controller.KafkaService.PublishScenarioStatus(scenario)
 
 	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
 		Message: "Success",
