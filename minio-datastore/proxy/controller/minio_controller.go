@@ -28,11 +28,11 @@ func (controller MinioController) Route(app *fiber.App) {
 }
 
 func (controller MinioController) Create(c fiber.Ctx) error {
-	var request model.Scenario
-	err := json.Unmarshal(c.Body(), &request)
+	var scenario model.Scenario
+	err := json.Unmarshal(c.Body(), &scenario)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
-	status := controller.MinioService.Create(request)
+	status := controller.MinioService.Create(scenario)
 	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
 		Message: "Success",
 		Data:    status,
