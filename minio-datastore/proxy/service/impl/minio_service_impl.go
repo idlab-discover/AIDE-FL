@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/repository"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/service"
@@ -10,11 +9,10 @@ import (
 type minioServiceImpl struct {
 	repository.MinioRepository
 	repository.LocalRepository
-	configuration.Config
 }
 
-func NewMinioServiceImpl(minioRepository *repository.MinioRepository, localRepository *repository.LocalRepository, config configuration.Config) service.MinioService {
-	return &minioServiceImpl{MinioRepository: *minioRepository, LocalRepository: *localRepository, Config: config}
+func NewMinioServiceImpl(minioRepository *repository.MinioRepository, localRepository *repository.LocalRepository) service.MinioService {
+	return &minioServiceImpl{MinioRepository: *minioRepository, LocalRepository: *localRepository}
 }
 
 func (service *minioServiceImpl) Create(scenario model.Scenario) model.Scenario {

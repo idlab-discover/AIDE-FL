@@ -22,7 +22,7 @@ func main() {
 	defer kafkaPublishRepository.Close()
 
 	// service
-	minioService := service.NewMinioServiceImpl(&minioRepository, &localRepository, config)
+	minioService := service.NewMinioServiceImpl(&minioRepository, &localRepository)
 	kafkaService := service.NewKafkaServiceImpl(&kafkaPublishRepository)
 
 	// controller
