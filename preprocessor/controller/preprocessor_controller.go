@@ -10,11 +10,12 @@ import (
 
 type PreprocessorController struct {
 	service.PreprocessorService
+	service.MinioService
 	service.KafkaService
 }
 
-func NewPreprocessorController(preprocessorService *service.PreprocessorService, kafkaService *service.KafkaService) *PreprocessorController {
-	return &PreprocessorController{PreprocessorService: *preprocessorService, KafkaService: *kafkaService}
+func NewPreprocessorController(preprocessorService *service.PreprocessorService, minioService *service.MinioService, kafkaService *service.KafkaService) *PreprocessorController {
+	return &PreprocessorController{PreprocessorService: *preprocessorService, MinioService: *minioService, KafkaService: *kafkaService}
 }
 
 func (controller PreprocessorController) StartConsumingScenarios(ctx context.Context) {
@@ -22,5 +23,11 @@ func (controller PreprocessorController) StartConsumingScenarios(ctx context.Con
 }
 
 func (controller PreprocessorController) Preprocess(scenario model.Scenario) {
-	slog.Info("Start preprocessing for", "scenario", scenario.Name)
+	if scenario.Status == "preprocessed" {
+		slog.Info("Already preprocessed", "scenario", scenario.Name)
+		return
+	}
+
+	slog.Info("Start preprocessing", "scenario", scenario.Name)
+
 }
