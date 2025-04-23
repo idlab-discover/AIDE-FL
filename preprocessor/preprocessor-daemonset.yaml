@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: preprocessor
+  name: preprocessor-daemonset
+  namespace: aide-fl
+spec:
+  selector:
+    matchLabels:
+      app: preprocessor
+  template:
+    metadata:
+      labels:
+        app: preprocessor
+    spec:
+      containers:
+      - name: preprocessor
+        image: ghcr.io/martienskienum1/preprocessor:latest
