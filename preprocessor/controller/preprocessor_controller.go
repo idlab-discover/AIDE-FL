@@ -1,33 +1,26 @@
 package controller
 
 import (
-	"encoding/json"
+	"context"
+	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/preprocessor/exception"
 	"github.com/MartienskieNum1/AIDE-FL/preprocessor/model"
 	"github.com/MartienskieNum1/AIDE-FL/preprocessor/service"
-	"github.com/gofiber/fiber/v3"
 )
 
 type PreprocessorController struct {
 	service.PreprocessorService
+	service.KafkaService
 }
 
-func NewPreprocessorController(preprocessorService *service.PreprocessorService) *PreprocessorController {
-	return &PreprocessorController{PreprocessorService: *preprocessorService}
+func NewPreprocessorController(preprocessorService *service.PreprocessorService, kafkaService *service.KafkaService) *PreprocessorController {
+	return &PreprocessorController{PreprocessorService: *preprocessorService, KafkaService: *kafkaService}
 }
 
-func (controller PreprocessorController) Route(app *fiber.App) {
-	app.Post("/preprocess", controller.Preprocess)
+func (controller PreprocessorController) StartConsumingScenarios(ctx context.Context) {
+	controller.KafkaService.ConsumeScenarioStatusEvents(ctx, controller.Preprocess)
 }
 
-func (controller PreprocessorController) Preprocess(c fiber.Ctx) error {
-	var scenario model.Scenario
-	err := json.Unmarshal(c.Body(), &scenario)
-	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
-
-	return c.Status(fiber.StatusAccepted).JSON(model.GeneralResponse{
-		Message: "Success",
-		Data:    "Not implemented",
-	})
+func (controller PreprocessorController) Preprocess(scenario model.Scenario) {
+	slog.Info("Start preprocessing for", "scenario", scenario.Name)
 }

@@ -1,12 +1,12 @@
 package main
 
 import (
+	"context"
+
 	"github.com/MartienskieNum1/AIDE-FL/preprocessor/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/preprocessor/controller"
-	"github.com/MartienskieNum1/AIDE-FL/preprocessor/exception"
+	repository "github.com/MartienskieNum1/AIDE-FL/preprocessor/repository/impl"
 	service "github.com/MartienskieNum1/AIDE-FL/preprocessor/service/impl"
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/logger"
 )
 
 func main() {
@@ -14,21 +14,16 @@ func main() {
 	config := configuration.New()
 
 	// repository
+	kafkaConsumeRepository := repository.NewKafkaConsumeRepositoryImpl(config)
+	defer kafkaConsumeRepository.Close()
 
 	// service
 	preprocessorService := service.NewPrepocessorServiceImpl()
+	kafkaService := service.NewKafkaServiceImpl(kafkaConsumeRepository)
 
 	// controller
-	preprocessorController := controller.NewPreprocessorController(&preprocessorService)
+	preprocessorController := controller.NewPreprocessorController(&preprocessorService, &kafkaService)
 
-	// setup fiber
-	app := fiber.New()
-	app.Use(logger.New())
-
-	// routing
-	preprocessorController.Route(app)
-
-	// start app
-	err := app.Listen(config.Get("LISTEN_PORT"))
-	exception.PanicLogging(err, "Unable to start Fiber app")
+	// consume
+	preprocessorController.StartConsumingScenarios(context.Background())
 }
