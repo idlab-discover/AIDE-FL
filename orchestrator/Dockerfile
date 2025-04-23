@@ -12,4 +12,4 @@ EXPOSE 8080
 
 CMD ["/orchestrator"]
 
-LABEL org.opencontainers.image.source https://github.com/MartienskieNum1/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/MartienskieNum1/AIDE-FL
