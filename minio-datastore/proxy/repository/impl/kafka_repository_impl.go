@@ -40,7 +40,7 @@ func (repo *kafkaRepository) PublishScenarioStatus(scenario model.Scenario) {
 	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
 
 	msg := kafka.Message{
-		Key:   []byte(scenario.Dataset),
+		Key:   []byte(scenario.Name),
 		Value: byteArray,
 	}
 
