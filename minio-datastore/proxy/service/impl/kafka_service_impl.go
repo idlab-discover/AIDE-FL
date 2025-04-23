@@ -7,17 +7,13 @@ import (
 )
 
 type kafkaServiceImpl struct {
-	repository.KafkaRepository
+	repository.KafkaPublishRepository
 }
 
-func NewKafkaServiceImpl(kafkaRepo *repository.KafkaRepository) service.KafkaService {
-	return &kafkaServiceImpl{KafkaRepository: *kafkaRepo}
+func NewKafkaServiceImpl(kafkaRepo *repository.KafkaPublishRepository) service.KafkaService {
+	return &kafkaServiceImpl{KafkaPublishRepository: *kafkaRepo}
 }
 
 func (service *kafkaServiceImpl) PublishScenarioStatus(scenario model.Scenario) {
-	service.KafkaRepository.PublishScenarioStatus(scenario)
-}
-
-func (service *kafkaServiceImpl) Close() {
-	service.KafkaRepository.Close()
+	service.KafkaPublishRepository.PublishScenarioStatus(scenario)
 }

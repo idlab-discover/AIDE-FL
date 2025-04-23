@@ -18,11 +18,12 @@ func main() {
 	// repository
 	minioRepository := repository.NewMinioRepositoryImpl(minioClient, config)
 	localRepository := repository.NewLocalRepositoryImpl(config)
-	kafkaRepository := repository.NewKafkaRepositoryImpl(config)
+	kafkaPublishRepository := repository.NewKafkaPublishRepositoryImpl(config)
+	defer kafkaPublishRepository.Close()
 
 	// service
 	minioService := service.NewMinioServiceImpl(&minioRepository, &localRepository, config)
-	kafkaService := service.NewKafkaServiceImpl(&kafkaRepository)
+	kafkaService := service.NewKafkaServiceImpl(&kafkaPublishRepository)
 
 	// controller
 	minioController := controller.NewMinioController(&minioService, &kafkaService, config)

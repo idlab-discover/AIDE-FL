@@ -13,11 +13,11 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-type kafkaRepository struct {
+type kafkaPublishRepository struct {
 	*kafka.Writer
 }
 
-func NewKafkaRepositoryImpl(config configuration.Config) repository.KafkaRepository {
+func NewKafkaPublishRepositoryImpl(config configuration.Config) repository.KafkaPublishRepository {
 	writer := &kafka.Writer{
 		Addr:         kafka.TCP(config.Get("KAFKA_ADDRESS")),
 		Topic:        config.Get("KAFKA_TOPIC"),
@@ -28,12 +28,12 @@ func NewKafkaRepositoryImpl(config configuration.Config) repository.KafkaReposit
 		WriteTimeout: 5 * time.Second,
 	}
 
-	return &kafkaRepository{
+	return &kafkaPublishRepository{
 		Writer: writer,
 	}
 }
 
-func (repo *kafkaRepository) PublishScenarioStatus(scenario model.Scenario) {
+func (repo *kafkaPublishRepository) PublishScenarioStatus(scenario model.Scenario) {
 	slog.Info("Publishing", "scenario", scenario.Name)
 
 	byteArray, err := json.Marshal(scenario)
@@ -48,7 +48,7 @@ func (repo *kafkaRepository) PublishScenarioStatus(scenario model.Scenario) {
 	exception.PanicLogging(err, "Unable to publish", "scenario", scenario.Name)
 }
 
-func (repo *kafkaRepository) Close() {
+func (repo *kafkaPublishRepository) Close() {
 	err := repo.Writer.Close()
 	exception.PanicLogging(err, "Unable to close Kafka writer")
 }
