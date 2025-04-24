@@ -1,6 +1,8 @@
 package impl
 
 import (
+	"path/filepath"
+
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/repository"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/service"
@@ -20,9 +22,9 @@ func (service *minioServiceImpl) Create(scenario model.Scenario) model.Scenario 
 	datasetFilename := scenario.Dataset + ".parquet"
 	scenarioFilename := scenario.Name + ".json"
 	indexFilename := scenario.Name + ".INDEX"
-	minioDatasetFilename := scenario.Dataset + "/" + datasetFilename
-	minioScenarioFilename := scenario.Dataset + "/" + scenarioFilename
-	minioIndexFilename := scenario.Dataset + "/" + indexFilename
+	minioDatasetFilename := filepath.Join(scenario.Dataset, datasetFilename)
+	minioScenarioFilename := filepath.Join(scenario.Dataset, scenarioFilename)
+	minioIndexFilename := filepath.Join(scenario.Dataset, indexFilename)
 
 	if service.MinioRepository.ObjectExists(minioIndexFilename) {
 		scenario.Status = "preprocessed"
