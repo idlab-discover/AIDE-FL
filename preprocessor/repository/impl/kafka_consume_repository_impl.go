@@ -42,8 +42,16 @@ func (repo *kafkaConsumeRepository) ConsumeScenarioStatusEvents(ctx context.Cont
 		err = json.Unmarshal(m.Value, &scenario)
 		exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
-		go handler(scenario)
+		handler(scenario)
+		repo.CommitMessages(ctx, m)
 	}
+}
+
+func (repo *kafkaConsumeRepository) CommitMessages(ctx context.Context, msgs ...kafka.Message) {
+	slog.Info("Commiting message")
+
+	err := repo.Reader.CommitMessages(ctx, msgs...)
+	exception.PanicLogging(err, "Unable to commit", "message", msgs)
 }
 
 func (repo *kafkaConsumeRepository) Close() {
