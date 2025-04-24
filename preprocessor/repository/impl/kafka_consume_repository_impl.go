@@ -19,13 +19,13 @@ type kafkaConsumeRepository struct {
 
 func NewKafkaConsumeRepositoryImpl(config configuration.Config) repository.KafkaConsumeRepository {
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{config.Get("KAFKA_ADDRESS")},
-		Topic:   config.Get("KAFKA_TOPIC"),
-		//GroupID:   config.Get("KAFKA_GROUP"),
+		Brokers:  []string{config.Get("KAFKA_ADDRESS")},
+		Topic:    config.Get("KAFKA_TOPIC"),
+		GroupID:  config.Get("KAFKA_GROUP"),
 		MinBytes: 1e3,  // 1KB
 		MaxBytes: 10e6, // 10MB
 		MaxWait:  1 * time.Second,
-		//Partition: 0, // if using GroupId
+		// Partition: 0, // or using GroupId
 	})
 
 	return &kafkaConsumeRepository{Reader: reader}
