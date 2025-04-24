@@ -27,12 +27,11 @@ func (repo *minioRepositoryImpl) Insert(srcFilename string, dstFilename string) 
 	exception.PanicLogging(err, "Unable to upload", "object", srcFilename)
 }
 
-func (repo *minioRepositoryImpl) GetObject(filename string) io.Reader {
+func (repo *minioRepositoryImpl) GetObject(filename string) io.ReadCloser {
 	slog.Info("Getting Minio", "object", filename)
 
 	obj, err := repo.Client.GetObject(context.Background(), repo.Config.Get("MINIO_BUCKET"), filename, minio.GetObjectOptions{})
 	exception.PanicLogging(err, "Unable to get", "object", filename)
-	defer obj.Close()
 
 	return obj
 }

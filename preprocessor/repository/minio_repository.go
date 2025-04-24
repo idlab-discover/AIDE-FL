@@ -4,5 +4,5 @@ import "io"
 
 type MinioRepository interface {
 	Insert(srcFilename string, dstFilename string)
-	GetObject(filename string) io.Reader
+	GetObject(filename string) io.ReadCloser
 }
