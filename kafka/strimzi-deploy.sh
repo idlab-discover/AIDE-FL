@@ -19,6 +19,8 @@ spec:
         port: 9092
         type: internal
         tls: false
+    config:
+      offsets.topic.replication.factor: 1
     storage:
       type: ephemeral
   zookeeper:
