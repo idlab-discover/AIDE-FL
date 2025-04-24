@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"log"
 	"log/slog"
 
 	"github.com/MartienskieNum1/AIDE-FL/preprocessor/model"
@@ -12,10 +13,16 @@ type PreprocessorController struct {
 	service.PreprocessorService
 	service.MinioService
 	service.KafkaService
+	service.ParquetService
 }
 
-func NewPreprocessorController(preprocessorService *service.PreprocessorService, minioService *service.MinioService, kafkaService *service.KafkaService) *PreprocessorController {
-	return &PreprocessorController{PreprocessorService: *preprocessorService, MinioService: *minioService, KafkaService: *kafkaService}
+func NewPreprocessorController(preprocessorService *service.PreprocessorService, minioService *service.MinioService, kafkaService *service.KafkaService, parquetService *service.ParquetService) *PreprocessorController {
+	return &PreprocessorController{
+		PreprocessorService: *preprocessorService,
+		MinioService:        *minioService,
+		KafkaService:        *kafkaService,
+		ParquetService:      *parquetService,
+	}
 }
 
 func (controller PreprocessorController) StartConsumingScenarios(ctx context.Context) {
@@ -30,4 +37,11 @@ func (controller PreprocessorController) Preprocess(scenario model.Scenario) {
 
 	slog.Info("Start preprocessing", "scenario", scenario.Name)
 
+	buf := controller.MinioService.LoadDataset(scenario.Dataset)
+	rows := controller.ParquetService.ExtractRows(buf)
+
+	for _, r := range rows {
+		record := r.(map[string]interface{})
+		log.Printf("Row: %+v", record)
+	}
 }

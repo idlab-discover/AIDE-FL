@@ -23,9 +23,10 @@ func main() {
 	preprocessorService := service.NewPrepocessorServiceImpl()
 	minioService := service.NewMinioServiceImpl(&minioRepository)
 	kafkaService := service.NewKafkaServiceImpl(kafkaConsumeRepository)
+	parquetService := service.NewParquetService()
 
 	// controller
-	preprocessorController := controller.NewPreprocessorController(&preprocessorService, &minioService, &kafkaService)
+	preprocessorController := controller.NewPreprocessorController(&preprocessorService, &minioService, &kafkaService, &parquetService)
 
 	// consume
 	preprocessorController.StartConsumingScenarios(context.Background())
