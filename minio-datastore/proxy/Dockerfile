@@ -12,6 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /minio-proxy ./main.go
 
 # Create minimal container
 FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /minio-proxy /app/.env .
 CMD ["/minio-proxy"]
 
