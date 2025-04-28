@@ -17,10 +17,9 @@ spec:
       containers:
       - name: minio-proxy
         image: ghcr.io/martienskienum1/minio-proxy:latest
-      initContainers:
+
       - name: minio
         image: quay.io/minio/minio:latest
-        restartPolicy: Always
         env:
         - name: MINIO_ROOT_USER
           value: aide-fl1
@@ -31,9 +30,19 @@ spec:
         - -c
         args:
         - minio server /data --console-address :9001
+        ports:
+        - containerPort: 9000
+        - containerPort: 9001
         volumeMounts:
         - mountPath: /data
           name: localvolume
+        startupProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          failureThreshold: 30
+          periodSeconds: 5
+
       volumes:
       - name: localvolume
         hostPath:
