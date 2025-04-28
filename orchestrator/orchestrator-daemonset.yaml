@@ -17,3 +17,5 @@ spec:
       containers:
       - name: orchestrator
         image: ghcr.io/martienskienum1/orchestrator:latest
+        ports:
+        - containerPort: 8080
