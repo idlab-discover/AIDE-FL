@@ -14,13 +14,14 @@ func main() {
 	// setup configuration
 	config := configuration.New()
 	kafkaPrepareWriter := configuration.NewKafkaPrepareWriter(config)
+	kafkaPreparedReader := configuration.NewKafkaPreparedReader(config)
 
 	// repository
-	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter)
+	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter, kafkaPreparedReader)
 	defer kafkaRepository.Close()
 
 	// service
-	kafkaService := service.NewKafkaServiceImpl(kafkaRepository)
+	kafkaService := service.NewKafkaServiceImpl(&kafkaRepository)
 
 	// controller
 	orchestratorController := controller.NewOrchestratorController(&kafkaService)

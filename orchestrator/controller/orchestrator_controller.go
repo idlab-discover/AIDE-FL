@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/exception"
@@ -27,8 +28,8 @@ func (controller OrchestratorController) Start(c fiber.Ctx) error {
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
 	controller.KafkaService.PublishPrepareScenario(scenario)
+	scenario = controller.KafkaService.ConsumePreparedScenario(context.Background())
 
-	scenario.Status = "not preprocessed"
 	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
 		Message: "Success",
 		Data:    scenario,
