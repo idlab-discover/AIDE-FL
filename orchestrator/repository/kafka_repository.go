@@ -3,11 +3,12 @@ package repository
 import (
 	"context"
 
-	"github.com/MartienskieNum1/AIDE-FL/orchestrator/model"
+	"github.com/segmentio/kafka-go"
 )
 
 type KafkaRepository interface {
-	PublishPrepareScenario(scenario model.Scenario)
-	ConsumePreparedScenario(ctx context.Context) model.Scenario
+	WritePrepareScenario(msg kafka.Message)
+	ReadPreparedScenario(ctx context.Context) kafka.Message
+	CommitPreparedScenario(ctx context.Context, msg kafka.Message)
 	Close()
 }
