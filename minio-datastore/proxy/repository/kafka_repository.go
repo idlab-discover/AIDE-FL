@@ -3,11 +3,12 @@ package repository
 import (
 	"context"
 
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
+	"github.com/segmentio/kafka-go"
 )
 
 type KafkaRepository interface {
-	ConsumePrepareScenario(ctx context.Context, handler func(model.Scenario))
-	PublishPreparedScenario(scenario model.Scenario)
+	ReadPrepareScenario(ctx context.Context) kafka.Message
+	CommitPrepareScenario(ctx context.Context, msg kafka.Message)
+	WritePreparedScenario(msg kafka.Message)
 	Close()
 }
