@@ -4,6 +4,8 @@ import (
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/controller"
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/exception"
+	repository "github.com/MartienskieNum1/AIDE-FL/orchestrator/repository/impl"
+	service "github.com/MartienskieNum1/AIDE-FL/orchestrator/service/impl"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 )
@@ -11,9 +13,16 @@ import (
 func main() {
 	// setup configuration
 	config := configuration.New()
+	kafkaPrepareWriter := configuration.NewKafkaPrepareWriter(config)
+
+	// repository
+	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter)
+
+	// service
+	kafkaService := service.NewKafkaServiceImpl(kafkaRepository)
 
 	// controller
-	orchestratorController := controller.NewOrchestratorController()
+	orchestratorController := controller.NewOrchestratorController(&kafkaService)
 
 	// setup fiber
 	app := fiber.New()
