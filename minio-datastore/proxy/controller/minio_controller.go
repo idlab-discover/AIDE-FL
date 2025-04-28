@@ -1,13 +1,12 @@
 package controller
 
 import (
-	"encoding/json"
+	"context"
+	"log/slog"
 
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/exception"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
 	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/service"
-	"github.com/gofiber/fiber/v3"
 )
 
 type MinioController struct {
@@ -24,21 +23,15 @@ func NewMinioController(minioService *service.MinioService, kafkaService *servic
 	return this
 }
 
-func (controller MinioController) Route(app *fiber.App) {
-	app.Post("/scenario", controller.Create)
+func (controller MinioController) StartConsuming(ctx context.Context) {
+	controller.KafkaService.ConsumePrepareScenario(ctx, controller.Prepare)
 }
 
-func (controller MinioController) Create(c fiber.Ctx) error {
-	var scenario model.Scenario
-	err := json.Unmarshal(c.Body(), &scenario)
-	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
+func (controller MinioController) Prepare(scenario model.Scenario) {
+	slog.Info("Preparing", "scenario", scenario.Name)
 
-	// The MinioService returns scenario with Status
+	// The MinioService returns scenario with a Status
 	scenario = controller.MinioService.Create(scenario)
-	controller.KafkaService.PublishScenarioStatus(scenario)
 
-	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
-		Message: "Success",
-		Data:    scenario,
-	})
+	controller.KafkaService.PublishPreparedScenario(scenario)
 }
