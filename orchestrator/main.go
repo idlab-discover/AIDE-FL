@@ -17,6 +17,7 @@ func main() {
 
 	// repository
 	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter)
+	defer kafkaRepository.Close()
 
 	// service
 	kafkaService := service.NewKafkaServiceImpl(kafkaRepository)

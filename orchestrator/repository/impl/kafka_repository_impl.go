@@ -38,5 +38,5 @@ func (repo *kafkaRepository) PublishPrepareScenario(scenario model.Scenario) {
 
 func (repo *kafkaRepository) Close() {
 	err := repo.prepareScenarioWriter.Close()
-	exception.PanicLogging(err, "Unable to close Kafka writer")
+	exception.PanicLogging(err, "Unable to close prepare scenario writer")
 }
