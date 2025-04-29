@@ -55,3 +55,15 @@ spec:
   partitions: 1
   replicas: 1
 EOF
+
+kubectl apply -f - <<EOF
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: "scenario.preprocess"
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 1
+  replicas: 1
+EOF
