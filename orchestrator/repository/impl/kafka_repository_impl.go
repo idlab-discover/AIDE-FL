@@ -10,20 +10,27 @@ import (
 )
 
 type kafkaRepositoryImpl struct {
-	prepareWriter  *kafka.Writer
-	preparedReader *kafka.Reader
+	prepareWriter    *kafka.Writer
+	preparedReader   *kafka.Reader
+	preprocessWriter *kafka.Writer
 }
 
-func NewKafkaRepositoryImpl(prepareWriter *kafka.Writer, preparedReader *kafka.Reader) repository.KafkaRepository {
+func NewKafkaRepositoryImpl(prepareWriter *kafka.Writer, preparedReader *kafka.Reader, preprocessWriter *kafka.Writer) repository.KafkaRepository {
 	return &kafkaRepositoryImpl{
-		prepareWriter:  prepareWriter,
-		preparedReader: preparedReader,
+		prepareWriter:    prepareWriter,
+		preparedReader:   preparedReader,
+		preprocessWriter: preprocessWriter,
 	}
 }
 
 func (repo *kafkaRepositoryImpl) WritePrepareScenario(msg kafka.Message) {
 	err := repo.prepareWriter.WriteMessages(context.Background(), msg)
 	exception.PanicLogging(err, "Unable to publish prepare scenario")
+}
+
+func (repo *kafkaRepositoryImpl) WritePreprocessScenario(msg kafka.Message) {
+	err := repo.preprocessWriter.WriteMessages(context.Background(), msg)
+	exception.PanicLogging(err, "Unable to publish preprocess scenario")
 }
 
 func (repo *kafkaRepositoryImpl) ReadPreparedScenario(ctx context.Context) kafka.Message {

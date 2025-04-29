@@ -34,6 +34,20 @@ func (service *kafkaServiceImpl) PublishPrepareScenario(scenario model.Scenario)
 	service.KafkaRepository.WritePrepareScenario(msg)
 }
 
+func (service *kafkaServiceImpl) PublishPreprocessScenario(scenario model.Scenario) {
+	slog.Info("Publishing preprocess", "scenario", scenario.Name)
+
+	byteArray, err := json.Marshal(scenario)
+	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
+
+	msg := kafka.Message{
+		Key:   []byte(scenario.Name),
+		Value: byteArray,
+	}
+
+	service.KafkaRepository.WritePreprocessScenario(msg)
+}
+
 func (service *kafkaServiceImpl) ConsumePreparedScenario(ctx context.Context) model.Scenario {
 	slog.Info("Consuming prepared scenario messages")
 

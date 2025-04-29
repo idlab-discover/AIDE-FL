@@ -15,16 +15,18 @@ func main() {
 	config := configuration.New()
 	kafkaPrepareWriter := configuration.NewKafkaPrepareWriter(config)
 	kafkaPreparedReader := configuration.NewKafkaPreparedReader(config)
+	kafkaPreprocessWriter := configuration.NewKafkaPreprocessWriter(config)
 
 	// repository
-	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter, kafkaPreparedReader)
+	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter, kafkaPreparedReader, kafkaPreprocessWriter)
 	defer kafkaRepository.Close()
 
 	// service
+	orchestratorService := service.NewOrchestratorServiceImpl()
 	kafkaService := service.NewKafkaServiceImpl(&kafkaRepository)
 
 	// controller
-	orchestratorController := controller.NewOrchestratorController(&kafkaService)
+	orchestratorController := controller.NewOrchestratorController(&orchestratorService, &kafkaService)
 
 	// setup fiber
 	app := fiber.New()

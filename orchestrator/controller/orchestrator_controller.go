@@ -11,11 +11,15 @@ import (
 )
 
 type OrchestratorController struct {
+	service.OrchestratorService
 	service.KafkaService
 }
 
-func NewOrchestratorController(kafkaService *service.KafkaService) *OrchestratorController {
-	return &OrchestratorController{KafkaService: *kafkaService}
+func NewOrchestratorController(orchestratorService *service.OrchestratorService, kafkaService *service.KafkaService) *OrchestratorController {
+	return &OrchestratorController{
+		OrchestratorService: *orchestratorService,
+		KafkaService:        *kafkaService,
+	}
 }
 
 func (controller OrchestratorController) Route(app *fiber.App) {
@@ -27,8 +31,15 @@ func (controller OrchestratorController) Start(c fiber.Ctx) error {
 	err := json.Unmarshal(c.Body(), &scenario)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
+	// Send scenario to Minio proxy for preparation
 	controller.KafkaService.PublishPrepareScenario(scenario)
+	// Receive scenario with status from Minio proxy
 	scenario = controller.KafkaService.ConsumePreparedScenario(context.Background())
+
+	// Send scenario to preprocessor if preprocessing is needed according to scenario status
+	if !controller.OrchestratorService.IsPreprocessed(scenario) {
+		controller.KafkaService.PublishPreprocessScenario(scenario)
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
 		Message: "Success",

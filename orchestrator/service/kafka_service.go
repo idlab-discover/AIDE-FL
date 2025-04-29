@@ -8,5 +8,6 @@ import (
 
 type KafkaService interface {
 	PublishPrepareScenario(scenario model.Scenario)
+	PublishPreprocessScenario(scenario model.Scenario)
 	ConsumePreparedScenario(ctx context.Context) model.Scenario
 }
