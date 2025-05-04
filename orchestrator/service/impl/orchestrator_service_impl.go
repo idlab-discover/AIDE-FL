@@ -1,6 +1,8 @@
 package impl
 
 import (
+	"log/slog"
+
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/model"
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/service"
 )
@@ -13,5 +15,6 @@ func NewOrchestratorServiceImpl() service.OrchestratorService {
 }
 
 func (service *orchestratorServiceImpl) IsPreprocessed(scenario model.Scenario) bool {
-	return scenario.Status != "not preprocessed"
+	slog.Info("Scenario", "status", scenario.Status)
+	return scenario.Status == "preprocessed"
 }
