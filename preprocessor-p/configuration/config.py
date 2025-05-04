@@ -13,3 +13,4 @@ class Config:
         self.kafka_group = os.getenv("KAFKA_GROUP")
         self.kafka_preprocess_topic = os.getenv("KAFKA_PREPROCESS_TOPIC")
         self.kafka_preprocessed_topic = os.getenv("KAFKA_PREPROCESSED_TOPIC")
+        self.log_level = os.getenv("LOG_LEVEL")

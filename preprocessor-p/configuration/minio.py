@@ -1,5 +1,6 @@
 from minio import Minio
-from config import Config
+
+from configuration.config import Config
 
 class MinioClient:
     def __init__(self, config: Config):
