@@ -1,0 +1,3 @@
+load_dotenv
+confluent_kafka
+minio
