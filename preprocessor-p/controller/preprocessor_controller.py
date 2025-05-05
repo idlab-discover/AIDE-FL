@@ -12,6 +12,7 @@ class PreprocessorController:
         self.logger.info("Consuming scenario.preprocess...")
         self.kafka_service.consume_preprocess_scenario(self.preprocess)
 
-    def preprocess(self, scenario: str):
+    def preprocess(self, scenario: dict):
         self.logger.info("Start preprocessing")
-        self.logger.info(scenario)
+
+        self.minio_service.download_dataset(scenario["dataset"])

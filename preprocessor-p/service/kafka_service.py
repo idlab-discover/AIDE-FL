@@ -1,3 +1,4 @@
+import json
 from confluent_kafka import Consumer, Producer
 
 from configuration.logger import Logger
@@ -13,5 +14,9 @@ class KafkaService:
             msg = self.preprocess_consumer.poll()
             if msg:
                 self.logger.info(f"Received preprocess scenario: {msg.key().decode()}")
-                handler(msg.value().decode())
+                
+                scenario_json = msg.value().decode()
+                scenario_dict = json.loads(scenario_json)
+                handler(scenario_dict)
+
                 self.preprocess_consumer.commit(msg)
