@@ -5,7 +5,7 @@ from configuration.config import Config
 
 class Logger:
     _config = None
-    _logger = None
+    _loggers = {}
     
     @classmethod
     def init(cls, config: Config):
@@ -13,8 +13,11 @@ class Logger:
         
     @classmethod
     def get_logger(cls, name: str):
-        if cls._logger:
-            return cls._logger
+        if name in cls._loggers:
+            return cls._loggers[name]
+        
+        if cls._config is None:
+            raise ValueError("Logger must be initialized with a config before use")
 
         log_level_str = cls._config.log_level
 
@@ -33,5 +36,5 @@ class Logger:
         logger.addHandler(console_handler)
         
         logger.propagate = False
-        cls._logger = logger
-        return cls._logger
+        cls._loggers[name] = logger
+        return logger
