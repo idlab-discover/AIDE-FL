@@ -9,10 +9,10 @@ type Scenario struct {
 }
 
 type Preprocessing struct {
-	ExcludeColumns []string    `json:"exclude_columns"`
-	Shuffle        bool        `json:"shuffle"`
-	SplitRatios    SplitRatios `json:"split_ratios"`
-	Normalize      bool        `json:"normalize"`
+	DropColumns []string `json:"drop_columns"`
+	Shuffle     bool     `json:"shuffle"`
+	Split       Split    `json:"split"`
+	Normalize   bool     `json:"normalize"`
 }
 
 type Layer struct {
@@ -20,8 +20,8 @@ type Layer struct {
 	Config    map[string]interface{} `json:"config"`
 }
 
-type SplitRatios struct {
+type Split struct {
 	Train      float32 `json:"train"`
-	Validation float32 `json:"validation"`
+	Validation float32 `json:"eval"`
 	Test       float32 `json:"test"`
 }
