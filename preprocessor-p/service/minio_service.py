@@ -8,6 +8,9 @@ class MinioService:
         self.logger = Logger.get_logger("MinioService")
         self.minio_repository = minio_repository
 
-    def download_dataset(self, dataset: str):
+    def download_dataset(self, dataset: str) -> str:
         self.logger.info(f"Downloading dataset {dataset}")
-        self.minio_repository.get_object(os.path.join(dataset, dataset+".parquet"), dataset+".parquet")
+
+        dataset_filename = dataset + ".parquet"
+        self.minio_repository.download_object(os.path.join(dataset, dataset_filename), dataset_filename)
+        return dataset_filename
