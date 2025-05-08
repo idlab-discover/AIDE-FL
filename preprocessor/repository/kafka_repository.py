@@ -21,6 +21,9 @@ class KafkaConsumerRepository:
         self.logger.info("Closing consumer")
         self.consumer.close()
 
+    def __del__(self):
+        self.close()
+
 class KafkaProducerRepository:
     def __init__(self, producer: Producer):
         self.logger = Logger.get_logger("KafkaProducerRepository")
