@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: aide-fl
+data:
+  TOPICS: scenario.prepare;scenario.prepared;scenario.preprocess;scenario.preprocessed

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: kafka-node
+  name: kafka-daemonset
+  namespace: aide-fl
+spec:
+  selector:
+    matchLabels:
+      app: kafka-node
+  template:
+    metadata:
+      labels:
+        app: kafka-node
+    spec:
+      hostNetwork: true
+      containers:
+        - name: kafka
+          image: bitnami/kafka:3.6.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: KAFKA_LOG_DIR
+              value: "/bitnami/kafka/data"
+            - name: TOPICS
+              valueFrom:
+                configMapKeyRef:
+                  name: kafka-config
+                  key: TOPICS
+          command:
+            - bash
+            - -c
+            - |
+              NODE_NAME=$(echo $KUBE_NODE_NAME)
+              UUID=$(kafka-storage.sh random-uuid)
+              NODE_ID_FILE="/bitnami/kafka/${KUBE_NODE_NAME}.id"
+
+              if [[ -f "$NODE_ID_FILE" ]]; then
+                export NODE_ID=$(cat "$NODE_ID_FILE")
+              else
+                RANDOM_INT=$(shuf -i 1-1000000 -n 1)
+                echo "$RANDOM_INT" > "$NODE_ID_FILE"
+                export NODE_ID=$RANDOM_INT
+              fi
+
+              echo "Starting Kafka with node.id=$NODE_ID for K8s node $NODE_NAME"
+
+              mkdir -p /bitnami/kafka/config
+              cat <<EOF > /bitnami/kafka/config/kraft-server.properties
+              process.roles=broker,controller
+              node.id=${NODE_ID}
+              controller.quorum.voters=${NODE_ID}@localhost:9093
+              offsets.topic.replication.factor=1
+              listeners=PLAINTEXT://:9092,CONTROLLER://:9093
+              advertised.listeners=PLAINTEXT://${NODE_IP}:9092
+              inter.broker.listener.name=PLAINTEXT
+              controller.listener.names=CONTROLLER
+              log.dirs=${KAFKA_LOG_DIR}
+              num.network.threads=3
+              num.io.threads=8
+              EOF
+
+              kafka-storage.sh format -t ${UUID} -c /bitnami/kafka/config/kraft-server.properties --ignore-formatted
+              kafka-server-start.sh /bitnami/kafka/config/kraft-server.properties &
+
+              echo "Waiting for Kafka to become available..."
+              until kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1; do
+                sleep 1
+              done
+              echo "Kafka is ready!"
+
+              IFS=";"
+              read -ra topics <<< ${TOPICS}
+              for topic in ${topics[@]}; do
+                echo "Creating topic: $topic"
+                kafka-topics.sh --create --topic $topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --if-not-exists
+              done
+
+              wait
+          ports:
+            - containerPort: 9092
+              name: client
+              hostPort: 9092
+              protocol: TCP
+            - containerPort: 9093
+              name: controller
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /bitnami/kafka
+      volumes:
+        - name: kafka-data
+          emptyDir: {}
