@@ -14,8 +14,10 @@ spec:
       labels:
         app: orchestrator
     spec:
+      hostNetwork: true
       containers:
       - name: orchestrator
         image: ghcr.io/martienskienum1/orchestrator:latest
         ports:
         - containerPort: 8080
+          hostPort: 8080

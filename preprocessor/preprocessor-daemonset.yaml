@@ -14,6 +14,7 @@ spec:
       labels:
         app: preprocessor
     spec:
+      hostNetwork: true
       containers:
       - name: preprocessor
         image: ghcr.io/martienskienum1/preprocessor:latest
