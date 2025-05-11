@@ -14,10 +14,10 @@ class PreprocessorController:
     
     def StartConsumingPreprocessScenario(self):
         self.logger.info("Consuming scenario.preprocess...")
-        self.kafka_service.consume_preprocess_scenario(self.prepare)
+        self.kafka_service.consume_preprocess_scenario(self.process)
 
-    def prepare(self, scenario: dict):
-        self.logger.info("Start preparing")
+    def process(self, scenario: dict):
+        self.logger.info("Start processing")
 
         # Downloads dataset to ./dataset/dataset.parquet
         dataset_path = self.minio_service.download_dataset(scenario["dataset"])
@@ -27,3 +27,6 @@ class PreprocessorController:
 
         # Remove complete dataset
         self.local_service.delete(dataset_path)
+        
+        # Publish scenario preprocessed
+        self.kafka_service.produce_preprocessed_scenario(scenario)
