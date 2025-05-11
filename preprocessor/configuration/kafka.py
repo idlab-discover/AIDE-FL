@@ -1,12 +1,14 @@
 from confluent_kafka import Consumer, Producer
 
 from configuration.config import Config
+from repository.kafka_repository import KafkaConsumerRepository, KafkaProducerRepository
 
-class KafkaManager:
+class KafkaFactory:
     def __init__(self, config: Config):
         self.config = config
-
-    def create_consumer(self, topic: str):
+        
+    
+    def new_consumer_repository(self, topic: str) -> KafkaConsumerRepository:
         consumer = Consumer({
             'bootstrap.servers': self.config.kafka_address,
             'group.id': self.config.kafka_group,
@@ -14,10 +16,11 @@ class KafkaManager:
             'enable.auto.commit': False
         })
         consumer.subscribe([topic])
-        return consumer
+        return KafkaConsumerRepository(consumer)
     
-    def create_producer(self):
-        return Producer({
+    
+    def new_producer_repository(self, topic: str) -> KafkaProducerRepository:
+        producer = Producer({
             'bootstrap.servers': self.config.kafka_address
         })
-    
+        return KafkaProducerRepository(producer, topic)

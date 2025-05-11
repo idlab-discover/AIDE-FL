@@ -1,6 +1,6 @@
 from configuration.config import Config
 from configuration.minio import MinioClient
-from configuration.kafka import KafkaManager
+from configuration.kafka import KafkaFactory
 from configuration.logger import Logger
 from repository.minio_repository import MinioRepository
 from repository.kafka_repository import KafkaConsumerRepository, KafkaProducerRepository
@@ -15,20 +15,17 @@ def main():
     config = Config()
     Logger.init(config)
     minio_client = MinioClient(config)
-    kafka_manager = KafkaManager(config)
-
-    kafka_preprocess_consumer = kafka_manager.create_consumer(config.kafka_preprocess_topic)
-    kafka_producer = kafka_manager.create_producer()
+    kafka_factory = KafkaFactory(config)
     
     # repository
     minio_repository = MinioRepository(minio_client, config)
-    kafka_preprocess_consumer_repository = KafkaConsumerRepository(kafka_preprocess_consumer)
-    kafka_producer_repository = KafkaProducerRepository(kafka_producer)
+    kafka_preprocess_consumer_repository = kafka_factory.new_consumer_repository(config.kafka_preprocess_topic)
+    kafka_preprocessed_producer_repository = kafka_factory.new_producer_repository(config.kafka_preprocessed_topic)
     
     # service
     local_service = LocalService("/")
     minio_service = MinioService(minio_repository)
-    kafka_service = KafkaService(kafka_preprocess_consumer_repository, kafka_producer_repository)
+    kafka_service = KafkaService(kafka_preprocess_consumer_repository, kafka_preprocessed_producer_repository)
     preprocessor_service = PreprocessorService()
 
     # controller
