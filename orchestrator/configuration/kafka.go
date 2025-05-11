@@ -47,3 +47,14 @@ func NewKafkaPreprocessWriter(config Config) *kafka.Writer {
 
 	return writer
 }
+
+func NewKafkaPreprocessedReader(config Config) *kafka.Reader {
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  []string{config.Get("KAFKA_ADDRESS")},
+		Topic:    config.Get("KAFKA_PREPROCESSED_TOPIC"),
+		GroupID:  config.Get("KAFKA_GROUP"),
+		MaxBytes: 10e6, // 10MB
+	})
+
+	return reader
+}

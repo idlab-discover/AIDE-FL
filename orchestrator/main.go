@@ -16,9 +16,10 @@ func main() {
 	kafkaPrepareWriter := configuration.NewKafkaPrepareWriter(config)
 	kafkaPreparedReader := configuration.NewKafkaPreparedReader(config)
 	kafkaPreprocessWriter := configuration.NewKafkaPreprocessWriter(config)
+	kafkaPreprocessedReader := configuration.NewKafkaPreprocessedReader(config)
 
 	// repository
-	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter, kafkaPreparedReader, kafkaPreprocessWriter)
+	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter, kafkaPreparedReader, kafkaPreprocessWriter, kafkaPreprocessedReader)
 	defer kafkaRepository.Close()
 
 	// service

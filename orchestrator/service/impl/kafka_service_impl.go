@@ -63,3 +63,19 @@ func (service *kafkaServiceImpl) ConsumePreparedScenario(ctx context.Context) mo
 
 	return scenario
 }
+
+func (service *kafkaServiceImpl) ConsumePreprocessedScenario(ctx context.Context) model.Scenario {
+	slog.Info("Consuming preprocessed scenario messages")
+
+	m := service.KafkaRepository.ReadPreprocessedScenario(ctx)
+
+	var scenario model.Scenario
+	err := json.Unmarshal(m.Value, &scenario)
+	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
+
+	slog.Info("Received prepared", "scenario", scenario.Name)
+
+	service.KafkaRepository.CommitPreprocessedScenario(ctx, m)
+
+	return scenario
+}

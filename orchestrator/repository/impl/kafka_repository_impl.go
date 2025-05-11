@@ -10,16 +10,18 @@ import (
 )
 
 type kafkaRepositoryImpl struct {
-	prepareWriter    *kafka.Writer
-	preparedReader   *kafka.Reader
-	preprocessWriter *kafka.Writer
+	prepareWriter      *kafka.Writer
+	preparedReader     *kafka.Reader
+	preprocessWriter   *kafka.Writer
+	preprocessedReader *kafka.Reader
 }
 
-func NewKafkaRepositoryImpl(prepareWriter *kafka.Writer, preparedReader *kafka.Reader, preprocessWriter *kafka.Writer) repository.KafkaRepository {
+func NewKafkaRepositoryImpl(prepareWriter *kafka.Writer, preparedReader *kafka.Reader, preprocessWriter *kafka.Writer, preprocessedReader *kafka.Reader) repository.KafkaRepository {
 	return &kafkaRepositoryImpl{
-		prepareWriter:    prepareWriter,
-		preparedReader:   preparedReader,
-		preprocessWriter: preprocessWriter,
+		prepareWriter:      prepareWriter,
+		preparedReader:     preparedReader,
+		preprocessWriter:   preprocessWriter,
+		preprocessedReader: preprocessedReader,
 	}
 }
 
@@ -40,6 +42,13 @@ func (repo *kafkaRepositoryImpl) ReadPreparedScenario(ctx context.Context) kafka
 	return m
 }
 
+func (repo *kafkaRepositoryImpl) ReadPreprocessedScenario(ctx context.Context) kafka.Message {
+	m, err := repo.preprocessedReader.ReadMessage(ctx)
+	exception.PanicLogging(err, "Unable to read preprocessed scenario message")
+
+	return m
+}
+
 func (repo *kafkaRepositoryImpl) CommitPreparedScenario(ctx context.Context, msg kafka.Message) {
 	slog.Info("Commiting prepare scenario message")
 
@@ -47,7 +56,16 @@ func (repo *kafkaRepositoryImpl) CommitPreparedScenario(ctx context.Context, msg
 	exception.PanicLogging(err, "Unable to commit prepare scenario", "message", msg)
 }
 
+func (repo *kafkaRepositoryImpl) CommitPreprocessedScenario(ctx context.Context, msg kafka.Message) {
+	slog.Info("Commiting preprocessed scenario message")
+
+	err := repo.preprocessedReader.CommitMessages(ctx, msg)
+	exception.PanicLogging(err, "Unable to commit preprocessed scenario", "message", msg)
+}
+
 func (repo *kafkaRepositoryImpl) Close() {
 	defer repo.prepareWriter.Close()
 	defer repo.preparedReader.Close()
+	defer repo.preprocessWriter.Close()
+	defer repo.preprocessedReader.Close()
 }
