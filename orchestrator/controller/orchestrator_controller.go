@@ -39,10 +39,9 @@ func (controller OrchestratorController) Start(c fiber.Ctx) error {
 	// Send scenario to preprocessor if preprocessing is needed according to scenario status
 	if !controller.OrchestratorService.IsPreprocessed(scenario) {
 		controller.KafkaService.PublishPreprocessScenario(scenario)
-	}
 
-	// Receive scenario when preprocessed
-	scenario = controller.KafkaService.ConsumePreprocessedScenario(context.Background())
+		scenario = controller.KafkaService.ConsumePreprocessedScenario(context.Background()) // Receive scenario when preprocessed
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
 		Message: "Success",
