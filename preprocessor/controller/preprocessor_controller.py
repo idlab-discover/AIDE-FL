@@ -23,10 +23,26 @@ class PreprocessorController:
         dataset_path = self.minio_service.download_dataset(scenario["dataset"])
 
         # Preprocess
-        self.preprocessor_service.preprocess(scenario["preprocessing"], dataset_path)
+        df_train, df_eval, df_test = self.preprocessor_service.preprocess(scenario["preprocessing"], dataset_path)
 
         # Remove complete dataset
         self.local_service.delete(dataset_path)
+        
+        # Save as new parquet files
+        train_path = f"{scenario["name"]}_train.parquet"
+        eval_path = f"{scenario["name"]}_eval.parquet"
+        test_path = f"{scenario["name"]}_test.parquet"
+        self.local_service.df_to_parquet(df_train, train_path)
+        self.local_service.df_to_parquet(df_eval, eval_path)
+        self.local_service.df_to_parquet(df_test, test_path)
+        
+        # Upload
+        self.minio_service.upload_split_dataset(train_path, eval_path, test_path, scenario["dataset"], scenario["name"])
+        
+        # Remove split dataset
+        self.local_service.delete(train_path)
+        self.local_service.delete(eval_path)
+        self.local_service.delete(test_path)
         
         # Publish scenario preprocessed
         self.kafka_service.produce_preprocessed_scenario(scenario)
