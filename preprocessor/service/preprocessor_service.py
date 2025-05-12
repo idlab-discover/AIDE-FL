@@ -8,10 +8,10 @@ class PreprocessorService:
         self.logger = Logger.get_logger("PreprocessorService")
 
 
-    def preprocess(self, preprocessing_steps: dict, dataset_filename: str):
+    def preprocess(self, preprocessing_steps: dict, parquet_filename: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         self.logger.info("Start preprocessing")
 
-        df = pd.read_parquet(dataset_filename)
+        df = pd.read_parquet(parquet_filename)
 
         # Drop columns
         if "drop_columns" in preprocessing_steps:
@@ -23,10 +23,12 @@ class PreprocessorService:
 
         # Train, eval and test split
         split_conf = preprocessing_steps["split"]
-        train_split = split_conf["train"]
-        eval_split = split_conf["eval"]
-        test_split = split_conf["test"]
-        dfs = self.split(df, train_split, eval_split, test_split)
+        train_split_conf = split_conf["train"]
+        eval_split_conf = split_conf["eval"]
+        test_split_conf = split_conf["test"]
+        df_train, df_eval, df_test = self.split(df, train_split_conf, eval_split_conf, test_split_conf)
+        
+        return df_train, df_eval, df_test
 
 
     def drop_columns(self, df: pd.DataFrame, cols: list) -> pd.DataFrame:
@@ -39,10 +41,10 @@ class PreprocessorService:
         return df.sample(frac=1)
     
 
-    def split(self, df: pd.DataFrame, train: float, eval: float, test: float) -> list[pd.DataFrame]:
+    def split(self, df: pd.DataFrame, train: float, eval: float, test: float) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         df_train, df_temp = train_test_split(df, test_size=(1 - train), shuffle=False)
         eval_ratio = eval / (eval + test)
         df_eval, df_test = train_test_split(df_temp, test_size=(1 - eval_ratio), shuffle=False)
 
         self.logger.info(f"Split dataset: train={len(df_train)}, eval={len(df_eval)}, test={len(df_test)}")
-        return [df_train, df_eval, df_test]
+        return df_train, df_eval, df_test
