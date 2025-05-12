@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import pandas as pd
 
 from configuration.logger import Logger
 
@@ -8,8 +9,10 @@ class LocalService:
         self.logger = Logger.get_logger("LocalService")
         self.base_path = Path(base_path)
 
+
     def exists(self, file: str) -> bool:
         return (self.base_path / file).exists()
+    
     
     def delete(self, file: str):
         self.logger.info(f"Deleting {file}")
@@ -17,3 +20,8 @@ class LocalService:
         path = self.base_path / file
         if path.exists():
             path.unlink()
+            
+    
+    def df_to_parquet(self, df: pd.DataFrame, path: str):
+        self.logger.info(f"Saving dataframe to parquet: {path}")
+        df.to_parquet(path, index=False)
