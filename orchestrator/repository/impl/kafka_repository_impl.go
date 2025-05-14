@@ -45,9 +45,9 @@ func (repo *kafkaWriterRepositoryImpl) Write(msg kafka.Message) {
 }
 
 func (repo *kafkaReaderRepositoryImpl) Close() {
-	defer repo.Reader.Close()
+	repo.Reader.Close()
 }
 
 func (repo *kafkaWriterRepositoryImpl) Close() {
-	defer repo.Writer.Close()
+	repo.Writer.Close()
 }

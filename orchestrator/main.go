@@ -23,10 +23,21 @@ func main() {
 	defer kafkaPreprocessWriterRepo.Close()
 	kafkaPreprocessedReaderRepo := kafkaFactory.NewKafkaReaderRepository(config.Get("KAFKA_PREPROCESSED_TOPIC"))
 	defer kafkaPreprocessedReaderRepo.Close()
+	kafkaTrainWriterRepo := kafkaFactory.NewKafkaWriterRepository(config.Get("KAFKA_TRAIN_TOPIC"))
+	defer kafkaTrainWriterRepo.Close()
+	kafkaTrainedReaderRepo := kafkaFactory.NewKafkaReaderRepository(config.Get("KAFKA_TRAINED_TOPIC"))
+	defer kafkaTrainedReaderRepo.Close()
 
 	// service
 	orchestratorService := service.NewOrchestratorServiceImpl()
-	kafkaService := service.NewKafkaServiceImpl(&kafkaPrepareWriterRepo, &kafkaPreparedReaderRepo, &kafkaPreprocessWriterRepo, &kafkaPreprocessedReaderRepo)
+	kafkaService := service.NewKafkaServiceImpl(
+		&kafkaPrepareWriterRepo,
+		&kafkaPreparedReaderRepo,
+		&kafkaPreprocessWriterRepo,
+		&kafkaPreprocessedReaderRepo,
+		&kafkaTrainWriterRepo,
+		&kafkaTrainedReaderRepo,
+	)
 
 	// controller
 	orchestratorController := controller.NewOrchestratorController(&orchestratorService, &kafkaService)
