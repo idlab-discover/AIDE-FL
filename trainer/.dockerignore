@@ -1,0 +1,7 @@
+# Python
+.venv
+**/__pycache__
+
+# Unnecessary
+deploy.sh
+trainer-daemonset.yaml

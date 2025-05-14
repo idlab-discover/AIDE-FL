@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: trainer
+  name: trainer-daemonset
+  namespace: aide-fl
+spec:
+  selector:
+    matchLabels:
+      app: trainer
+  template:
+    metadata:
+      labels:
+        app: trainer
+    spec:
+      hostNetwork: true
+      containers:
+      - name: trainer
+        image: ghcr.io/martienskienum1/trainer:latest
