@@ -18,5 +18,17 @@ spec:
         fl-role: client
       hostNetwork: true
       containers:
-      - name: trainer
+      - name: trainer-logic
         image: ghcr.io/martienskienum1/trainer:latest
+      - name: trainer-supernode
+        image: flwr/supernode:1.18.0
+        ports:
+        - containerPort: 9094
+          name: clientappio-api
+        env:
+        - name: NODE_IP
+          valueFrom:
+            configMapKeyRef:
+              name: node-ip
+              key: NODE_IP
+        args: ["--insecure", "--superlink", "$(NODE_IP):9092", "--clientappio-api-address", "0.0.0.0:9094", "--isolation", "process"]
