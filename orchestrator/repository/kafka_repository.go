@@ -6,12 +6,13 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-type KafkaRepository interface {
-	WritePrepareScenario(msg kafka.Message)
-	WritePreprocessScenario(msg kafka.Message)
-	ReadPreparedScenario(ctx context.Context) kafka.Message
-	ReadPreprocessedScenario(ctx context.Context) kafka.Message
-	CommitPreparedScenario(ctx context.Context, msg kafka.Message)
-	CommitPreprocessedScenario(ctx context.Context, msg kafka.Message)
+type KafkaReaderRepository interface {
+	Read(ctx context.Context) kafka.Message
+	Commit(ctx context.Context, msg kafka.Message)
+	Close()
+}
+
+type KafkaWriterRepository interface {
+	Write(msg kafka.Message)
 	Close()
 }

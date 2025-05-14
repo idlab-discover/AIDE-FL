@@ -9,63 +9,45 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-type kafkaRepositoryImpl struct {
-	prepareWriter      *kafka.Writer
-	preparedReader     *kafka.Reader
-	preprocessWriter   *kafka.Writer
-	preprocessedReader *kafka.Reader
+type kafkaReaderRepositoryImpl struct {
+	*kafka.Reader
 }
 
-func NewKafkaRepositoryImpl(prepareWriter *kafka.Writer, preparedReader *kafka.Reader, preprocessWriter *kafka.Writer, preprocessedReader *kafka.Reader) repository.KafkaRepository {
-	return &kafkaRepositoryImpl{
-		prepareWriter:      prepareWriter,
-		preparedReader:     preparedReader,
-		preprocessWriter:   preprocessWriter,
-		preprocessedReader: preprocessedReader,
-	}
+type kafkaWriterRepositoryImpl struct {
+	*kafka.Writer
 }
 
-func (repo *kafkaRepositoryImpl) WritePrepareScenario(msg kafka.Message) {
-	err := repo.prepareWriter.WriteMessages(context.Background(), msg)
-	exception.PanicLogging(err, "Unable to publish prepare scenario")
+func NewKafkaReaderRepositoryImpl(reader *kafka.Reader) repository.KafkaReaderRepository {
+	return &kafkaReaderRepositoryImpl{Reader: reader}
 }
 
-func (repo *kafkaRepositoryImpl) WritePreprocessScenario(msg kafka.Message) {
-	err := repo.preprocessWriter.WriteMessages(context.Background(), msg)
-	exception.PanicLogging(err, "Unable to publish preprocess scenario")
+func NewKafkaWriterRepositoryImpl(writer *kafka.Writer) repository.KafkaWriterRepository {
+	return &kafkaWriterRepositoryImpl{Writer: writer}
 }
 
-func (repo *kafkaRepositoryImpl) ReadPreparedScenario(ctx context.Context) kafka.Message {
-	m, err := repo.preparedReader.ReadMessage(ctx)
-	exception.PanicLogging(err, "Unable to read prepared scenario message")
+func (repo *kafkaReaderRepositoryImpl) Read(ctx context.Context) kafka.Message {
+	m, err := repo.Reader.ReadMessage(ctx)
+	exception.PanicLogging(err, "Unable to read Kafka message")
 
 	return m
 }
 
-func (repo *kafkaRepositoryImpl) ReadPreprocessedScenario(ctx context.Context) kafka.Message {
-	m, err := repo.preprocessedReader.ReadMessage(ctx)
-	exception.PanicLogging(err, "Unable to read preprocessed scenario message")
+func (repo *kafkaReaderRepositoryImpl) Commit(ctx context.Context, msg kafka.Message) {
+	slog.Info("Commiting Kafka message")
 
-	return m
+	err := repo.Reader.CommitMessages(ctx, msg)
+	exception.PanicLogging(err, "Unable to commit Kafka", "message", msg)
 }
 
-func (repo *kafkaRepositoryImpl) CommitPreparedScenario(ctx context.Context, msg kafka.Message) {
-	slog.Info("Commiting prepare scenario message")
-
-	err := repo.preparedReader.CommitMessages(ctx, msg)
-	exception.PanicLogging(err, "Unable to commit prepare scenario", "message", msg)
+func (repo *kafkaWriterRepositoryImpl) Write(msg kafka.Message) {
+	err := repo.Writer.WriteMessages(context.Background(), msg)
+	exception.PanicLogging(err, "Unable to write Kafka message")
 }
 
-func (repo *kafkaRepositoryImpl) CommitPreprocessedScenario(ctx context.Context, msg kafka.Message) {
-	slog.Info("Commiting preprocessed scenario message")
-
-	err := repo.preprocessedReader.CommitMessages(ctx, msg)
-	exception.PanicLogging(err, "Unable to commit preprocessed scenario", "message", msg)
+func (repo *kafkaReaderRepositoryImpl) Close() {
+	defer repo.Reader.Close()
 }
 
-func (repo *kafkaRepositoryImpl) Close() {
-	defer repo.prepareWriter.Close()
-	defer repo.preparedReader.Close()
-	defer repo.preprocessWriter.Close()
-	defer repo.preprocessedReader.Close()
+func (repo *kafkaWriterRepositoryImpl) Close() {
+	defer repo.Writer.Close()
 }

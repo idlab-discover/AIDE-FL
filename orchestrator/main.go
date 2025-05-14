@@ -4,7 +4,6 @@ import (
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/controller"
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/exception"
-	repository "github.com/MartienskieNum1/AIDE-FL/orchestrator/repository/impl"
 	service "github.com/MartienskieNum1/AIDE-FL/orchestrator/service/impl"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/logger"
@@ -13,18 +12,21 @@ import (
 func main() {
 	// setup configuration
 	config := configuration.New()
-	kafkaPrepareWriter := configuration.NewKafkaPrepareWriter(config)
-	kafkaPreparedReader := configuration.NewKafkaPreparedReader(config)
-	kafkaPreprocessWriter := configuration.NewKafkaPreprocessWriter(config)
-	kafkaPreprocessedReader := configuration.NewKafkaPreprocessedReader(config)
+	kafkaFactory := configuration.NewKafkaFactory(config)
 
 	// repository
-	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareWriter, kafkaPreparedReader, kafkaPreprocessWriter, kafkaPreprocessedReader)
-	defer kafkaRepository.Close()
+	kafkaPrepareWriterRepo := kafkaFactory.NewKafkaWriterRepository(config.Get("KAFKA_PREPARE_TOPIC"))
+	defer kafkaPrepareWriterRepo.Close()
+	kafkaPreparedReaderRepo := kafkaFactory.NewKafkaReaderRepository(config.Get("KAFKA_PREPARED_TOPIC"))
+	defer kafkaPreparedReaderRepo.Close()
+	kafkaPreprocessWriterRepo := kafkaFactory.NewKafkaWriterRepository(config.Get("KAFKA_PREPROCESS_TOPIC"))
+	defer kafkaPreprocessWriterRepo.Close()
+	kafkaPreprocessedReaderRepo := kafkaFactory.NewKafkaReaderRepository(config.Get("KAFKA_PREPROCESSED_TOPIC"))
+	defer kafkaPreprocessedReaderRepo.Close()
 
 	// service
 	orchestratorService := service.NewOrchestratorServiceImpl()
-	kafkaService := service.NewKafkaServiceImpl(&kafkaRepository)
+	kafkaService := service.NewKafkaServiceImpl(&kafkaPrepareWriterRepo, &kafkaPreparedReaderRepo, &kafkaPreprocessWriterRepo, &kafkaPreprocessedReaderRepo)
 
 	// controller
 	orchestratorController := controller.NewOrchestratorController(&orchestratorService, &kafkaService)
