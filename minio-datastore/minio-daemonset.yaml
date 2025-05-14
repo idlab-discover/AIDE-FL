@@ -14,6 +14,8 @@ spec:
       labels:
         app: minio
     spec:
+      nodeSelector:
+        fl-role: client
       hostNetwork: true
       containers:
       - name: minio-proxy
