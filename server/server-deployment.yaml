@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+  namespace: aide-fl
+  labels:
+    app: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      nodeSelector:
+        fl-role: server
+      hostNetwork: true
+      containers:
+      - name: server
+        image: flwr/superlink:1.18.0
+        ports:
+        - containerPort: 9091
+          name: serverappio-api
+        - containerPort: 9092
+          name: fleet-api
+        - containerPort: 9093
+          name: deployment-engn
+        args: ["--insecure", "--isolation", "process"]
