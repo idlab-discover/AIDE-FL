@@ -5,3 +5,4 @@
 # Unnecessary
 deploy.sh
 trainer-daemonset.yaml
+.env.example
