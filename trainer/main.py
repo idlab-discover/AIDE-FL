@@ -6,8 +6,8 @@ from repository.minio_repository import MinioRepository
 from service.local_service import LocalService
 from service.minio_service import MinioService
 from service.kafka_service import KafkaService
-from service.train_service import TrainService
-from controller.preprocessor_controller import PreprocessorController
+from trainer.service.trainer_service import TrainerService
+from trainer.controller.trainer_controller import TrainerController
 
 def main():
     # setup configuration
@@ -25,10 +25,10 @@ def main():
     local_service = LocalService("/")
     minio_service = MinioService(minio_repository)
     kafka_service = KafkaService(kafka_train_consumer_repository, kafka_trained_producer_repository)
-    train_service = TrainService()
+    trainer_service = TrainerService()
 
     # controller
-    preprocessor_controller = PreprocessorController(local_service, minio_service, kafka_service, train_service)
+    preprocessor_controller = TrainerController(local_service, minio_service, kafka_service, trainer_service)
     
     # consume
     preprocessor_controller.StartConsumingTrainScenario()
