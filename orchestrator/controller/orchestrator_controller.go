@@ -31,6 +31,15 @@ func (controller OrchestratorController) Start(c fiber.Ctx) error {
 	err := json.Unmarshal(c.Body(), &scenario)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
+	go controller.handleScenarioFlow(scenario)
+
+	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
+		Message: "Started",
+		Data:    scenario,
+	})
+}
+
+func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scenario) {
 	// Send scenario to Minio proxy for preparation
 	controller.KafkaService.PublishPrepareScenario(scenario)
 	// Receive scenario with status from Minio proxy
@@ -48,9 +57,4 @@ func (controller OrchestratorController) Start(c fiber.Ctx) error {
 
 	// Receive scenario from trainer when trained
 	scenario = controller.KafkaService.ConsumeTrainedScenario(context.Background())
-
-	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
-		Message: "Success",
-		Data:    scenario,
-	})
 }
