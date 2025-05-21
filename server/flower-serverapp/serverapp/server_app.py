@@ -1,4 +1,4 @@
-"""flwr-keras: A Flower / TensorFlow app."""
+"""flower-serverapp: A Flower / TensorFlow app."""
 
 from flwr.common import Context, ndarrays_to_parameters
 from flwr.server import ServerApp, ServerAppComponents, ServerConfig

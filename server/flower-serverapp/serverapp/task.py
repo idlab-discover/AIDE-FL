@@ -1,4 +1,4 @@
-"""flwr-keras: A Flower / TensorFlow app."""
+"""flower-serverapp: A Flower / TensorFlow app."""
 
 import os
 import json
