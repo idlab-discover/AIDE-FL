@@ -18,9 +18,7 @@ spec:
         fl-role: client
       hostNetwork: true
       containers:
-      - name: trainer-logic
-        image: ghcr.io/martienskienum1/trainer:latest
-      - name: trainer-supernode
+      - name: flower-supernode
         image: flwr/supernode:1.18.0
         ports:
         - containerPort: 9094
@@ -32,3 +30,17 @@ spec:
               name: node-ip
               key: NODE_IP
         args: ["--insecure", "--superlink", "$(NODE_IP):9092", "--clientappio-api-address", "0.0.0.0:9094", "--isolation", "process"]
+      - name: flower-clientapp
+        image: ghcr.io/martienskienum1/flower-clientapp:latest
+        volumeMounts:
+        - mountPath: /app/share
+          name: trainer-share
+        args: ["--insecure", "--clientappio-api-address", "localhost:9094"]
+      - name: trainer-logic
+        image: ghcr.io/martienskienum1/trainer-logic:latest
+        volumeMounts:
+        - mountPath: /app/share
+          name: trainer-share
+      volumes:
+      - name: trainer-share
+        emptyDir: {}
