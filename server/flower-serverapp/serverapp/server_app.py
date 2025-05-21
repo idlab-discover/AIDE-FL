@@ -11,16 +11,16 @@ def server_fn(context: Context):
     reload_config()
 
     # Read from config
-    num_rounds = server_rounds
+    num_rounds = gl_server_rounds
 
     # Get parameters to initialize global model
     parameters = ndarrays_to_parameters(load_model().get_weights())
 
     # Define strategy
     strategy = strategy = FedAvg(
-        fraction_fit=fraction_fit,
-        fraction_evaluate=fraction_evaluate,
-        min_available_clients=min_available_clients,
+        fraction_fit=gl_fraction_fit,
+        fraction_evaluate=gl_fraction_evaluate,
+        min_available_clients=gl_min_available_clients,
         initial_parameters=parameters,
     )
     config = ServerConfig(num_rounds=num_rounds)
