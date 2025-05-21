@@ -11,10 +11,9 @@ func NewKafkaPrepareReader(config Config) *kafka.Reader {
 		Brokers:  []string{config.Get("KAFKA_ADDRESS")},
 		Topic:    config.Get("KAFKA_PREPARE_TOPIC"),
 		GroupID:  config.Get("KAFKA_GROUP"),
-		MinBytes: 1e3,  // 1KB
+		MinBytes: 1,    // 1B
 		MaxBytes: 10e6, // 10MB
 		MaxWait:  1 * time.Second,
-		// Partition: 0, // or using GroupId
 	})
 
 	return reader

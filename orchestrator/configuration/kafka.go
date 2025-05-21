@@ -23,13 +23,12 @@ func NewKafkaFactory(config Config) KafkaFactory {
 
 func (factory *kafkaFactoryImpl) NewKafkaReaderRepository(topic string) repository.KafkaReaderRepository {
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{factory.Config.Get("KAFKA_ADDRESS")},
-		Topic:   topic,
-		GroupID: factory.Config.Get("KAFKA_GROUP"),
-		//MinBytes: 1e3,  // 1KB
+		Brokers:  []string{factory.Config.Get("KAFKA_ADDRESS")},
+		Topic:    topic,
+		GroupID:  factory.Config.Get("KAFKA_GROUP"),
+		MinBytes: 1,    // 1B
 		MaxBytes: 10e6, // 10MB
-		//MaxWait:  1 * time.Second,
-		// Partition: 0, // or using GroupId
+		MaxWait:  1 * time.Second,
 	})
 
 	return impl.NewKafkaReaderRepositoryImpl(reader)
