@@ -19,7 +19,7 @@ spec:
         fl-role: server
       hostNetwork: true
       containers:
-      - name: server
+      - name: flower-superlink
         image: flwr/superlink:1.18.0
         ports:
         - containerPort: 9091
@@ -29,3 +29,17 @@ spec:
         - containerPort: 9093
           name: deployment-engn
         args: ["--insecure", "--isolation", "process"]
+      - name: flower-serverapp
+        image: ghcr.io/martienskienum1/flower-serverapp:latest
+        volumeMounts:
+        - mountPath: /app/share
+          name: server-share
+        args: ["--insecure", "--serverappio-api-address", "localhost:9091"]
+      - name: server-logic
+        image: ghcr.io/martienskienum1/server-logic:latest
+        volumeMounts:
+        - mountPath: /app/share
+          name: server-share
+      volumes:
+      - name: server-share
+        emptyDir: {}
