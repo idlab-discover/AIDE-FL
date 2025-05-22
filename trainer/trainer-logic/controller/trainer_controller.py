@@ -21,10 +21,10 @@ class TrainerController:
     def process(self, scenario: dict):
         self.logger.info("Start processing")
 
-        # Download datasets
-        train_filename, eval_filename, test_filename = self.minio_service.download_split_datasets(scenario["dataset"], scenario["name"])
+        # Download datasets (to shared volume)
+        self.minio_service.download_split_datasets(scenario["dataset"], scenario["name"])
 
         # Start training
 
-        # Publish scenario preprocessed
+        # Publish scenario trained
         self.kafka_service.produce_trained_scenario(scenario)

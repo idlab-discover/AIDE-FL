@@ -17,15 +17,11 @@ class MinioService:
         return dataset_filename
     
 
-    def download_split_datasets(self, dataset_name: str, scenario_name: str) -> tuple[str, str, str]:
+    def download_split_datasets(self, dataset_name: str, scenario_name: str):
         self.logger.info(f"Downloading split datasets for scenario {scenario_name}")
 
-        train_set_filename = f"{scenario_name}_train.parquet"
-        eval_set_filename = f"{scenario_name}_eval.parquet"
-        test_set_filename = f"{scenario_name}_test.parquet"        
-        self.minio_repository.download_object(os.path.join(dataset_name, train_set_filename))
-        self.minio_repository.download_object(os.path.join(dataset_name, eval_set_filename))
-        self.minio_repository.download_object(os.path.join(dataset_name, test_set_filename))
-
-        return train_set_filename, eval_set_filename, test_set_filename
+        train_minio_filename = f"{scenario_name}_train.parquet"
+        eval_minio_filename = f"{scenario_name}_eval.parquet"    
+        self.minio_repository.download_object(os.path.join(dataset_name, train_minio_filename), os.path.join("share", "train.parquet"))
+        self.minio_repository.download_object(os.path.join(dataset_name, eval_minio_filename), os.path.join("share", "eval.parquet"))
         
