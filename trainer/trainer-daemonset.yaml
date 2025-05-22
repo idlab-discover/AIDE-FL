@@ -24,12 +24,12 @@ spec:
         - containerPort: 9094
           name: clientappio-api
         env:
-        - name: NODE_IP
+        - name: SERVER_IP
           valueFrom:
             configMapKeyRef:
-              name: node-ip
-              key: NODE_IP
-        args: ["--insecure", "--superlink", "$(NODE_IP):9092", "--clientappio-api-address", "0.0.0.0:9094", "--isolation", "process"]
+              name: server-ip
+              key: SERVER_IP
+        args: ["--insecure", "--superlink", "$(SERVER_IP):9092", "--clientappio-api-address", "0.0.0.0:9094", "--isolation", "process"]
       - name: flower-clientapp
         image: ghcr.io/martienskienum1/flower-clientapp:latest
         volumeMounts:
