@@ -1,12 +1,13 @@
 package main
 
 import (
+	"log/slog"
+	"net/http"
+
 	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/controller"
 	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/exception"
 	service "github.com/MartienskieNum1/AIDE-FL/server/server-logic/service/impl"
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/logger"
 )
 
 func main() {
@@ -21,14 +22,11 @@ func main() {
 	// controller
 	orchestratorController := controller.NewServerLogicController(&serverLogicService)
 
-	// setup fiber
-	app := fiber.New()
-	app.Use(logger.New())
-
 	// routing
-	orchestratorController.Route(app)
+	orchestratorController.Route()
 
-	// start app
-	err := app.Listen(config.Get("LISTEN_PORT"))
-	exception.PanicLogging(err, "Unable to start Fiber app")
+	// start server
+	slog.Info("Server listening on", "port", config.Get("LISTEN_PORT"))
+	err := http.ListenAndServe(config.Get("LISTEN_PORT"), nil)
+	exception.PanicLogging(err, "Unable to start server")
 }

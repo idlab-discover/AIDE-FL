@@ -3,11 +3,13 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
+	"net/url"
 
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/exception"
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/model"
 	"github.com/MartienskieNum1/AIDE-FL/orchestrator/service"
-	"github.com/gofiber/fiber/v3"
+	"github.com/gorilla/websocket"
 )
 
 type OrchestratorController struct {
@@ -22,21 +24,30 @@ func NewOrchestratorController(orchestratorService *service.OrchestratorService,
 	}
 }
 
-func (controller OrchestratorController) Route(app *fiber.App) {
-	app.Post("/start", controller.Start)
-}
+func (controller OrchestratorController) ConnectServer(host string) {
+	u := url.URL{Scheme: "ws", Host: host, Path: "/ws"}
 
-func (controller OrchestratorController) Start(c fiber.Ctx) error {
-	var scenario model.Scenario
-	err := json.Unmarshal(c.Body(), &scenario)
-	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
+	// TODO: Set retries
+	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	exception.PanicLogging(err, "Unable to connect to server")
+	defer c.Close()
+	slog.Info("Connected to", "url", u.String())
 
-	go controller.handleScenarioFlow(scenario)
+	for {
+		_, message, err := c.ReadMessage()
+		exception.PanicLogging(err, "Unable to read message")
 
-	return c.Status(fiber.StatusCreated).JSON(model.GeneralResponse{
-		Message: "Started",
-		Data:    scenario,
-	})
+		// Suppose message is a scenario in JSON format
+		var scenario model.Scenario
+		err = json.Unmarshal(message, &scenario)
+		exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
+
+		controller.handleScenarioFlow(scenario)
+
+		slog.Info("Sending 'done' to server")
+		err = c.WriteMessage(websocket.TextMessage, []byte("done"))
+		exception.PanicLogging(err, "Unable to send 'done' message")
+	}
 }
 
 func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scenario) {

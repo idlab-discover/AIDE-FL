@@ -3,17 +3,18 @@ package impl
 import (
 	"encoding/json"
 	"log/slog"
+	"maps"
+	"net/http"
 	"os"
 	"path"
-	"strings"
+	"slices"
 
 	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/exception"
 	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/model"
 	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/service"
+	"github.com/fasthttp/websocket"
 	"gopkg.in/ini.v1"
-
-	"github.com/gofiber/fiber/v3/client"
 )
 
 type serverLogicServiceImpl struct {
@@ -24,21 +25,17 @@ func NewServerLogicServiceImpl(config configuration.Config) service.ServerLogicS
 	return &serverLogicServiceImpl{Config: config}
 }
 
-func (service *serverLogicServiceImpl) StartClients(scenario model.Scenario) {
-	clients := strings.Split(service.Config.Get("CLIENTS"), ",")
-	slog.Info("Starting", "clients", clients)
+func (service *serverLogicServiceImpl) StartClients(scenario model.Scenario, clients map[string]*model.Client) {
+	slog.Info("Starting", "clients", slices.Collect(maps.Keys(clients)))
 
-	cc := client.New()
-	// TODO: parallelize
-	for i := 0; i < len(clients); i++ {
-		client_url := "http://" + clients[i] + service.Config.Get("CLIENT_LISTEN_PORT") + "/start"
-		slog.Info("Sending POST to", "url", client_url)
+	scenario_json, err := json.Marshal(scenario)
+	exception.PanicLogging(err, "Unable to marshal scenario into JSON")
 
-		config := new(client.Config)
-		config.Body = scenario // Client body serialises json by default
-		_, err := cc.Post(client_url, *config)
-		exception.PanicLogging(err, "Unable to send POST to", "client", clients[i])
+	for _, c := range clients {
+		err := c.Conn.WriteMessage(websocket.TextMessage, scenario_json)
+		exception.PanicLogging(err, "Unable to send scenario to", "client", c.Id)
 	}
+	slog.Info("Sent scenario to", "#clients", len(clients))
 }
 
 func (service *serverLogicServiceImpl) SetFlowerConfig(scenario model.Scenario) {
@@ -71,4 +68,11 @@ func (service *serverLogicServiceImpl) SetFlowerConfig(scenario model.Scenario) 
 
 	err = cfg.SaveTo(config_path)
 	exception.PanicLogging(err, "Unable to save config file")
+}
+
+func (service *serverLogicServiceImpl) StartTraining() {
+	slog.Info("Sending training trigger to Flower serverapp")
+	resp, err := http.Post("http://localhost:8080/train", "application/json", nil)
+	exception.PanicLogging(err, "Unable to send trigger to start training")
+	defer resp.Body.Close()
 }

@@ -20,6 +20,9 @@ spec:
       containers:
       - name: orchestrator
         image: ghcr.io/martienskienum1/orchestrator:latest
-        ports:
-        - containerPort: 8080
-          hostPort: 8080
+        env:
+        - name: SERVER_IP
+          valueFrom:
+            configMapKeyRef:
+              name: server-ip
+              key: SERVER_IP
