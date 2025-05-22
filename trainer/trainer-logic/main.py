@@ -6,8 +6,8 @@ from repository.minio_repository import MinioRepository
 from service.local_service import LocalService
 from service.minio_service import MinioService
 from service.kafka_service import KafkaService
-from trainer.service.trainer_service import TrainerService
-from trainer.controller.trainer_controller import TrainerController
+from service.trainer_service import TrainerService
+from controller.trainer_controller import TrainerController
 
 def main():
     # setup configuration
