@@ -6,7 +6,7 @@ from service.trainer_service import TrainerService
 
 class TrainerController:
     def __init__(self, local_service: LocalService, minio_service: MinioService, kafka_service: KafkaService, trainer_service: TrainerService):
-        self.logger = Logger.get_logger("PreprocessorController")
+        self.logger = Logger.get_logger("TrainerController")
         self.local_service = local_service
         self.minio_service = minio_service
         self.kafka_service = kafka_service
