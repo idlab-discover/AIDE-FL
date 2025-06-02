@@ -8,7 +8,8 @@ version = "1.0.0"
 description = ""
 license = "Apache-2.0"
 dependencies = [
-    "tensorflow>=2.11.1,<2.18.0"
+    "tensorflow>=2.11.1,<2.18.0",
+    "flask>=3.1.1"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -19,6 +20,7 @@ publisher = "flower"
 
 [tool.flwr.app.components]
 serverapp = "serverapp.server_app:app"
+clientapp = "clientapp.client_app:app"
 
 [tool.flwr.app.config]
 verbose = false
