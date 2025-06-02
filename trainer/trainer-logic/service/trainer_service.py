@@ -15,7 +15,12 @@ class TrainerService:
     def set_flower_config(self, scenario: dict):
         self.logger.info("Setting Flower config")
         
-        self.shared_config.add_section("clientapp")
+        # Add clientapp section if not exists, otherwise ignore
+        try:
+            self.shared_config.add_section("clientapp")
+        except (configparser.DuplicateSectionError):
+            pass
+        
         self.shared_config.set("clientapp", "changed", "1")
         self.shared_config.set("clientapp", "scenario", json.dumps(scenario))
 
