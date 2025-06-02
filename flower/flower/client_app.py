@@ -1,10 +1,9 @@
-"""flower-keras: A Flower / TensorFlow app."""
+"""flower: A Flower / TensorFlow app."""
 
 from flwr.client import NumPyClient, ClientApp
 from flwr.common import Context
-from flwr_keras.task import load_data, load_model
 
-from clientapp.task import *
+from flower.task import *
 
 
 # Define Flower Client and client_fn
@@ -17,7 +16,6 @@ class FlowerClient(NumPyClient):
         self.epochs = epochs
         self.batch_size = batch_size
         self.verbose = verbose
-        print(self.y_train[0:32])
 
     def fit(self, parameters, config):
         self.model.set_weights(parameters)
@@ -37,14 +35,14 @@ class FlowerClient(NumPyClient):
 
 
 def client_fn(context: Context):
-    reload_config()
+    model, model_config, local_epochs, batch_size = reload_client_config()
 
     # Load model and data
-    model = load_model()
+    model = load_model(model, model_config)
 
     data = load_data()
-    epochs = gl_local_epochs
-    batch_size = gl_batch_size
+    epochs = local_epochs
+    batch_size = batch_size
     verbose = context.run_config.get("verbose")
 
     # Return Client instance

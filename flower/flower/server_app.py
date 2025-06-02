@@ -1,14 +1,14 @@
-"""flower-serverapp: A Flower / TensorFlow app."""
+"""flower: A Flower / TensorFlow app."""
 
 from flwr.common import Context, ndarrays_to_parameters
 from flwr.server import ServerApp, ServerAppComponents, ServerConfig
 from flwr.server.strategy import FedAvg
 
-from serverapp.task import *
+from flower.task import *
 
 
 def server_fn(context: Context):
-    model, model_config, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = reload_config()
+    model, model_config, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = reload_server_config()
 
     # Read from config
     num_rounds = server_rounds

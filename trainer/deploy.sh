@@ -1,6 +1,6 @@
 #!/bin/bash
 
-docker build --tag ghcr.io/martienskienum1/flower-clientapp flower-clientapp
+docker build -f ../flower/clientapp.Dockerfile --tag ghcr.io/martienskienum1/flower-clientapp ../flower/.
 docker push ghcr.io/martienskienum1/flower-clientapp:latest
 
 docker build --tag ghcr.io/martienskienum1/trainer-logic trainer-logic

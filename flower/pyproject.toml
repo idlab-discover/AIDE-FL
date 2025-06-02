@@ -3,13 +3,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "flower-serverapp"
-version = "1.0.0"
+name = "flower"
+version = "1.0.1"
 description = ""
 license = "Apache-2.0"
 dependencies = [
     "tensorflow>=2.11.1,<2.18.0",
-    "flask>=3.1.1"
+    "flask>=3.1.1",
+    "pandas>=2.2.3",
+    "pyarrow>=20.0.0"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -19,8 +21,8 @@ packages = ["."]
 publisher = "flower"
 
 [tool.flwr.app.components]
-serverapp = "serverapp.server_app:app"
-clientapp = "clientapp.client_app:app"
+serverapp = "flower.server_app:app"
+clientapp = "flower.client_app:app"
 
 [tool.flwr.app.config]
 verbose = false

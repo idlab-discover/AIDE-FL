@@ -1,6 +1,6 @@
 #!/bin/bash
 
-docker build --tag ghcr.io/martienskienum1/flower-serverapp flower-serverapp
+docker build -f ../flower/serverapp.Dockerfile --tag ghcr.io/martienskienum1/flower-serverapp ../flower/.
 docker push ghcr.io/martienskienum1/flower-serverapp:latest
 
 docker build --tag ghcr.io/martienskienum1/server-logic server-logic

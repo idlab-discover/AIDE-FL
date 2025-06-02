@@ -3,10 +3,10 @@ FROM flwr/serverapp:1.18.0
 WORKDIR /app
 
 COPY pyproject.toml .
-RUN python -m pip install -U --no-cache-dir .
+RUN python -m pip install -U  --no-cache-dir .
 
-COPY main.py
-COPY serverapp ./serverapp
+COPY main.py .
+COPY flower ./flower
 
 ENTRYPOINT ["python", "main.py"]
 
