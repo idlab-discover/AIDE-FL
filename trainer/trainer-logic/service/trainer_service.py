@@ -23,6 +23,21 @@ class TrainerService:
         
         self.shared_config.set("clientapp", "changed", "1")
         self.shared_config.set("clientapp", "scenario", json.dumps(scenario))
+        
+        # The default umask is 0o22 which turns off write permission of group and others
+        os.umask(0)
 
-        with open(self.config_filename, 'w') as configfile:
+        descriptor = os.open(
+            path=self.config_filename,
+            flags=(
+                os.O_WRONLY  # access mode: write only
+                | os.O_CREAT  # create if not exists
+                | os.O_TRUNC  # truncate the file to zero
+            ),
+            mode=0o777
+        )
+
+        with open(descriptor, 'w') as configfile:
             self.shared_config.write(configfile)
+            # the descriptor is automatically closed when configfile is closed
+
