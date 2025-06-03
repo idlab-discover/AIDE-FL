@@ -1,5 +1,6 @@
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import numpy as np
 
 from configuration.logger import Logger
 
@@ -16,6 +17,10 @@ class PreprocessorService:
         # Drop columns
         if "drop_columns" in preprocessing_steps:
             df = self.drop_columns(df, preprocessing_steps["drop_columns"])
+            
+        # Drop rows
+        if "drop_rows" in preprocessing_steps:
+            df = self.drop_rows(df, preprocessing_steps["drop_rows"])
 
         # Shuffle
         if "shuffle" in preprocessing_steps and preprocessing_steps["shuffle"] is True:
@@ -34,6 +39,17 @@ class PreprocessorService:
     def drop_columns(self, df: pd.DataFrame, cols: list) -> pd.DataFrame:
         self.logger.info(f"Dropping columns: {cols}")
         return df.drop(columns=cols)
+    
+    
+    def drop_rows(self, df: pd.DataFrame, n: int) -> pd.DataFrame:
+        if n >= len(df):
+            self.logger.info(f"Requested amount of rows to drop ({n}) is >= dataset size {len(df)}. Skipping..")
+            return df
+        
+        self.logger.info(f"Dropping {n} rows out of {len(df)}")
+        drop_indices = np.random.choice(df.index, n, replace=False)
+        df_subset = df.drop(drop_indices)
+        return df_subset
     
 
     def shuffle(self, df: pd.DataFrame) -> pd.DataFrame:
