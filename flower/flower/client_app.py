@@ -34,13 +34,19 @@ class FlowerClient(NumPyClient):
         return loss, len(self.x_test), {"accuracy": accuracy}
 
 
+model = model_config = local_epochs = batch_size = None
 def client_fn(context: Context):
-    model, model_config, local_epochs, batch_size = reload_client_config()
+    global model, model_config, local_epochs, batch_size
+    
+    # Reload config if it changed
+    config_changed = client_config_changed()
+    if config_changed:
+        model, model_config, local_epochs, batch_size = load_client_config()
 
     # Load model and data
     model = load_model(model, model_config)
 
-    data = load_data()
+    data = load_data(config_changed)
     epochs = local_epochs
     batch_size = batch_size
     verbose = context.run_config.get("verbose")

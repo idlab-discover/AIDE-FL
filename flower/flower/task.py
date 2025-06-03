@@ -34,32 +34,39 @@ def reload_server_config():
     return model, model_config, fraction_fit, fraction_evaluate, min_available_clients, server_rounds
 
 
-scenario_change = True
-def reload_client_config():
-    global scenario_change
-    # Check whether scenario has changed and extract its data
+def client_config_changed() -> bool:
+    """Read from .ini config file whether is has changed (new scenario to be trained). Trainer-logic service sets "changed" value in .ini file."""
+    
     config.read(config_filename)
     if config["clientapp"]["changed"] == "1":
-        scenario = json.loads(config["clientapp"]["scenario"])
+        print("Client config changed")
+        return True
+    
+    print("Client config unchanged")
+    return False
 
-        model_data = scenario["model"]
-        model_config = scenario["model_config"]
-        local_epochs = scenario["hyper"]["local_epochs"]
-        batch_size = scenario["hyper"]["batch_size"]
 
-        scenario_change = True
+def load_client_config():
+    """Read client config from .ini file"""
+    
+    scenario = json.loads(config["clientapp"]["scenario"])
 
-        # Load model from json
-        model = keras.models.model_from_json(json.dumps(model_data))
-        print(f"Reloaded model architecture")
+    model_data = scenario["model"]
+    model_config = scenario["model_config"]
+    local_epochs = scenario["hyper"]["local_epochs"]
+    batch_size = scenario["hyper"]["batch_size"]
 
-        # Set changed to 0
-        config.set("clientapp", "changed", "0")
-        with open(config_filename, "w") as config_file:
-            config.write(config_file)
+    # Load model from json
+    model = keras.models.model_from_json(json.dumps(model_data))
+    print(f"Reloaded model architecture")
 
-        return model, model_config, local_epochs, batch_size
+    # Set changed to 0
+    config.set("clientapp", "changed", "0")
+    with open(config_filename, "w") as config_file:
+        config.write(config_file)
 
+    return model, model_config, local_epochs, batch_size
+    
 
 def load_model(model, model_config):
     # Retrieve model config
@@ -73,8 +80,8 @@ def load_model(model, model_config):
     return model
 
 
-def prepare_data(df):
-    """Convert pandas DataFrame features to numeric format and handle label"""
+def prepare_data(df) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Convert pandas DataFrame features to numeric format and return features (x) and labels (y)"""
 
     y = df["Label"].astype('float32').values
 
@@ -87,16 +94,19 @@ x_train = None
 y_train = None
 x_eval = None
 y_eval = None
-def load_data():
-    global x_train, y_train, x_eval, y_eval, scenario_change
-
-    train_file = os.path.join("share", "train.parquet")
-    eval_file = os.path.join("share", "eval.parquet")
+def load_data(config_changed) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Return x and y for both train and eval dataset. Load data either from memory or from file depending on whether the config has changed."""
+    global x_train, y_train, x_eval, y_eval
 
     # Use data from memory if scenario unchanged
-    if not scenario_change:
+    if not config_changed:
+        print("Datasets loaded from memory")
         return x_train, y_train, x_eval, y_eval
 
+    # If scenario changed, read from parquet files and load to memory
+    train_file = os.path.join("share", "train.parquet")
+    eval_file = os.path.join("share", "eval.parquet")
+    
     try:
         train_df = pd.read_parquet(train_file)
         eval_df = pd.read_parquet(eval_file)
@@ -106,7 +116,7 @@ def load_data():
 
     x_train, y_train = prepare_data(train_df)
     x_eval, y_eval = prepare_data(eval_df)
-
-    scenario_change = False
+    
+    print("Datasets loaded from files")
 
     return x_train, y_train, x_eval, y_eval
