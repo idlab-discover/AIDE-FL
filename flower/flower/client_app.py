@@ -1,5 +1,7 @@
 """flower: A Flower / TensorFlow app."""
 
+import json
+
 from flwr.client import NumPyClient, ClientApp
 from flwr.common import Context
 
@@ -19,19 +21,25 @@ class FlowerClient(NumPyClient):
 
     def fit(self, parameters, config):
         self.model.set_weights(parameters)
-        self.model.fit(
+        history = self.model.fit(
             self.x_train,
             self.y_train,
             epochs=self.epochs,
             batch_size=self.batch_size,
             verbose=self.verbose,
         )
-        return self.model.get_weights(), len(self.x_train), {}
+        
+        history_str = json.dumps(history.history)
+        
+        return self.model.get_weights(), len(self.x_train), {"history": history_str}
 
     def evaluate(self, parameters, config):
         self.model.set_weights(parameters)
-        loss, accuracy = self.model.evaluate(self.x_test, self.y_test, verbose=0)
-        return loss, len(self.x_test), {"accuracy": accuracy}
+        results = self.model.evaluate(self.x_test, self.y_test, verbose=0)
+        loss = results[0]
+        metrics = results[1:] # List of metrics defined in the model
+        metrics_str = json.dumps(metrics)
+        return loss, len(self.x_test), {"metrics": metrics_str}
 
 
 model = model_config = local_epochs = batch_size = None
