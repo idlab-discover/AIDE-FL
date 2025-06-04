@@ -7,6 +7,7 @@ from flwr.server import ServerApp, ServerAppComponents, ServerConfig
 from flwr.server.strategy import FedAvg
 
 from flower.task import *
+from flower.strategies import SaveModelFedAvg
 
 
 def handle_fit_metrics(metrics: list[tuple[int, Metrics]]) -> Metrics:
@@ -16,7 +17,6 @@ def handle_fit_metrics(metrics: list[tuple[int, Metrics]]) -> Metrics:
     for _, m in metrics:
         history_str = m["history"]
         history = json.loads(history_str)
-        
         histories.append(history)
         
     return {"histories": histories}
@@ -44,7 +44,9 @@ def server_fn(context: Context):
     parameters = ndarrays_to_parameters(model.get_weights()) # Currently no initial parameters. Could be randomized 
 
     # Define strategy
-    strategy = strategy = FedAvg(
+    strategy = strategy = SaveModelFedAvg(
+        model=model,
+        share_dir="share",
         fraction_fit=fraction_fit,
         fraction_evaluate=fraction_evaluate,
         min_available_clients=min_available_clients,
