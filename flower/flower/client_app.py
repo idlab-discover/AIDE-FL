@@ -14,7 +14,7 @@ class FlowerClient(NumPyClient):
         self, model, data, epochs, batch_size, verbose
     ):
         self.model = model
-        self.x_train, self.y_train, self.x_test, self.y_test = data
+        self.x_train, self.y_train, self.x_eval, self.y_eval, self.x_test, self.y_test = data
         self.epochs = epochs
         self.batch_size = batch_size
         self.verbose = verbose
@@ -22,10 +22,11 @@ class FlowerClient(NumPyClient):
     def fit(self, parameters, config):
         self.model.set_weights(parameters)
         history = self.model.fit(
-            self.x_train,
-            self.y_train,
+            x=self.x_train,
+            y=self.y_train,
             epochs=self.epochs,
             batch_size=self.batch_size,
+            validation_data=(self.x_eval, self.y_eval),
             verbose=self.verbose,
         )
         

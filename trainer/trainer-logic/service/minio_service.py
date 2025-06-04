@@ -21,7 +21,9 @@ class MinioService:
         self.logger.info(f"Downloading split datasets for scenario {scenario_name}")
 
         train_minio_filename = f"{scenario_name}_train.parquet"
-        eval_minio_filename = f"{scenario_name}_eval.parquet"    
+        eval_minio_filename = f"{scenario_name}_eval.parquet"
+        test_minio_filename = f"{scenario_name}_test.parquet"
         self.minio_repository.download_object(os.path.join(dataset_name, train_minio_filename), os.path.join("share", "train.parquet"))
         self.minio_repository.download_object(os.path.join(dataset_name, eval_minio_filename), os.path.join("share", "eval.parquet"))
+        self.minio_repository.download_object(os.path.join(dataset_name, test_minio_filename), os.path.join("share", "test.parquet"))
         

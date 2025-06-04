@@ -77,33 +77,33 @@ def prepare_data(df) -> tuple[pd.DataFrame, pd.DataFrame]:
     return x, y
 
 
-x_train = None
-y_train = None
-x_eval = None
-y_eval = None
-def load_data(config_changed) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+x_train = y_train = x_eval = y_eval = x_test = y_test = None
+def load_data(config_changed) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Return x and y for both train and eval dataset. Load data either from memory or from file depending on whether the config has changed."""
-    global x_train, y_train, x_eval, y_eval
+    global x_train, y_train, x_eval, y_eval, x_test, y_test
 
     # Use data from memory if scenario unchanged
     if not config_changed:
         print("Datasets loaded from memory")
-        return x_train, y_train, x_eval, y_eval
+        return x_train, y_train, x_eval, y_eval, x_test, y_test
 
     # If scenario changed, read from parquet files and load to memory
     train_file = os.path.join("share", "train.parquet")
     eval_file = os.path.join("share", "eval.parquet")
+    test_file = os.path.join("share", "test.parquet")
     
     try:
         train_df = pd.read_parquet(train_file)
         eval_df = pd.read_parquet(eval_file)
+        test_df = pd.read_parquet(test_file)
     except Exception as e:
         print(f"Error loading parquet files: {e}")
         raise
 
     x_train, y_train = prepare_data(train_df)
     x_eval, y_eval = prepare_data(eval_df)
+    x_test, y_test = prepare_data(test_df)
     
     print("Datasets loaded from files")
 
-    return x_train, y_train, x_eval, y_eval
+    return x_train, y_train, x_eval, y_eval, x_test, y_test
