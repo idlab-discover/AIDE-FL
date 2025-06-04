@@ -14,7 +14,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 config_filename = os.path.join("share", "config.ini")
 config = configparser.ConfigParser()
 
-def reload_server_config():
+def load_server_config():
     # Check whether scenario has changed and extract its data
     config.read(config_filename)
        
@@ -29,7 +29,7 @@ def reload_server_config():
 
     # Load model from json
     model = keras.models.model_from_json(json.dumps(model_data))
-    print(f"Reloaded configliuvdfvhrsikvsdfbkluveszhdvuilsdhvklesdjhvhediulvdhilu")
+    print(f"Reloaded config")
 
     return model, model_config, fraction_fit, fraction_evaluate, min_available_clients, server_rounds
 

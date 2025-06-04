@@ -8,7 +8,7 @@ from flower.task import *
 
 
 def server_fn(context: Context):
-    model, model_config, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = reload_server_config()
+    model, model_config, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = load_server_config()
 
     # Read from config
     num_rounds = server_rounds
