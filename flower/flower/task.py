@@ -21,7 +21,6 @@ def load_server_config():
     scenario = json.loads(config["serverapp"]["scenario"])
 
     model_data = scenario["model"]
-    model_config = scenario["model_config"]
     fraction_fit = scenario["strategy"]["fraction_fit"]
     fraction_evaluate = scenario["strategy"]["fraction_evaluate"]
     min_available_clients = scenario["strategy"]["min_available_clients"]
@@ -31,7 +30,7 @@ def load_server_config():
     model = keras.models.model_from_json(json.dumps(model_data))
     print(f"Reloaded config")
 
-    return model, model_config, fraction_fit, fraction_evaluate, min_available_clients, server_rounds
+    return model, fraction_fit, fraction_evaluate, min_available_clients, server_rounds
 
 
 def client_config_changed() -> bool:
@@ -67,18 +66,6 @@ def load_client_config():
 
     return model, model_config, local_epochs, batch_size
     
-
-def load_model(model, model_config):
-    # Retrieve model config
-    optimizer = model_config["optimizer"]
-    loss = model_config["loss"]
-    metrics = model_config["metrics"]
-    
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-    print("Model compiled")
-
-    return model
-
 
 def prepare_data(df) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Convert pandas DataFrame features to numeric format and return features (x) and labels (y)"""

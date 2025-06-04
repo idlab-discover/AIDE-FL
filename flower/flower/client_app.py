@@ -43,9 +43,6 @@ def client_fn(context: Context):
     if config_changed:
         model, model_config, local_epochs, batch_size = load_client_config()
 
-    # Load model and data
-    model = load_model(model, model_config)
-
     data = load_data(config_changed)
     epochs = local_epochs
     batch_size = batch_size

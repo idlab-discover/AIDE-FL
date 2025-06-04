@@ -17,13 +17,13 @@ def weighted_average(metrics: list[tuple[int, Metrics]]) -> Metrics: # One Metri
 
 
 def server_fn(context: Context):
-    model, model_config, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = load_server_config()
+    model, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = load_server_config()
 
     # Read from config
     num_rounds = server_rounds
 
     # Get parameters to initialize global model
-    parameters = ndarrays_to_parameters(load_model(model, model_config).get_weights()) # Currently no initial parameters. Could be randomized 
+    parameters = ndarrays_to_parameters(model.get_weights()) # Currently no initial parameters. Could be randomized 
 
     # Define strategy
     strategy = strategy = FedAvg(
