@@ -34,6 +34,27 @@ if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
     exit 1
 fi
 
+# Check whether there is exactly one node with label fl-role=server and at least one node with label fl-role=client
+echo "Checking node labels..."
+
+server_count=$(kubectl get nodes -l fl-role=server --no-headers 2>/dev/null | wc -l)
+client_count=$(kubectl get nodes -l fl-role=client --no-headers 2>/dev/null | wc -l)
+
+if [[ "$server_count" -ne 1 ]]; then
+  echo "Error: Expected exactly 1 node with label 'fl-role=server', but found $server_count."
+  echo "Use    'kubectl label nodes <node-name> fl-role=server'    to add labels"
+  exit 1
+fi
+
+if [[ "$client_count" -lt 1 ]]; then
+  echo "Error: Expected at least 1 node with label 'fl-role=client', but found $client_count."
+  echo "Use    'kubectl label nodes <node-name> fl-role=client'    to add labels"
+  exit 1
+fi
+
+echo "Valid setup: $server_count server and $client_count client node(s)."
+
+
 # Create .env files
 echo "Creating .env files..."
 find ${DIR} -type f -name ".env.example" | while read example_file; do
