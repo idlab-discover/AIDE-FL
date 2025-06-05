@@ -15,11 +15,11 @@ config_filename = os.path.join("share", "config.ini")
 config = configparser.ConfigParser()
 
 def load_server_config():
-    # Check whether scenario has changed and extract its data
     config.read(config_filename)
        
     scenario = json.loads(config["serverapp"]["scenario"])
 
+    scenario_name = scenario["name"]
     model_data = scenario["model"]
     fraction_fit = scenario["strategy"]["fraction_fit"]
     fraction_evaluate = scenario["strategy"]["fraction_evaluate"]
@@ -30,7 +30,7 @@ def load_server_config():
     model = keras.models.model_from_json(json.dumps(model_data))
     print(f"Reloaded config")
 
-    return model, fraction_fit, fraction_evaluate, min_available_clients, server_rounds
+    return scenario_name, model, fraction_fit, fraction_evaluate, min_available_clients, server_rounds
 
 
 def client_config_changed() -> bool:

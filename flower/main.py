@@ -4,6 +4,8 @@ import os
 import sys
 
 from flask import Flask, jsonify
+from dotenv import load_dotenv
+import wandb
 
 
 flask_app = None
@@ -51,6 +53,7 @@ def setup_flask():
     flask_thread.start()
     print("Flask server started on port 8080")
 
+
 def start_training():
     """Start the federated learning training process"""
     try:
@@ -96,7 +99,11 @@ def start_training():
 
 
 def main():
+    load_dotenv()
+    wandb.login(key=os.getenv("WANDB_API_KEY"))
+
     setup_flask()
+    subprocess.run(["wandb", "login"])
     subprocess.run(["flwr-serverapp"] + sys.argv[1:])
 
 

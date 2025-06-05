@@ -35,18 +35,17 @@ def handle_eval_metrics(metrics: list[tuple[int, Metrics]]) -> Metrics: # One Me
 
 
 def server_fn(context: Context):
-    model, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = load_server_config()
-
-    # Read from config
-    num_rounds = server_rounds
+    scenario_name, model, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = load_server_config()
 
     # Get parameters to initialize global model
     parameters = ndarrays_to_parameters(model.get_weights()) # Currently no initial parameters. Could be randomized 
 
     # Define strategy
-    strategy = strategy = SaveModelFedAvg(
+    strategy = SaveModelFedAvg(
+        scenario_name=scenario_name,
         model=model,
         share_dir="share",
+        server_rounds=server_rounds,
         fraction_fit=fraction_fit,
         fraction_evaluate=fraction_evaluate,
         min_available_clients=min_available_clients,
@@ -54,7 +53,7 @@ def server_fn(context: Context):
         fit_metrics_aggregation_fn=handle_fit_metrics,
         evaluate_metrics_aggregation_fn=handle_eval_metrics, # Defines logic used to handle metrics passed by client's evaluate function (e.g. accuracy)
     )
-    config = ServerConfig(num_rounds=num_rounds)
+    config = ServerConfig(num_rounds=server_rounds)
 
     return ServerAppComponents(strategy=strategy, config=config)
 

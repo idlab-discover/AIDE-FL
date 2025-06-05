@@ -5,7 +5,7 @@ WORKDIR /app
 COPY pyproject.toml .
 RUN python -m pip install -U  --no-cache-dir .
 
-COPY main.py .
+COPY main.py .env .
 COPY flower ./flower
 
 ENTRYPOINT ["python", "main.py"]
