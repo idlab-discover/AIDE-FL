@@ -7,7 +7,7 @@ DIR=$(dirname "$0")
 
 # Check for dependencies
 echo "Checking dependencies..."
-required_commands=(docker kubectl jq)
+required_commands=(kubectl jq)
 for cmd in "${required_commands[@]}"; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Error: Required command '$cmd' is not installed or not in PATH."
@@ -15,6 +15,15 @@ for cmd in "${required_commands[@]}"; do
   fi
 done
 echo "All required commands are available."
+
+# Check whether a kubeconfig context is set
+current_context=$(kubectl config current-context 2>/dev/null || true)
+if [[ -z "$current_context" ]]; then
+  echo "Error: No current Kubernetes context is set in kubeconfig."
+  exit 1
+else
+  echo "Current kubeconfig context: $current_context"
+fi
 
 # Ask whether kubeconfig points to right k8s instance
 server=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
