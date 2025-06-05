@@ -1,10 +1,15 @@
 #!/bin/bash
 
-docker build -f ../flower/clientapp.Dockerfile --tag ghcr.io/martienskienum1/flower-clientapp ../flower/.
+DIR=$(dirname "$0")
+
+# Build and push flower-clientapp image
+docker build -f ../flower/clientapp.Dockerfile --tag ghcr.io/martienskienum1/flower-clientapp ${DIR}/../flower/.
 docker push ghcr.io/martienskienum1/flower-clientapp:latest
 
-docker build --tag ghcr.io/martienskienum1/trainer-logic trainer-logic
+# Build and push trainer-logic image
+docker build --tag ghcr.io/martienskienum1/trainer-logic ${DIR}/trainer-logic
 docker push ghcr.io/martienskienum1/trainer-logic:latest
 
+# Recreate flower-superlink + flower-clientapp + trainer-logic daemonset
 kubectl delete daemonset trainer-daemonset --namespace aide-fl
-kubectl apply -f trainer-daemonset.yaml
+kubectl apply -f ${DIR}/trainer-daemonset.yaml
