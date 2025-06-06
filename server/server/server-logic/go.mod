@@ -4,6 +4,7 @@ go 1.24.2
 
 require (
 	github.com/fasthttp/websocket v1.5.8
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/joho/godotenv v1.5.1
 	github.com/minio/minio-go/v7 v7.0.92
 	gopkg.in/ini.v1 v1.67.0

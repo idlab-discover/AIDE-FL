@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/model"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
@@ -14,6 +15,8 @@ import (
 
 type ServerLogicController struct {
 	service.ServerLogicService
+	service.MinioService
+	configuration.Config
 	upgrader     websocket.Upgrader
 	clients      map[string]*model.Client
 	clientsMutex *sync.Mutex
@@ -22,9 +25,11 @@ type ServerLogicController struct {
 	doneCond     *sync.Cond
 }
 
-func NewServerLogicController(serverLogicService *service.ServerLogicService) *ServerLogicController {
-	return &ServerLogicController{
+func NewServerLogicController(serverLogicService *service.ServerLogicService, minioService *service.MinioService, config configuration.Config) *ServerLogicController {
+	this := &ServerLogicController{
+		MinioService:       *minioService,
 		ServerLogicService: *serverLogicService,
+		Config:             config,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -34,6 +39,10 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService) *S
 		totalClients: 0,
 		doneCond:     sync.NewCond(&sync.Mutex{}),
 	}
+
+	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_BUCKET"))
+
+	return this
 }
 
 func (controller *ServerLogicController) Route() {
@@ -124,6 +133,9 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	jsonData, _ := json.Marshal(response)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
+
+	// Watch for creation of safetensors file in shared folder and upload to datastore
+	go controller.ServerLogicService.WatchForSafetensors(controller.MinioService.UploadSafetensors)
 }
 
 func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.Request) {

@@ -9,12 +9,15 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/model"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
 	"github.com/fasthttp/websocket"
+	"github.com/fsnotify/fsnotify"
 	"gopkg.in/ini.v1"
 )
 
@@ -95,4 +98,40 @@ func (service *serverLogicServiceImpl) GetTrainingStatus(runId string) string {
 
 	bodyString := string(bodyBytes)
 	return bodyString
+}
+
+func (service *serverLogicServiceImpl) WatchForSafetensors(callback func(string)) {
+	slog.Info("Watching for creation of safetensors file...")
+
+	watcher, err := fsnotify.NewWatcher()
+	exception.PanicLogging(err, "Unable to create new watcher")
+	defer watcher.Close()
+
+	// Add directory to watch to watcher
+	err = watcher.Add(path.Join("app", "share"))
+	exception.PanicLogging(err, "Unable to add shared folder to watcher")
+
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+
+			// Only interested in create events
+			if event.Op&(fsnotify.Create) != 0 {
+				if strings.HasSuffix(event.Name, ".safetensors") {
+					// Wait to ensure file is fully written
+					slog.Info("Safetensors file found", "file", event.Name)
+					time.Sleep(1 * time.Second)
+					callback(event.Name)
+				}
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			slog.Error("Watcher", "error", err)
+		}
+	}
 }

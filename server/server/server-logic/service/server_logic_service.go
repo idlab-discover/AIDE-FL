@@ -7,4 +7,5 @@ type ServerLogicService interface {
 	SetFlowerConfig(scenario model.Scenario)
 	StartTraining() string
 	GetTrainingStatus(runId string) string
+	WatchForSafetensors(callback func(string))
 }
