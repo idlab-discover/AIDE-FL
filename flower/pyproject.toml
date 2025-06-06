@@ -13,7 +13,8 @@ dependencies = [
     "pandas>=2.2.3",
     "pyarrow>=20.0.0",
     "wandb>=0.20.1",
-    "python-dotenv>=1.1.0"
+    "python-dotenv>=1.1.0",
+    "safetensors>=0.5.3"
 ]
 
 [tool.hatch.build.targets.wheel]

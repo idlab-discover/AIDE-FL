@@ -5,6 +5,8 @@ import tensorflow as tf
 import os
 import json
 import wandb
+import numpy as np
+from safetensors.numpy import save_file
 from datetime import datetime
 from collections import defaultdict
 
@@ -12,6 +14,7 @@ from collections import defaultdict
 class SaveModelFedAvg(FedAvg):
     def __init__(self, scenario_name: str, model: tf.keras.Model, share_dir: str, server_rounds: int, **kwargs):
         super().__init__(**kwargs)
+        self.scenario_name = scenario_name
         self.model = model
         self.share_dir = share_dir
         self.server_rounds = server_rounds
@@ -30,9 +33,18 @@ class SaveModelFedAvg(FedAvg):
             
             # Save model checkpoint
             if server_round == self.server_rounds:
-                path = os.path.join(self.share_dir, f"round_{server_round}_final.weights.h5")
+                path = os.path.join(self.share_dir, f"{self.scenario_name}_round_{server_round}_final.weights.h5")
+                
+                # Safe last aggregated model in safetensors
+                weights_dict = {
+                    f"weight_{i}": w.astype(np.float32) if not np.issubdtype(w.dtype, np.floating) else w for i, w in enumerate(weights)
+                }
+                
+                st_path = os.path.join(self.share_dir, f"{self.scenario_name}.safetensors")
+                save_file(weights_dict, st_path)
+                print(f"Saved checkpoint to {st_path}")
             else:
-                path = os.path.join(self.share_dir, f"round_{server_round}.weights.h5") # Must end with .weights.h5
+                path = os.path.join(self.share_dir, f"{self.scenario_name}_round_{server_round}.weights.h5") # Must end with .weights.h5
             self.model.save_weights(path)
             print(f"Saved checkpoint to {path}")
         
@@ -46,7 +58,7 @@ class SaveModelFedAvg(FedAvg):
         self.all_metrics[server_round] = metrics
         
         # Save metrics as json
-        path = os.path.join(self.share_dir, "aggregated_metrics.json")
+        path = os.path.join(self.share_dir, f"{self.scenario_name}_aggregated_metrics.json")
         with open(path, 'w') as file:
             json.dump(self.all_metrics, file, indent=4)
         print(f"Updated metrics in {path}")
