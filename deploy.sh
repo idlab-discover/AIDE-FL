@@ -81,15 +81,15 @@ kubectl create namespace aide-fl
 
 # Configmap sets Kafka topics to be created
 echo "Creating Kafka topics configmap..."
-kubectl apply -f ${DIR}/kafka/kafka-configmap.yaml
+kubectl apply -f ${DIR}/client/kafka/kafka-configmap.yaml
 
 # Create Kafka daemonset
 echo "Creating Kafka daemonset..."
-kubectl apply -f ${DIR}/kafka/kafka-daemonset.yaml
+kubectl apply -f ${DIR}/client/kafka/kafka-daemonset.yaml
 
 # Create flower-superlink + flower-serverapp + server-logic deployment
 echo "Creating server deployment..."
-kubectl apply -f ${DIR}/server/server-deployment.yaml
+kubectl apply -f ${DIR}/server/server/server-deployment.yaml
 
 # Create configmap with server's IP
 echo "Creating server's IP configmap..."
@@ -98,18 +98,18 @@ kubectl create configmap server-ip --from-literal=SERVER_IP=$SERVER_IP -n aide-f
 
 # Create Minio + minio-proxy daemonset
 echo "Creating minio daemonset..."
-kubectl apply -f ${DIR}/minio-datastore/minio-daemonset.yaml
+kubectl apply -f ${DIR}/client/datastore/minio-daemonset.yaml
 
 # Create orchestrator daemonset
 echo "Creating orchestrator daemonset..."
-kubectl apply -f ${DIR}/orchestrator/orchestrator-daemonset.yaml
+kubectl apply -f ${DIR}/client/orchestrator/orchestrator-daemonset.yaml
 
 # Create preprocessor daemonset
 echo "Creating preprocessor daemonset..."
-kubectl apply -f ${DIR}/preprocessor/preprocessor-daemonset.yaml
+kubectl apply -f ${DIR}/client/preprocessor/preprocessor-daemonset.yaml
 
 # Create flower-superlink + flower-clientapp + trainer-logic daemonset
 echo "Creating trainer daemonset..."
-kubectl apply -f ${DIR}/trainer/trainer-daemonset.yaml
+kubectl apply -f ${DIR}/client/trainer/trainer-daemonset.yaml
 
 echo "Done"

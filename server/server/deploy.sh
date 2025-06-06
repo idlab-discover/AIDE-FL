@@ -3,7 +3,7 @@
 DIR=$(dirname "$0")
 
 # Build and push flower-serverapp image
-docker build -f ../flower/serverapp.Dockerfile --tag ghcr.io/martienskienum1/flower-serverapp ${DIR}/../flower/.
+docker build -f ../flower/serverapp.Dockerfile --tag ghcr.io/martienskienum1/flower-serverapp ${DIR}/../../flower/.
 docker push ghcr.io/martienskienum1/flower-serverapp:latest
 
 # Build and push server-logic image

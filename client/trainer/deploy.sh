@@ -3,7 +3,7 @@
 DIR=$(dirname "$0")
 
 # Build and push flower-clientapp image
-docker build -f ../flower/clientapp.Dockerfile --tag ghcr.io/martienskienum1/flower-clientapp ${DIR}/../flower/.
+docker build -f ../flower/clientapp.Dockerfile --tag ghcr.io/martienskienum1/flower-clientapp ${DIR}/../../flower/.
 docker push ghcr.io/martienskienum1/flower-clientapp:latest
 
 # Build and push trainer-logic image
