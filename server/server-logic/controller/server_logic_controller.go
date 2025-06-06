@@ -39,6 +39,7 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService) *S
 func (controller *ServerLogicController) Route() {
 	http.HandleFunc("/ws", controller.handleWS)
 	http.HandleFunc("/start", controller.start)
+	http.HandleFunc("/status", controller.status)
 }
 
 func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -117,8 +118,28 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	var jsonFlower map[string]interface{}
 	json.Unmarshal([]byte(jsonStr), &jsonFlower)
 	response := model.GeneralResponse{
-		Message: "Clients are done preparing, training has started",
+		Message: "Clients are done preparing, training has started.",
 		Data:    jsonFlower,
+	}
+	jsonData, _ := json.Marshal(response)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
+}
+
+func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Received /status request with", "params", r.URL.Query())
+
+	runId := r.URL.Query().Get("runId")
+	jsonStr := controller.ServerLogicService.GetTrainingStatus(runId)
+
+	// Response
+	var flowerResponse model.FlowerResponse
+	err := json.Unmarshal([]byte(jsonStr), &flowerResponse)
+	exception.PanicLogging(err, "Unable to unmarshal json to FlowerResponse")
+
+	response := model.GeneralResponse{
+		Message: "Flower results",
+		Data:    flowerResponse,
 	}
 	jsonData, _ := json.Marshal(response)
 	w.Header().Set("Content-Type", "application/json")

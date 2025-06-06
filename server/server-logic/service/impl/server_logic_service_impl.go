@@ -83,3 +83,16 @@ func (service *serverLogicServiceImpl) StartTraining() string {
 	bodyString := string(bodyBytes)
 	return bodyString
 }
+
+func (service *serverLogicServiceImpl) GetTrainingStatus(runId string) string {
+	slog.Info("Getting training status")
+	resp, err := http.Get("http://localhost:8080/ls?runId=" + runId)
+	exception.PanicLogging(err, "Unable to get training status")
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	exception.PanicLogging(err, "Unable to read body")
+
+	bodyString := string(bodyBytes)
+	return bodyString
+}

@@ -2,8 +2,9 @@ import threading
 import subprocess
 import os
 import sys
+import json
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 import wandb
 
@@ -17,15 +18,15 @@ def setup_flask():
     def trigger_training():
         print("Received Flower run request")
         
-        output = start_training()
-        
-        return output
+        return start_training()
 
     @flask_app.route("/ls", methods=["GET"])
     def get_training_status():
         """Get current training status"""
-        return
-
+        
+        run_id = request.args.get("runId")
+        return training_status(run_id)
+        
     @flask_app.route("/stop", methods=["POST"])
     def health_check():
         """Health check endpoint"""
@@ -54,11 +55,49 @@ def start_training() -> str:
             cwd=os.getcwd()  # Ensure we're in the right directory
         )
         
-        # Ouput of flwr command will be in json format
-        return result.stdout
+        dict_output = json.loads(result.stdout)
+        
+        dict_output["run-id"] = str(dict_output["run-id"])
+            
+        output = json.dumps(dict_output)
+        
+        return output
 
     except Exception as e:
         print(f"Training failed with exception: {str(e)}")
+        
+        
+def training_status(run_id: str) -> str:
+    """Get training status from Flower"""
+    try:
+        print("Running command to get training run status...")
+        
+        if run_id:
+            result = subprocess.run(
+                ["flwr", "ls", "--run-id", run_id, "--format", "json"],
+                capture_output=True,
+                text=True,
+                cwd=os.getcwd()
+            )
+        else:
+            result = subprocess.run(
+                ["flwr", "ls", "--format", "json"],
+                capture_output=True,
+                text=True,
+                cwd=os.getcwd()
+            )
+            
+        dict_output = json.loads(result.stdout)
+        
+        for run in dict_output["runs"]:
+            run["run-id"] = str(run["run-id"])
+            
+        output = json.dumps(dict_output)
+        
+        return output
+    
+    except Exception as e:
+        print(f"Getting training status failed with exception: {str(e)}")
         
 
 def main():
