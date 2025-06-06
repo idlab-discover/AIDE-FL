@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/model"
 )
 
 type MinioService interface {

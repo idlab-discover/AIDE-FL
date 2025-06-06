@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/exception"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/repository"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/configuration"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/exception"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/model"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/repository"
 )
 
 type localRepositoryImpl struct {

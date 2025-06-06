@@ -3,9 +3,9 @@ package impl
 import (
 	"path/filepath"
 
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/repository"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/service"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/model"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/repository"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/service"
 )
 
 type minioServiceImpl struct {

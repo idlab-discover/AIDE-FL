@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/controller"
-	repository "github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/repository/impl"
-	service "github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/service/impl"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/configuration"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/controller"
+	repository "github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/repository/impl"
+	service "github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/service/impl"
 )
 
 func main() {

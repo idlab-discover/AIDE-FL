@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/MartienskieNum1/AIDE-FL/orchestrator/model"
+	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/model"
 )
 
 type KafkaService interface {

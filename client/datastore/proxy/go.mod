@@ -1,4 +1,4 @@
-module github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy
+module github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy
 
 go 1.24.1
 

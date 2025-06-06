@@ -1,4 +1,4 @@
-module github.com/MartienskieNum1/AIDE-FL/orchestrator
+module github.com/MartienskieNum1/AIDE-FL/client/orchestrator
 
 go 1.24.1
 

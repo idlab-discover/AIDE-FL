@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/MartienskieNum1/AIDE-FL/orchestrator/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/orchestrator/controller"
-	service "github.com/MartienskieNum1/AIDE-FL/orchestrator/service/impl"
+	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/configuration"
+	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/controller"
+	service "github.com/MartienskieNum1/AIDE-FL/client/orchestrator/service/impl"
 )
 
 func main() {

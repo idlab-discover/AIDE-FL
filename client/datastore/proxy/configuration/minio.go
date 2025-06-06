@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/exception"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/exception"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )

@@ -3,8 +3,8 @@ package impl
 import (
 	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/orchestrator/model"
-	"github.com/MartienskieNum1/AIDE-FL/orchestrator/service"
+	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/model"
+	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/service"
 )
 
 type orchestratorServiceImpl struct {

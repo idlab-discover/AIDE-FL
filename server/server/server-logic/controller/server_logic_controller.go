@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/exception"
-	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/model"
-	"github.com/MartienskieNum1/AIDE-FL/server/server-logic/service"
+	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
+	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/model"
+	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
 	"github.com/fasthttp/websocket"
 )
 

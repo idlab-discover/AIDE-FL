@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/model"
-	"github.com/MartienskieNum1/AIDE-FL/minio-datastore/proxy/service"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/configuration"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/model"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/service"
 )
 
 type MinioController struct {
