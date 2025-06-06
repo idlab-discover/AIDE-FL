@@ -29,7 +29,10 @@ class SaveModelFedAvg(FedAvg):
             self.model.set_weights(weights)
             
             # Save model checkpoint
-            path = os.path.join(self.share_dir, f"round_{server_round}.weights.h5") # Must end with .weights.h5
+            if server_round == self.server_rounds:
+                path = os.path.join(self.share_dir, f"round_{server_round}_final.weights.h5")
+            else:
+                path = os.path.join(self.share_dir, f"round_{server_round}.weights.h5") # Must end with .weights.h5
             self.model.save_weights(path)
             print(f"Saved checkpoint to {path}")
         
