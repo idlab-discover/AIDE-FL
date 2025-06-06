@@ -2,6 +2,7 @@ package impl
 
 import (
 	"encoding/json"
+	"io"
 	"log/slog"
 	"maps"
 	"net/http"
@@ -70,9 +71,15 @@ func (service *serverLogicServiceImpl) SetFlowerConfig(scenario model.Scenario) 
 	exception.PanicLogging(err, "Unable to save config file")
 }
 
-func (service *serverLogicServiceImpl) StartTraining() {
+func (service *serverLogicServiceImpl) StartTraining() string {
 	slog.Info("Sending training trigger to Flower serverapp")
-	resp, err := http.Post("http://localhost:8080/train", "application/json", nil)
+	resp, err := http.Post("http://localhost:8080/run", "application/json", nil)
 	exception.PanicLogging(err, "Unable to send trigger to start training")
 	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	exception.PanicLogging(err, "Unable to read body")
+
+	bodyString := string(bodyBytes)
+	return bodyString
 }

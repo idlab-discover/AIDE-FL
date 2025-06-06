@@ -105,13 +105,22 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	controller.ServerLogicService.StartClients(scenario, controller.clients)
 
 	// Start training when all clients are done preparing
-	go func() {
-		controller.doneCond.L.Lock()
-		for controller.doneCount < controller.totalClients {
-			controller.doneCond.Wait()
-		}
-		controller.doneCond.L.Unlock()
-		slog.Info("All clients reported done")
-		controller.ServerLogicService.StartTraining()
-	}()
+	controller.doneCond.L.Lock()
+	for controller.doneCount < controller.totalClients {
+		controller.doneCond.Wait()
+	}
+	controller.doneCond.L.Unlock()
+	slog.Info("All clients reported done")
+	jsonStr := controller.ServerLogicService.StartTraining()
+
+	// Response
+	var jsonFlower map[string]interface{}
+	json.Unmarshal([]byte(jsonStr), &jsonFlower)
+	response := model.GeneralResponse{
+		Message: "Clients are done preparing, training has started",
+		Data:    jsonFlower,
+	}
+	jsonData, _ := json.Marshal(response)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
 }
