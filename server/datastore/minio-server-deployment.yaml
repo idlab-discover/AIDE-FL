@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-server-deployment
+  namespace: aide-fl
+  labels:
+    app: minio-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio-server
+  template:
+    metadata:
+      labels:
+        app: minio-server
+    spec:
+      nodeSelector:
+        fl-role: server
+      hostNetwork: true
+      containers:
+      - name: minio-server
+        image: quay.io/minio/minio:latest
+        env:
+        - name: MINIO_ROOT_USER
+          value: aide-fl1
+        - name: MINIO_ROOT_PASSWORD
+          value: aide-fl1
+        command:
+        - /bin/bash
+        - -c
+        args:
+        - minio server /data --console-address :9001
+        ports:
+        - containerPort: 9000
+          hostPort: 9000
+        - containerPort: 9001
+          hostPort: 9001
+        volumeMounts:
+        - mountPath: /data
+          name: localvolume
+        startupProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          failureThreshold: 30
+          periodSeconds: 5
+      volumes:
+      - name: localvolume
+        hostPath:
+          path: /minio
+          type: DirectoryOrCreate
