@@ -67,7 +67,4 @@ class SaveModelFedAvg(FedAvg):
         avg_metrics = {f"avg/{i}": metric_sums[i] / metric_counts[i] for i in metric_sums}
         wandb.log({"loss": loss_aggregated, **avg_metrics}, step=server_round)
         
-        if server_round == self.server_rounds:
-            wandb.finish()
-        
         return loss_aggregated, metrics_aggregated

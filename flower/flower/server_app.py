@@ -1,13 +1,25 @@
 """flower: A Flower / TensorFlow app."""
 
 import json
+import wandb
 
 from flwr.common import Context, ndarrays_to_parameters, Metrics
-from flwr.server import ServerApp, ServerAppComponents, ServerConfig
+from flwr.server import ServerApp, ServerAppComponents, ServerConfig, Server
+from flwr.server.client_manager import SimpleClientManager
 from flwr.server.strategy import FedAvg
 
 from flower.task import *
 from flower.strategies import SaveModelFedAvg
+
+
+class CustomServer(Server):
+    def fit(self, num_rounds, timeout):
+        history, elapsed = super().fit(num_rounds, timeout)
+        
+        # Notify wandb when server is done fitting
+        wandb.finish()
+        
+        return history, elapsed
 
 
 def handle_fit_metrics(metrics: list[tuple[int, Metrics]]) -> Metrics:
@@ -55,7 +67,7 @@ def server_fn(context: Context):
     )
     config = ServerConfig(num_rounds=server_rounds)
 
-    return ServerAppComponents(strategy=strategy, config=config)
+    return ServerAppComponents(server=CustomServer(client_manager=SimpleClientManager(), strategy=strategy), config=config)
 
 # Create ServerApp
 app = ServerApp(server_fn=server_fn)
