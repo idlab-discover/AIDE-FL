@@ -87,6 +87,10 @@ kubectl apply -f ${DIR}/client/kafka/kafka-configmap.yaml
 echo "Creating Kafka daemonset..."
 kubectl apply -f ${DIR}/client/kafka/kafka-daemonset.yaml
 
+# Create Minio server datastore deployment
+echo "Creating server datastore deployment..."
+kubectl apply -f ${DIR}/server/datastore/minio-server-deployment.yaml
+
 # Create flower-superlink + flower-serverapp + server-logic deployment
 echo "Creating server deployment..."
 kubectl apply -f ${DIR}/server/server/server-deployment.yaml
@@ -97,7 +101,7 @@ SERVER_IP=$(kubectl get nodes -l fl-role=server -o json | jq -r '.items[0].statu
 kubectl create configmap server-ip --from-literal=SERVER_IP=$SERVER_IP -n aide-fl
 
 # Create Minio + minio-proxy daemonset
-echo "Creating minio daemonset..."
+echo "Creating client datastore daemonset..."
 kubectl apply -f ${DIR}/client/datastore/minio-daemonset.yaml
 
 # Create orchestrator daemonset
