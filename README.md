@@ -30,7 +30,7 @@ For an empty cluster, the script creates the `aide-fl` namespace and deploys all
 
 Scenarios are the driving factor behind this framework. They include the required dataset name, preprocessing steps and model architecture. It is sent from the central server to each client from where they each prepare the dataset to then start training.
 
-Following example scenario work out the box:
+Following example scenario works out the box:
 
 ```json
 {
