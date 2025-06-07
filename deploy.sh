@@ -75,42 +75,94 @@ flower_env="${DIR}/flower/.env"
 sed -i.bak "s/^WANDB_API_KEY.*/WANDB_API_KEY = $wandb_key/" "$flower_env"
 echo "Updated WANDB_API_KEY in $flower_env"
 
-# Create aide-fl namespace
-echo "Creating aide-fl namespace..."
-kubectl create namespace aide-fl
+# Check if namespace exists
+if kubectl get namespace aide-fl >/dev/null 2>&1; then
+  echo "Namespace 'aide-fl' exists."
+else
+  echo "Namespace 'aide-fl' does not exist. Creating..."
+  kubectl create namespace aide-fl
+fi
 
 # Configmap sets Kafka topics to be created
 echo "Creating Kafka topics configmap..."
 kubectl apply -f ${DIR}/client/kafka/kafka-configmap.yaml
 
+# Check if Kafka daemonset exists
+if kubectl get daemonset kafka-daemonset -n aide-fl >/dev/null 2>&1; then
+  echo "'kafka-daemonset' exists. Deleting..."
+  kubectl delete daemonset kafka-daemonset -n aide-fl
+fi
+
 # Create Kafka daemonset
 echo "Creating Kafka daemonset..."
 kubectl apply -f ${DIR}/client/kafka/kafka-daemonset.yaml
+
+# Check if Minio server datastore deployment exists
+if kubectl get deployment minio-server-deployment -n aide-fl >/dev/null 2>&1; then
+  echo "'minio-server-deployment' exists. Deleting..."
+  kubectl delete deployment minio-server-deployment -n aide-fl
+fi
 
 # Create Minio server datastore deployment
 echo "Creating server datastore deployment..."
 kubectl apply -f ${DIR}/server/datastore/minio-server-deployment.yaml
 
+# Check if flower-superlink + flower-serverapp + server-logic deployment exists
+if kubectl get deployment server-deployment -n aide-fl >/dev/null 2>&1; then
+  echo "'server-deployment' exists. Deleting..."
+  kubectl delete deployment server-deployment -n aide-fl
+fi
+
 # Create flower-superlink + flower-serverapp + server-logic deployment
 echo "Creating server deployment..."
 kubectl apply -f ${DIR}/server/server/server-deployment.yaml
+
+# Check if configmap with server's IP exists
+if kubectl get configmap server-ip -n aide-fl >/dev/null 2>&1; then
+  echo "'server-deployment' exists. Deleting..."
+  kubectl delete configmap server-ip -n aide-fl
+fi
 
 # Create configmap with server's IP
 echo "Creating server's IP configmap..."
 SERVER_IP=$(kubectl get nodes -l fl-role=server -o json | jq -r '.items[0].status.addresses[] | select(.type=="InternalIP") | .address')
 kubectl create configmap server-ip --from-literal=SERVER_IP=$SERVER_IP -n aide-fl
 
+# Check if Minio + minio-proxy daemonset exists
+if kubectl get daemonset minio-daemonset -n aide-fl >/dev/null 2>&1; then
+  echo "'minio-daemonset' exists. Deleting..."
+  kubectl delete daemonset minio-daemonset -n aide-fl
+fi
+
 # Create Minio + minio-proxy daemonset
 echo "Creating client datastore daemonset..."
 kubectl apply -f ${DIR}/client/datastore/minio-daemonset.yaml
+
+# Check if orchestrator daemonset exists
+if kubectl get daemonset orchestrator-daemonset -n aide-fl >/dev/null 2>&1; then
+  echo "'orchestrator-daemonset' exists. Deleting..."
+  kubectl delete daemonset orchestrator-daemonset -n aide-fl
+fi
 
 # Create orchestrator daemonset
 echo "Creating orchestrator daemonset..."
 kubectl apply -f ${DIR}/client/orchestrator/orchestrator-daemonset.yaml
 
+# Check if orchestrator daemonset exists
+if kubectl get daemonset preprocessor-daemonset -n aide-fl >/dev/null 2>&1; then
+  echo "'preprocessor-daemonset' exists. Deleting..."
+  kubectl delete daemonset preprocessor-daemonset -n aide-fl
+fi
+
 # Create preprocessor daemonset
 echo "Creating preprocessor daemonset..."
 kubectl apply -f ${DIR}/client/preprocessor/preprocessor-daemonset.yaml
+
+# Check if flower-superlink + flower-clientapp + trainer-logic daemonset exists
+if kubectl get daemonset trainer-daemonset -n aide-fl >/dev/null 2>&1; then
+  echo "'trainer-daemonset' exists. Deleting..."
+  kubectl delete daemonset trainer-daemonset -n aide-fl
+fi
 
 # Create flower-superlink + flower-clientapp + trainer-logic daemonset
 echo "Creating trainer daemonset..."
