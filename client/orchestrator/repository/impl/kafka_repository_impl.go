@@ -26,7 +26,7 @@ func NewKafkaWriterRepositoryImpl(writer *kafka.Writer) repository.KafkaWriterRe
 }
 
 func (repo *kafkaReaderRepositoryImpl) Read(ctx context.Context) kafka.Message {
-	m, err := repo.Reader.ReadMessage(ctx)
+	m, err := repo.Reader.FetchMessage(ctx)
 	exception.PanicLogging(err, "Unable to read Kafka message")
 
 	return m

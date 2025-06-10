@@ -22,7 +22,7 @@ func NewKafkaPublishRepositoryImpl(prepareReader *kafka.Reader, preparedWriter *
 }
 
 func (repo *kafkaRepositoryImpl) ReadPrepareScenario(ctx context.Context) kafka.Message {
-	m, err := repo.prepareReader.ReadMessage(ctx)
+	m, err := repo.prepareReader.FetchMessage(ctx)
 	exception.PanicLogging(err, "Unable to read prepare scenario message")
 
 	return m
