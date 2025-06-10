@@ -18,7 +18,7 @@ cd AIDE-FL
 
 The scripts guides you through the following steps:
 
-- `kubectl` and `jq` should be installed.
+- `kubectl`, `jq` and `openssl` should be installed.
 - A kubeconfig context is set which points to the correct k8s instance.
 - There should be exactly one k8s node with label `fl-role=server` and at least one node with label `fl-role=client`.
 - `.env.example` files are copied to `.env` which provides a working config.
