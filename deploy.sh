@@ -7,7 +7,7 @@ DIR=$(dirname "$0")
 
 # Check for dependencies
 echo "Checking dependencies..."
-required_commands=(kubectl jq)
+required_commands=(kubectl jq openssl)
 for cmd in "${required_commands[@]}"; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Error: Required command '$cmd' is not installed or not in PATH."
@@ -67,6 +67,10 @@ find ${DIR} -type f -name ".env.example" | while read example_file; do
   fi
 done
 
+# Create certificates
+echo "Creating Flower certificates..."
+${DIR}/gen_cert.sh
+
 # Set wandb API key
 read -p "Enter your Weights & Biases API key: " wandb_key
 
@@ -82,6 +86,17 @@ else
   echo "Namespace 'aide-fl' does not exist. Creating..."
   kubectl create namespace aide-fl
 fi
+
+# Check if secret and configmap with certs exist
+if kubectl get configmap ca-cert -n aide-fl >/dev/null 2>&1 || kubectl get secret server-cert -n aide-fl >/dev/null 2>&1; then
+  echo "Configmap and secret with certs already exist. Deleting..."
+  kubectl delete configmap ca-cert -n aide-fl
+  kubectl delete secret server-cert -n aide-fl
+fi
+
+# Set certificates in configmaps and secrets
+kubectl create secret tls server-cert --cert=${DIR}/certs/server.pem --key=${DIR}/certs/server.key -n aide-fl
+kubectl create configmap ca-cert --from-file=${DIR}/certs/ca.crt -n aide-fl
 
 # Configmap sets Kafka topics to be created
 echo "Creating Kafka topics configmap..."

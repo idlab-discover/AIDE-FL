@@ -27,3 +27,5 @@ go.work.sum
 # For Python applications
 .venv
 **/__pycache__
+
+certs

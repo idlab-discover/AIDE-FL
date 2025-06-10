@@ -19,6 +19,7 @@ spec:
         fl-role: server
       hostNetwork: true
       containers:
+
       - name: flower-superlink
         image: flwr/superlink:1.18.0
         ports:
@@ -28,18 +29,46 @@ spec:
           name: fleet-api
         - containerPort: 9093
           name: deployment-engn
-        args: ["--insecure", "--isolation", "process"]
+        args: ["--ssl-ca-certfile", "certs/ca.crt", "--ssl-certfile", "certs/server.pem", "--ssl-keyfile", "certs/server.key", "--isolation", "process"]
+        volumeMounts:
+        - name: all-certs
+          mountPath: /app/certs
+          readOnly: true
+
       - name: flower-serverapp
         image: ghcr.io/martienskienum1/flower-serverapp:latest
-        volumeMounts:
-        - mountPath: /app/share
-          name: server-share
         args: ["--insecure", "--serverappio-api-address", "localhost:9091"]
+        volumeMounts:
+        - name: server-share
+          mountPath: /app/share
+        - name: ca-cert
+          mountPath: /app/certs
+          readOnly: true
+
       - name: server-logic
         image: ghcr.io/martienskienum1/server-logic:latest
         volumeMounts:
-        - mountPath: /app/share
-          name: server-share
+        - name: server-share
+          mountPath: /app/share
+
       volumes:
       - name: server-share
         emptyDir: {}
+      - name: all-certs
+        projected:
+          sources:
+          - secret:
+              name: server-cert
+              items:
+              - key: tls.crt
+                path: server.pem
+              - key: tls.key
+                path: server.key
+          - configMap:
+              name: ca-cert
+              items:
+              - key: ca.crt
+                path: ca.crt
+      - name: ca-cert
+        configMap:
+          name: ca-cert
