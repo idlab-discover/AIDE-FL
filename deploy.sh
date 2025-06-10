@@ -72,7 +72,7 @@ read -p "Enter your Weights & Biases API key: " wandb_key
 
 flower_env="${DIR}/flower/.env"
 
-sed -i.bak "s/^WANDB_API_KEY.*/WANDB_API_KEY = $wandb_key/" "$flower_env"
+sed -i "s/^WANDB_API_KEY.*/WANDB_API_KEY = $wandb_key/" "$flower_env"
 echo "Updated WANDB_API_KEY in $flower_env"
 
 # Check if namespace exists
@@ -96,6 +96,21 @@ fi
 # Create Kafka daemonset
 echo "Creating Kafka daemonset..."
 kubectl apply -f ${DIR}/client/kafka/kafka-daemonset.yaml
+
+# Wait for Kafka daemonset to be ready
+while true; do
+  daemonset_status=$(kubectl get daemonset kafka-daemonset -n aide-fl -o json 2>/dev/null)
+  desired=$(echo "$daemonset_status" | jq -r '.status.desiredNumberScheduled // 0')
+  ready=$(echo "$daemonset_status" | jq -r '.status.numberReady // 0')
+
+  if [[ "$desired" -eq "$ready" ]]; then
+    echo "Kafka daemonset is ready"
+    break
+  fi
+
+  echo "Waiting for Kafka daemonset to be ready..."
+  sleep 5
+done
 
 # Check if Minio server datastore deployment exists
 if kubectl get deployment minio-server-deployment -n aide-fl >/dev/null 2>&1; then
