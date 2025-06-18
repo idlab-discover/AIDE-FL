@@ -98,6 +98,12 @@ fi
 kubectl create secret tls server-cert --cert=${DIR}/certs/server.pem --key=${DIR}/certs/server.key -n aide-fl
 kubectl create configmap ca-cert --from-file=${DIR}/certs/ca.crt -n aide-fl
 
+# Check if kafka configmap exists
+if kubectl get configmap kafka-config -n aide-fl >/dev/null 2>&1; then
+  echo "'kafka-config' exists. Deleting..."
+  kubectl delete configmap kafka-config -n aide-fl
+fi
+
 # Configmap sets Kafka topics to be created
 echo "Creating Kafka topics configmap..."
 kubectl apply -f ${DIR}/client/kafka/kafka-configmap.yaml
