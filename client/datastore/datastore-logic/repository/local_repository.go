@@ -1,6 +1,6 @@
 package repository
 
-import "github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/model"
+import "github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/model"
 
 type LocalRepository interface {
 	ScenarioToFile(outFilename string, scenario model.Scenario)

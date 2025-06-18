@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/exception"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/model"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/repository"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/service"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/exception"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/model"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/repository"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/service"
 	"github.com/segmentio/kafka-go"
 )
 

@@ -2,17 +2,17 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    app: minio
-  name: minio-daemonset
+    app: datastore
+  name: datastore-daemonset
   namespace: aide-fl
 spec:
   selector:
     matchLabels:
-      app: minio
+      app: datastore
   template:
     metadata:
       labels:
-        app: minio
+        app: datastore
     spec:
       nodeSelector:
         fl-role: client
@@ -44,8 +44,8 @@ spec:
             port: 9000
           failureThreshold: 30
           periodSeconds: 5
-      - name: minio-proxy
-        image: ghcr.io/martienskienum1/minio-proxy:latest
+      - name: datastore-logic
+        image: ghcr.io/martienskienum1/datastore-logic:latest
       volumes:
       - name: localvolume
         hostPath:

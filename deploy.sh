@@ -158,15 +158,15 @@ echo "Creating server's IP configmap..."
 SERVER_IP=$(kubectl get nodes -l fl-role=server -o json | jq -r '.items[0].status.addresses[] | select(.type=="InternalIP") | .address')
 kubectl create configmap server-ip --from-literal=SERVER_IP=$SERVER_IP -n aide-fl
 
-# Check if Minio + minio-proxy daemonset exists
-if kubectl get daemonset minio-daemonset -n aide-fl >/dev/null 2>&1; then
-  echo "'minio-daemonset' exists. Deleting..."
-  kubectl delete daemonset minio-daemonset -n aide-fl
+# Check if Minio + datastore-logic daemonset exists
+if kubectl get daemonset datastore-daemonset -n aide-fl >/dev/null 2>&1; then
+  echo "'datastore-daemonset' exists. Deleting..."
+  kubectl delete daemonset datastore-daemonset -n aide-fl
 fi
 
-# Create Minio + minio-proxy daemonset
+# Create Minio + datastore-logic daemonset
 echo "Creating client datastore daemonset..."
-kubectl apply -f ${DIR}/client/datastore/minio-daemonset.yaml
+kubectl apply -f ${DIR}/client/datastore/datastore-daemonset.yaml
 
 # Check if orchestrator daemonset exists
 if kubectl get daemonset orchestrator-daemonset -n aide-fl >/dev/null 2>&1; then

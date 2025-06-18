@@ -91,11 +91,11 @@ This service accepts commands from the central server and deligates all steps to
 
 ### Minio Datastore
 
-This service exists out of two containers: A default Minio image and a `minio-proxy`. The `minio-proxy` accepts scenarios from the `orchestrator`. It makes sure that the required dataset is downloaded from Kaggle (if not already present) and the scenario is saved along with the dataset.
+This service exists out of two containers: A default Minio image and a `datastore-logic`. The `datastore-logic` accepts scenarios from the `orchestrator`. It makes sure that the required dataset is downloaded from Kaggle (if not already present) and the scenario is saved along with the dataset.
 
-After the dataset has been preprocessed by `preprocessor`, an index file containing train-, test- and validationset indices is sent to `minio-proxy` to be saved.
+After the dataset has been preprocessed by `preprocessor`, an index file containing train-, test- and validationset indices is sent to `datastore-logic` to be saved.
 
-Upon receiving a scenario, `minio-proxy` responds with one of four statuses:
+Upon receiving a scenario, `datastore-logic` responds with one of four statuses:
 
 - `new dataset`: The dataset has been downloaded and the scenario saved.
 - `new scenario`: The dataset is already present but the scenario is new and saved.

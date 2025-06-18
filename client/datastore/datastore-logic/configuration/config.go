@@ -3,7 +3,7 @@ package configuration
 import (
 	"os"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/exception"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/exception"
 	"github.com/joho/godotenv"
 )
 

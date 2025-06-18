@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/controller"
-	repository "github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/repository/impl"
-	service "github.com/MartienskieNum1/AIDE-FL/client/datastore/proxy/service/impl"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/configuration"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/controller"
+	repository "github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/repository/impl"
+	service "github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/service/impl"
 )
 
 func main() {
@@ -27,8 +27,8 @@ func main() {
 	kafkaService := service.NewKafkaServiceImpl(&kafkaRepository)
 
 	// controller
-	minioController := controller.NewMinioController(&minioService, &kafkaService, config)
+	datastoreController := controller.NewMinioController(&minioService, &kafkaService, config)
 
 	// consume
-	minioController.StartConsuming(context.Background())
+	datastoreController.StartConsuming(context.Background())
 }

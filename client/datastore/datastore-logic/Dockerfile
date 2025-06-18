@@ -8,12 +8,12 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /minio-proxy ./main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /datastore-logic ./main.go
 
 # Create minimal container
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /minio-proxy /app/.env .
-CMD ["/minio-proxy"]
+COPY --from=builder /datastore-logic /app/.env .
+CMD ["/datastore-logic"]
 
 LABEL org.opencontainers.image.source=https://github.com/MartienskieNum1/AIDE-FL
