@@ -23,17 +23,11 @@ func (service *minioServiceImpl) Create(scenario model.Scenario) model.Scenario 
 	scenarioFilename := scenario.Name + ".json"
 	indexFilename := scenario.Name + ".INDEX"
 
-	splitMinioDatasetFilenames := []string{
-		filepath.Join(scenario.Dataset, scenario.Name+"_train.parquet"),
-		filepath.Join(scenario.Dataset, scenario.Name+"_eval.parquet"),
-		filepath.Join(scenario.Dataset, scenario.Name+"_test.parquet"),
-	} // Temporary
-
 	minioDatasetFilename := filepath.Join(scenario.Dataset, datasetFilename)
 	minioScenarioFilename := filepath.Join(scenario.Dataset, scenarioFilename)
 	minioIndexFilename := filepath.Join(scenario.Dataset, indexFilename)
 
-	if service.MinioRepository.ObjectExists(minioIndexFilename) || service.MinioRepository.ObjectExists(splitMinioDatasetFilenames[0]) {
+	if service.MinioRepository.ObjectExists(minioIndexFilename) {
 		scenario.Status = "preprocessed"
 	} else {
 		if !service.MinioRepository.ObjectExists(minioScenarioFilename) {
