@@ -178,7 +178,17 @@ fi
 echo "Creating orchestrator daemonset..."
 kubectl apply -f ${DIR}/client/orchestrator/orchestrator-daemonset.yaml
 
-# Check if orchestrator daemonset exists
+# Check if redis configmap exists
+if kubectl get configmap redis-config -n aide-fl >/dev/null 2>&1; then
+  echo "'redis-config' exists. Deleting..."
+  kubectl delete configmap redis-config -n aide-fl
+fi
+
+# Create redis configmap for Redis config
+echo "Creating redis configmap..."
+kubectl apply -f ${DIR}/redis-configmap.yaml
+
+# Check if preprocessor daemonset exists
 if kubectl get daemonset preprocessor-daemonset -n aide-fl >/dev/null 2>&1; then
   echo "'preprocessor-daemonset' exists. Deleting..."
   kubectl delete daemonset preprocessor-daemonset -n aide-fl
