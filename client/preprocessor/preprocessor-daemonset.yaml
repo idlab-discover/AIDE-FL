@@ -18,5 +18,5 @@ spec:
         fl-role: client
       hostNetwork: true
       containers:
-      - name: preprocessor
-        image: ghcr.io/martienskienum1/preprocessor:latest
+      - name: preprocessor-logic
+        image: ghcr.io/martienskienum1/preprocessor-logic:latest
