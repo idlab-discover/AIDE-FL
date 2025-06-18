@@ -1,14 +1,14 @@
 from configuration.logger import Logger
 from service.local_service import LocalService
-from service.minio_service import MinioService
+from service.redis_service import RedisService
 from service.kafka_service import KafkaService
 from service.trainer_service import TrainerService
 
 class TrainerController:
-    def __init__(self, local_service: LocalService, minio_service: MinioService, kafka_service: KafkaService, trainer_service: TrainerService):
+    def __init__(self, local_service: LocalService, redis_service: RedisService, kafka_service: KafkaService, trainer_service: TrainerService):
         self.logger = Logger.get_logger("TrainerController")
         self.local_service = local_service
-        self.minio_service = minio_service
+        self.redis_service = redis_service
         self.kafka_service = kafka_service
         self.trainer_service = trainer_service
     
@@ -22,7 +22,7 @@ class TrainerController:
         self.logger.info("Start processing")
 
         # Download datasets (to shared volume)
-        self.minio_service.download_split_datasets(scenario["dataset"], scenario["name"])
+        self.redis_service.download_datasets_to_parquet(scenario["name"])
 
         # Set config for Flower clientapp
         self.trainer_service.set_flower_config(scenario)

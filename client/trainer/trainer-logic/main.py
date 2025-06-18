@@ -1,10 +1,10 @@
 from configuration.config import Config
-from configuration.minio import MinioClient
 from configuration.kafka import KafkaFactory
+from configuration.redis import RedisClient
 from configuration.logger import Logger
-from repository.minio_repository import MinioRepository
+from repository.redis_repository import RedisRepository
 from service.local_service import LocalService
-from service.minio_service import MinioService
+from service.redis_service import RedisService
 from service.kafka_service import KafkaService
 from service.trainer_service import TrainerService
 from controller.trainer_controller import TrainerController
@@ -13,25 +13,25 @@ def main():
     # setup configuration
     config = Config()
     Logger.init(config)
-    minio_client = MinioClient(config)
     kafka_factory = KafkaFactory(config)
+    redis_client = RedisClient(config)
     
     # repository
-    minio_repository = MinioRepository(minio_client, config)
+    redis_repository = RedisRepository(redis_client, config)
     kafka_train_consumer_repository = kafka_factory.new_consumer_repository(config.kafka_train_topic)
     kafka_trained_producer_repository = kafka_factory.new_producer_repository(config.kafka_trained_topic)
     
     # service
     local_service = LocalService("/")
-    minio_service = MinioService(minio_repository)
+    redis_service = RedisService(redis_repository)
     kafka_service = KafkaService(kafka_train_consumer_repository, kafka_trained_producer_repository)
     trainer_service = TrainerService()
 
     # controller
-    preprocessor_controller = TrainerController(local_service, minio_service, kafka_service, trainer_service)
+    trainer_controller = TrainerController(local_service, redis_service, kafka_service, trainer_service)
     
     # consume
-    preprocessor_controller.StartConsumingTrainScenario()
+    trainer_controller.StartConsumingTrainScenario()
 
 if __name__ == "__main__":
     main()
