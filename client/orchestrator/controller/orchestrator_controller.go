@@ -51,17 +51,18 @@ func (controller OrchestratorController) ConnectServer(host string) {
 }
 
 func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scenario) {
-	// Send scenario to Minio datastore-logic for preparation
+
+	// Send scenario to datastore-logic for preparation
 	controller.KafkaService.PublishPrepareScenario(scenario)
-	// Receive scenario with status from Minio datastore-logic
+
+	// Receive scenario with status from datastore-logic
 	scenario = controller.KafkaService.ConsumePreparedScenario(context.Background())
 
-	// Send scenario to preprocessor if preprocessing is needed according to scenario status
-	if !controller.OrchestratorService.IsPreprocessed(scenario) {
-		controller.KafkaService.PublishPreprocessScenario(scenario)
+	// Send scenario to preprocessor
+	controller.KafkaService.PublishPreprocessScenario(scenario)
 
-		scenario = controller.KafkaService.ConsumePreprocessedScenario(context.Background()) // Receive scenario when preprocessed
-	}
+	// Receive scenario from preprocessor
+	scenario = controller.KafkaService.ConsumePreprocessedScenario(context.Background())
 
 	// Send scenario to trainer
 	controller.KafkaService.PublishTrainScenario(scenario)
