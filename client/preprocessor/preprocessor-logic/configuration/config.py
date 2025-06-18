@@ -9,6 +9,8 @@ class Config:
         self.minio_access_key = os.getenv("MINIO_ACCESS_KEY")
         self.minio_secret_key = os.getenv("MINIO_SECRET_KEY")
         self.minio_bucket = os.getenv("MINIO_BUCKET")
+        self.redis_address = os.getenv("REDIS_ADDRESS")
+        self.redis_exp = os.getenv("REDIS_EXP")
         self.kafka_address = os.getenv("KAFKA_ADDRESS")
         self.kafka_group = os.getenv("KAFKA_GROUP")
         self.kafka_preprocess_topic = os.getenv("KAFKA_PREPROCESS_TOPIC")

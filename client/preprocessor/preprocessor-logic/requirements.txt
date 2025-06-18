@@ -4,3 +4,4 @@ minio
 scikit-learn
 pandas
 pyarrow
+redis
