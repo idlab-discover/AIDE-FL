@@ -46,8 +46,27 @@ def handle_eval_metrics(metrics: list[tuple[int, Metrics]]) -> Metrics: # One Me
     return {"metrics": eval_metrics}
 
 
+def make_on_fit_config(model_data: dict, local_epochs: int, batch_size: int):
+    
+    def on_fit_config(server_round: int) -> Metrics:
+        # Only send client config on the first round, else, client will use latest config it received
+        if server_round > 1:
+            print("Let clients reuse their local config")
+            return {} # Would return None but is changed to {} by Flower either way
+        
+        model_data_str = json.dumps(model_data) # Send model dict as string
+        
+        print("Sending config to clients")
+        return {"model_data": model_data_str, "local_epochs": local_epochs, "batch_size": batch_size}
+    
+    return on_fit_config
+
+
 def server_fn(context: Context):
-    scenario_name, model, fraction_fit, fraction_evaluate, min_available_clients, server_rounds = load_server_config()
+    scenario_name, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size = load_server_config()
+
+    # Load model from json
+    model = keras.models.model_from_json(json.dumps(model_data))
 
     # Get parameters to initialize global model
     parameters = ndarrays_to_parameters(model.get_weights()) # Currently no initial parameters. Could be randomized 
@@ -62,8 +81,9 @@ def server_fn(context: Context):
         fraction_evaluate=fraction_evaluate,
         min_available_clients=min_available_clients,
         initial_parameters=parameters, # If not defined, the server gets its initial parameters from a random client
-        fit_metrics_aggregation_fn=handle_fit_metrics,
-        evaluate_metrics_aggregation_fn=handle_eval_metrics, # Defines logic used to handle metrics passed by client's evaluate function (e.g. accuracy)
+        fit_metrics_aggregation_fn=handle_fit_metrics, # Which function to use to handle metrics passed by client's fit function (e.g. history metrics for each epoch)
+        evaluate_metrics_aggregation_fn=handle_eval_metrics, # Which function to use to handle metrics passed by client's evaluate function (e.g. accuracy)
+        on_fit_config_fn=make_on_fit_config(model_data, local_epochs, batch_size), # Which function to use to relay a config from server to all clients
     )
     config = ServerConfig(num_rounds=server_rounds)
 
