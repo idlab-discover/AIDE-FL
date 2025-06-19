@@ -38,6 +38,12 @@ spec:
       - name: flower-serverapp
         image: ghcr.io/martienskienum1/flower-serverapp:latest
         args: ["--insecure", "--serverappio-api-address", "localhost:9091"]
+        env:
+        - name: WANDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wandb-api-key
+              key: WANDB_API_KEY
         volumeMounts:
         - name: server-share
           mountPath: /app/share

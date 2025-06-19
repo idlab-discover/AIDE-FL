@@ -28,7 +28,7 @@ fi
 # Ask whether kubeconfig points to right k8s instance
 server=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
 echo "Current Kubernetes server: ${server}"
-read -p "Is above server the right k8s instance? (y/N)" ans
+read -p "Is above server the right k8s instance? (y/N) " ans
 if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
     echo "Exiting."
     exit 1
@@ -54,30 +54,9 @@ fi
 
 echo "Valid setup: $server_count server and $client_count client node(s)."
 
-
-# Create .env files
-echo "Creating .env files..."
-find ${DIR} -type f -name ".env.example" | while read example_file; do
-  env_file="${example_file%.example}"  # Replace .env.example with .env
-  if [ -f "$env_file" ]; then
-    echo "Skipping $env_file (already exists)"
-  else
-    cp "$example_file" "$env_file"
-    echo "Created $env_file from $example_file"
-  fi
-done
-
 # Create certificates
 echo "Creating Flower certificates..."
 ${DIR}/gen_cert.sh
-
-# Set wandb API key
-read -p "Enter your Weights & Biases API key: " wandb_key
-
-flower_env="${DIR}/flower/.env"
-
-sed -i "s/^WANDB_API_KEY.*/WANDB_API_KEY = $wandb_key/" "$flower_env"
-echo "Updated WANDB_API_KEY in $flower_env"
 
 # Check if namespace exists
 if kubectl get namespace aide-fl >/dev/null 2>&1; then
@@ -86,6 +65,17 @@ else
   echo "Namespace 'aide-fl' does not exist. Creating..."
   kubectl create namespace aide-fl
 fi
+
+# Check if wandb API key secret exists
+if kubectl get secret wandb-api-key -n aide-fl >/dev/null 2>&1; then
+  echo "Wandb API key secret already exist. Deleting..."
+  kubectl delete secret wandb-api-key -n aide-fl
+fi
+
+# Create wandb API key secret
+read -p "Enter your Weights & Biases API key: " wandb_key
+echo "Creating wandb API key secret..."
+kubectl create secret generic wandb-api-key --from-literal=WANDB_API_KEY=$wandb_key -n aide-fl
 
 # Check if secret and configmap with certs exist
 if kubectl get configmap ca-cert -n aide-fl >/dev/null 2>&1 || kubectl get secret server-cert -n aide-fl >/dev/null 2>&1; then
@@ -192,7 +182,7 @@ fi
 
 # Create redis configmap for Redis config
 echo "Creating redis configmap..."
-kubectl apply -f ${DIR}/redis-configmap.yaml
+kubectl apply -f ${DIR}/client/preprocessor/redis-configmap.yaml
 
 # Check if preprocessor daemonset exists
 if kubectl get daemonset preprocessor-daemonset -n aide-fl >/dev/null 2>&1; then

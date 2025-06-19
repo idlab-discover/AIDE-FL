@@ -5,7 +5,6 @@ import sys
 import json
 
 from flask import Flask, jsonify, request
-from dotenv import load_dotenv
 import wandb
 
 
@@ -101,7 +100,6 @@ def training_status(run_id: str) -> str:
         
 
 def main():
-    load_dotenv()
     wandb.login(key=os.getenv("WANDB_API_KEY"))
 
     setup_flask()
