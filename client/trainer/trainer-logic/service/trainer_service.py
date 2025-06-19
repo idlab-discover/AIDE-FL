@@ -21,8 +21,8 @@ class TrainerService:
         except (configparser.DuplicateSectionError):
             pass
         
+        # Setting changed to 1 lets flower-clientapp know that this is the beginning of a new training run
         self.shared_config.set("clientapp", "changed", "1")
-        self.shared_config.set("clientapp", "scenario", json.dumps(scenario))
         
         # The default umask is 0o22 which turns off write permission of group and others
         os.umask(0)
