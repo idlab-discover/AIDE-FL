@@ -19,12 +19,13 @@ cd AIDE-FL
 The scripts guides you through the following steps:
 
 - `kubectl`, `jq` and `openssl` should be installed.
-- A kubeconfig context is set which points to the correct k8s instance.
+- A kubeconfig context must be set which points to the correct k8s instance.
 - There should be exactly one k8s node with label `fl-role=server` and at least one node with label `fl-role=client`.
-- `.env.example` files are copied to `.env` which provides a working config.
+- The `certs` folder is created containing certificates for secure Flower TLS communication.
 - A Weights & Biases API key is needed to log metrics.
+- For an empty cluster, the script creates the `aide-fl` namespace and deploys all pods.
 
-For an empty cluster, the script creates the `aide-fl` namespace and deploys all pods. The script can be reused for a full redeployment to install updates.
+The script can be reused for a full redeployment to apply updated containers.
 
 ## Scenarios
 
@@ -80,6 +81,8 @@ Interacting with the framework happens fully through the central server (`http:/
 
 - POST `/start`: Include a scenario in body to start a training session. Example scenario above can be used to try it out.
 - GET`/status?runId=`: Get the status of a training run. If no `runId` is given, all runs are requested. Set `runId` to request details of a specific run.
+
+After a training run, the resulting aggregated dataset can be downloaded from the Minio instance at `http://[server-address]:9001` with default credentials `aide-fl1:aide-fl1`.
 
 ## Client Services
 
