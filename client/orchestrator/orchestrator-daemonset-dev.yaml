@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: orchestrator
+  name: orchestrator-daemonset
+  namespace: aide-fl
+spec:
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+        env: dev
+    spec:
+      nodeSelector:
+        fl-role: client
+      hostNetwork: true
+      containers:
+      - name: orchestrator
+        image: ghcr.io/martienskienum1/orchestrator:dev
+        env:
+        - name: SERVER_IP
+          valueFrom:
+            configMapKeyRef:
+              name: server-ip
+              key: SERVER_IP

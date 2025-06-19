@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+  namespace: aide-fl
+  labels:
+    app: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+        env: dev
+    spec:
+      nodeSelector:
+        fl-role: server
+      hostNetwork: true
+      containers:
+
+      - name: flower-superlink
+        image: flwr/superlink:1.18.0
+        ports:
+        - containerPort: 9091
+          name: serverappio-api
+        - containerPort: 9092
+          name: fleet-api
+        - containerPort: 9093
+          name: deployment-engn
+        args: ["--ssl-ca-certfile", "certs/ca.crt", "--ssl-certfile", "certs/server.pem", "--ssl-keyfile", "certs/server.key", "--isolation", "process"]
+        volumeMounts:
+        - name: all-certs
+          mountPath: /app/certs
+          readOnly: true
+
+      - name: flower-serverapp
+        image: ghcr.io/martienskienum1/flower-serverapp:dev
+        args: ["--insecure", "--serverappio-api-address", "localhost:9091"]
+        env:
+        - name: WANDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wandb-api-key
+              key: WANDB_API_KEY
+        volumeMounts:
+        - name: server-share
+          mountPath: /app/share
+        - name: ca-cert
+          mountPath: /app/certs
+          readOnly: true
+
+      - name: server-logic
+        image: ghcr.io/martienskienum1/server-logic:dev
+        volumeMounts:
+        - name: server-share
+          mountPath: /app/share
+
+      volumes:
+      - name: server-share
+        emptyDir: {}
+      - name: all-certs
+        projected:
+          sources:
+          - secret:
+              name: server-cert
+              items:
+              - key: tls.crt
+                path: server.pem
+              - key: tls.key
+                path: server.key
+          - configMap:
+              name: ca-cert
+              items:
+              - key: ca.crt
+                path: ca.crt
+      - name: ca-cert
+        configMap:
+          name: ca-cert

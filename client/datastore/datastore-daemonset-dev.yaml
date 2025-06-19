@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: datastore
+  name: datastore-daemonset
+  namespace: aide-fl
+spec:
+  selector:
+    matchLabels:
+      app: datastore
+  template:
+    metadata:
+      labels:
+        app: datastore
+        env: dev
+    spec:
+      nodeSelector:
+        fl-role: client
+      hostNetwork: true
+      containers:
+      - name: minio
+        image: quay.io/minio/minio:latest
+        env:
+        - name: MINIO_ROOT_USER
+          value: aide-fl1
+        - name: MINIO_ROOT_PASSWORD
+          value: aide-fl1
+        command:
+        - /bin/bash
+        - -c
+        args:
+        - minio server /data --console-address :9001
+        ports:
+        - containerPort: 9000
+          hostPort: 9000
+        - containerPort: 9001
+          hostPort: 9001
+        volumeMounts:
+        - mountPath: /data
+          name: localvolume
+        startupProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          failureThreshold: 30
+          periodSeconds: 5
+      - name: datastore-logic
+        image: ghcr.io/martienskienum1/datastore-logic:dev
+      volumes:
+      - name: localvolume
+        hostPath:
+          path: /datasets
+          type: DirectoryOrCreate

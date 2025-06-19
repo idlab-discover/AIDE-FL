@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         app: trainer
+        env: prod
     spec:
       nodeSelector:
         fl-role: client

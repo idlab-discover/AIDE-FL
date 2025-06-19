@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         app: preprocessor
+        env: prod
     spec:
       nodeSelector:
         fl-role: client
