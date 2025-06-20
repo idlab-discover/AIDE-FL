@@ -6,7 +6,6 @@ from repository.redis_repository import RedisRepository
 from service.local_service import LocalService
 from service.redis_service import RedisService
 from service.kafka_service import KafkaService
-from service.trainer_service import TrainerService
 from controller.trainer_controller import TrainerController
 
 def main():
@@ -25,10 +24,9 @@ def main():
     local_service = LocalService("/")
     redis_service = RedisService(redis_repository)
     kafka_service = KafkaService(kafka_train_consumer_repository, kafka_trained_producer_repository)
-    trainer_service = TrainerService()
 
     # controller
-    trainer_controller = TrainerController(local_service, redis_service, kafka_service, trainer_service)
+    trainer_controller = TrainerController(local_service, redis_service, kafka_service)
     
     # consume
     trainer_controller.StartConsumingTrainScenario()
