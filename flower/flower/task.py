@@ -30,23 +30,24 @@ def load_server_config():
     
     local_epochs = scenario["hyper"]["local_epochs"]
     batch_size = scenario["hyper"]["batch_size"]
+    label_column = scenario["label_column"]
 
     print(f"Reloaded config")
 
-    return scenario_name, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size
+    return scenario_name, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column
     
 
-def prepare_data(df) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Convert pandas DataFrame features to numeric format and return features (x) and labels (y)"""
+def prepare_data(df: pd.DataFrame, label_column: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Convert pandas DataFrame features to numeric format and return features (x) and labels (y). Name of label column needs to be provided."""
 
-    y = df["Label"].astype('float32').values
+    y = df[label_column].astype('float32').values
 
-    x = df.drop(columns=["Label"]).astype('float32').values
+    x = df.drop(columns=[label_column]).astype('float32').values
 
     return x, y
 
 
-def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_data(label_column: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Return x and y for train, eval and test dataset"""
 
     # Read datasets from parquet files
@@ -62,9 +63,9 @@ def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame,
         print(f"Error loading parquet files: {e}")
         raise
 
-    x_train, y_train = prepare_data(train_df)
-    x_eval, y_eval = prepare_data(eval_df)
-    x_test, y_test = prepare_data(test_df)
+    x_train, y_train = prepare_data(train_df, label_column)
+    x_eval, y_eval = prepare_data(eval_df, label_column)
+    x_test, y_test = prepare_data(test_df, label_column)
     
     print("Datasets loaded from files")
 

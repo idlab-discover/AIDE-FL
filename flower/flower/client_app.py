@@ -31,7 +31,7 @@ class FlowerClient(NumPyClient):
             
             model = keras.models.model_from_json(model_data_str)
             
-            x_train, y_train, x_eval, y_eval, x_test, y_test = load_data()
+            x_train, y_train, x_eval, y_eval, x_test, y_test = load_data(config["label_column"])
         else: # When {} is received
             print("No new parameters received from server. Using cached parameters")
             

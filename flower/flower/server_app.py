@@ -46,7 +46,7 @@ def handle_eval_metrics(metrics: list[tuple[int, Metrics]]) -> Metrics: # One Me
     return {"metrics": eval_metrics}
 
 
-def make_on_fit_config(model_data: dict, local_epochs: int, batch_size: int):
+def make_on_fit_config(model_data: dict, local_epochs: int, batch_size: int, label_column: str):
     
     def on_fit_config(server_round: int) -> Metrics:
         # Only send client config on the first round, else, client will use latest config it received
@@ -57,13 +57,13 @@ def make_on_fit_config(model_data: dict, local_epochs: int, batch_size: int):
         model_data_str = json.dumps(model_data) # Send model dict as string
         
         print("Sending config to clients")
-        return {"model_data": model_data_str, "local_epochs": local_epochs, "batch_size": batch_size}
+        return {"model_data": model_data_str, "local_epochs": local_epochs, "batch_size": batch_size, "label_column": label_column}
     
     return on_fit_config
 
 
 def server_fn(context: Context):
-    scenario_name, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size = load_server_config()
+    scenario_name, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column = load_server_config()
 
     # Load model from json
     model = keras.models.model_from_json(json.dumps(model_data))
@@ -83,7 +83,7 @@ def server_fn(context: Context):
         initial_parameters=parameters, # If not defined, the server gets its initial parameters from a random client
         fit_metrics_aggregation_fn=handle_fit_metrics, # Which function to use to handle metrics passed by client's fit function (e.g. history metrics for each epoch)
         evaluate_metrics_aggregation_fn=handle_eval_metrics, # Which function to use to handle metrics passed by client's evaluate function (e.g. accuracy)
-        on_fit_config_fn=make_on_fit_config(model_data, local_epochs, batch_size), # Which function to use to relay a config from server to all clients
+        on_fit_config_fn=make_on_fit_config(model_data, local_epochs, batch_size, label_column), # Which function to use to relay a config from server to all clients
     )
     config = ServerConfig(num_rounds=server_rounds)
 
