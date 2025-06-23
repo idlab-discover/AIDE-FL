@@ -37,6 +37,7 @@ Following example scenario works out the box:
 {
   "name": "test",
   "dataset": "dhoogla-nfunswnb15v2",
+  "label_column": "Label",
   "preprocessing": {
     "drop_columns": ["RETRANSMITTED_IN_BYTES","RETRANSMITTED_IN_PKTS","RETRANSMITTED_OUT_BYTES","RETRANSMITTED_OUT_PKTS","SRC_TO_DST_AVG_THROUGHPUT","DST_TO_SRC_AVG_THROUGHPUT","NUM_PKTS_UP_TO_128_BYTES","NUM_PKTS_128_TO_256_BYTES","NUM_PKTS_256_TO_512_BYTES","NUM_PKTS_512_TO_1024_BYTES","NUM_PKTS_1024_TO_1514_BYTES","TCP_WIN_MAX_IN","TCP_WIN_MAX_OUT","ICMP_TYPE","ICMP_IPV4_TYPE","DNS_QUERY_ID","DNS_QUERY_TYPE","DNS_TTL_ANSWER","FTP_COMMAND_RET_CODE","Attack"],
     "drop_rows": 1500000,
@@ -63,6 +64,7 @@ Following example scenario works out the box:
 
 - `name`: Name for the scenario. This is the UID for the scenario. Change the name of the scenario if modifications are made. If a training session is started with a different scenario but with the same name as a previous one, the previous scenario will be used.
 - `dataset`: Uses the parquet dataset in the Minio datastore with matching name (under `datasets/[datasetname]/[datasetname].parquet`), or tries downloading the dataset from Kaggle (e.g. `dhoogla-nfunswnb15v2` matches with dataset `nfunswnb15v2` (case insensitive) of user `dhoogla`).
+- `label_column`: The name of the column containing the labels of your dataset. 
 - `preprocessing.drop_columns`: Columns to be dropped/ignored from dataset.
 - `preprocessing.drop_rows`: Drop amount of random rows ro shrink dataset.
 - `preprocessing.shuffle`: Shuffle dataset.
