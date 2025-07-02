@@ -33,6 +33,9 @@ func (controller OrchestratorController) ConnectServer(host string) {
 	defer c.Close()
 	slog.Info("Connected to", "url", u.String())
 
+	// Start general message listener goroutine
+	go controller.listenForGeneralMessages(c)
+
 	for {
 		_, message, err := c.ReadMessage()
 		exception.PanicLogging(err, "Unable to read message")
@@ -69,4 +72,19 @@ func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scen
 
 	// Receive scenario from trainer when trained
 	scenario = controller.KafkaService.ConsumeTrainedScenario(context.Background())
+}
+
+func (controller *OrchestratorController) listenForGeneralMessages(conn *websocket.Conn) {
+	for {
+		m := controller.KafkaService.ConsumeGeneralMessage(context.Background())
+
+		byteArray, err := json.Marshal(m)
+		exception.PanicLogging(err, "Unable to marshal general message to JSON")
+
+		// Send general message to the server via WebSocket
+		err = conn.WriteMessage(websocket.TextMessage, byteArray)
+		if err != nil {
+			slog.Error("Unable to send general message to server", "err", err)
+		}
+	}
 }

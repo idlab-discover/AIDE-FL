@@ -13,12 +13,13 @@ import (
 )
 
 type kafkaServiceImpl struct {
-	prepareWriterRepo      repository.KafkaWriterRepository
-	preparedReaderRepo     repository.KafkaReaderRepository
-	preprocessWriterRepo   repository.KafkaWriterRepository
-	preprocessedReaderRepo repository.KafkaReaderRepository
-	trainWriterRepo        repository.KafkaWriterRepository
-	trainedReaderRepo      repository.KafkaReaderRepository
+	prepareWriterRepo        repository.KafkaWriterRepository
+	preparedReaderRepo       repository.KafkaReaderRepository
+	preprocessWriterRepo     repository.KafkaWriterRepository
+	preprocessedReaderRepo   repository.KafkaReaderRepository
+	trainWriterRepo          repository.KafkaWriterRepository
+	trainedReaderRepo        repository.KafkaReaderRepository
+	generalMessageReaderRepo repository.KafkaReaderRepository
 }
 
 func NewKafkaServiceImpl(
@@ -28,14 +29,16 @@ func NewKafkaServiceImpl(
 	preprocessedReaderRepo *repository.KafkaReaderRepository,
 	trainWriterRepo *repository.KafkaWriterRepository,
 	trainedReaderRepo *repository.KafkaReaderRepository,
+	generalMessageReaderRepo *repository.KafkaReaderRepository,
 ) service.KafkaService {
 	return &kafkaServiceImpl{
-		prepareWriterRepo:      *prepareWriterRepo,
-		preparedReaderRepo:     *preparedReaderRepo,
-		preprocessWriterRepo:   *preprocessWriterRepo,
-		preprocessedReaderRepo: *preprocessedReaderRepo,
-		trainWriterRepo:        *trainWriterRepo,
-		trainedReaderRepo:      *trainedReaderRepo,
+		prepareWriterRepo:        *prepareWriterRepo,
+		preparedReaderRepo:       *preparedReaderRepo,
+		preprocessWriterRepo:     *preprocessWriterRepo,
+		preprocessedReaderRepo:   *preprocessedReaderRepo,
+		trainWriterRepo:          *trainWriterRepo,
+		trainedReaderRepo:        *trainedReaderRepo,
+		generalMessageReaderRepo: *generalMessageReaderRepo,
 	}
 }
 
@@ -127,4 +130,20 @@ func (service *kafkaServiceImpl) ConsumeTrainedScenario(ctx context.Context) mod
 	service.trainedReaderRepo.Commit(ctx, m)
 
 	return scenario
+}
+
+func (service *kafkaServiceImpl) ConsumeGeneralMessage(ctx context.Context) model.GeneralMessage {
+	slog.Info("Consuming general messages")
+
+	m := service.generalMessageReaderRepo.Read(ctx)
+
+	var message model.GeneralMessage
+	err := json.Unmarshal(m.Value, &message)
+	exception.PanicLogging(err, "Unable to unmarshal JSON to general message")
+
+	slog.Info("Received general message", "type", message.Type, "origin", message.Origin)
+
+	service.generalMessageReaderRepo.Commit(ctx, m)
+
+	return message
 }

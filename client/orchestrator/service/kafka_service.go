@@ -13,4 +13,5 @@ type KafkaService interface {
 	ConsumePreparedScenario(ctx context.Context) model.Scenario
 	ConsumePreprocessedScenario(ctx context.Context) model.Scenario
 	ConsumeTrainedScenario(ctx context.Context) model.Scenario
+	ConsumeGeneralMessage(ctx context.Context) model.GeneralMessage
 }
