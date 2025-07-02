@@ -10,4 +10,5 @@ class Config:
         self.kafka_group = os.getenv("KAFKA_GROUP")
         self.kafka_train_topic = os.getenv("KAFKA_TRAIN_TOPIC")
         self.kafka_trained_topic = os.getenv("KAFKA_TRAINED_TOPIC")
+        self.error_topic = os.getenv("ERROR_TOPIC")
         self.log_level = os.getenv("LOG_LEVEL")
