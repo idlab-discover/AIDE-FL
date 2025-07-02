@@ -82,7 +82,7 @@ func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) string {
 
 	// TODO: error handling
 	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound {
-		panic("Dataset not found")
+		exception.PanicLogging("Kaggle dataset not found", "Kaggle dataset not found", "URL", fileKeyURL)
 	}
 
 	//TODO: use WriteFile
