@@ -10,14 +10,16 @@ import (
 )
 
 type kafkaRepositoryImpl struct {
-	prepareReader  *kafka.Reader
-	preparedWriter *kafka.Writer
+	prepareReader        *kafka.Reader
+	preparedWriter       *kafka.Writer
+	generalMessageWriter *kafka.Writer
 }
 
-func NewKafkaPublishRepositoryImpl(prepareReader *kafka.Reader, preparedWriter *kafka.Writer) repository.KafkaRepository {
+func NewKafkaRepositoryImpl(prepareReader *kafka.Reader, preparedWriter *kafka.Writer, generalMessageWriter *kafka.Writer) repository.KafkaRepository {
 	return &kafkaRepositoryImpl{
-		prepareReader:  prepareReader,
-		preparedWriter: preparedWriter,
+		prepareReader:        prepareReader,
+		preparedWriter:       preparedWriter,
+		generalMessageWriter: generalMessageWriter,
 	}
 }
 
@@ -33,6 +35,11 @@ func (repo *kafkaRepositoryImpl) WritePreparedScenario(msg kafka.Message) {
 	exception.PanicLogging(err, "Unable to write prepared scenario message")
 }
 
+func (repo *kafkaRepositoryImpl) WriteGeneralMessage(msg kafka.Message) {
+	err := repo.generalMessageWriter.WriteMessages(context.Background(), msg)
+	exception.PanicLogging(err, "Unable to write general message")
+}
+
 func (repo *kafkaRepositoryImpl) CommitPrepareScenario(ctx context.Context, msg kafka.Message) {
 	slog.Info("Commiting prepare scenario message")
 
@@ -43,4 +50,5 @@ func (repo *kafkaRepositoryImpl) CommitPrepareScenario(ctx context.Context, msg 
 func (repo *kafkaRepositoryImpl) Close() {
 	defer repo.prepareReader.Close()
 	defer repo.preparedWriter.Close()
+	defer repo.generalMessageWriter.Close()
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/controller"
+	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/exception"
 	repository "github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/repository/impl"
 	service "github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/service/impl"
 )
@@ -15,16 +16,20 @@ func main() {
 	minioClient := configuration.NewMinioClient(config)
 	kafkaPrepareReader := configuration.NewKafkaPrepareReader(config)
 	kafkaPreparedWriter := configuration.NewKafkaPreparedWriter(config)
+	kafkaGeneralMessageWriter := configuration.NewKafkaGeneralMessageWriter(config)
 
 	// repository
 	minioRepository := repository.NewMinioRepositoryImpl(minioClient, config)
 	localRepository := repository.NewLocalRepositoryImpl(config)
-	kafkaRepository := repository.NewKafkaPublishRepositoryImpl(kafkaPrepareReader, kafkaPreparedWriter)
+	kafkaRepository := repository.NewKafkaRepositoryImpl(kafkaPrepareReader, kafkaPreparedWriter, kafkaGeneralMessageWriter)
 	defer kafkaRepository.Close()
 
 	// service
 	minioService := service.NewMinioServiceImpl(&minioRepository, &localRepository)
 	kafkaService := service.NewKafkaServiceImpl(&kafkaRepository)
+
+	// setup exception
+	exception.RegisterKafkaService(&kafkaService)
 
 	// controller
 	datastoreController := controller.NewMinioController(&minioService, &kafkaService, config)

@@ -32,3 +32,17 @@ func NewKafkaPreparedWriter(config Config) *kafka.Writer {
 
 	return writer
 }
+
+func NewKafkaGeneralMessageWriter(config Config) *kafka.Writer {
+	writer := &kafka.Writer{
+		Addr:         kafka.TCP(config.Get("KAFKA_ADDRESS")),
+		Topic:        config.Get("KAFKA_MESSAGE_TOPIC"),
+		Balancer:     &kafka.LeastBytes{},
+		RequiredAcks: kafka.RequireAll,
+		Async:        false,
+		BatchSize:    1,
+		WriteTimeout: 5 * time.Second,
+	}
+
+	return writer
+}
