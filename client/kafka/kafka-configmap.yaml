@@ -4,4 +4,4 @@ metadata:
   name: kafka-config
   namespace: aide-fl
 data:
-  TOPICS: scenario.prepare;scenario.prepared;scenario.preprocess;scenario.preprocessed;scenario.train;scenario.trained;scenario.error
+  TOPICS: scenario.prepare;scenario.prepared;scenario.preprocess;scenario.preprocessed;scenario.train;scenario.trained;scenario.message
