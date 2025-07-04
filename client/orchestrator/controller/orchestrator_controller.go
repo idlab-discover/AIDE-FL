@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/url"
+	"time"
 
 	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/exception"
 	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/model"
@@ -26,16 +27,50 @@ func NewOrchestratorController(orchestratorService *service.OrchestratorService,
 
 func (controller OrchestratorController) ConnectServer(host string) {
 	u := url.URL{Scheme: "ws", Host: host, Path: "/ws"}
+	maxRetries := 8
+	baseDelay := time.Second
 
-	// TODO: Set retries
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	exception.PanicLogging(err, "Unable to connect to server")
-	defer c.Close()
-	slog.Info("Connected to", "url", u.String())
+	var c *websocket.Conn
+	var err error
 
-	// Start general message listener goroutine
-	go controller.listenForGeneralMessages(c)
+	for i := 0; i < maxRetries; i++ {
+		c, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+		if err == nil {
+			slog.Info("Connected to", "url", u.String())
+			defer c.Close()
 
+			// Start general message listener goroutine
+			go controller.consumeGeneralMessages(c)
+
+			// Listen for incoming scenario from server
+			controller.listenForScenarios(c)
+		}
+
+		slog.Warn("Failed to connect", "attempt", i+1, "error", err)
+
+		time.Sleep(baseDelay * time.Duration(1<<i)) // exponential backoff
+	}
+
+	exception.PanicLogging(err, "Unable to connect to server after retries")
+
+}
+
+func (controller *OrchestratorController) consumeGeneralMessages(conn *websocket.Conn) {
+	for {
+		m := controller.KafkaService.ConsumeGeneralMessage(context.Background())
+
+		byteArray, err := json.Marshal(m)
+		exception.PanicLogging(err, "Unable to marshal general message to JSON")
+
+		// Send general message to the server via WebSocket
+		err = conn.WriteMessage(websocket.TextMessage, byteArray)
+		if err != nil {
+			slog.Error("Unable to send general message to server", "err", err)
+		}
+	}
+}
+
+func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) {
 	for {
 		_, message, err := c.ReadMessage()
 		exception.PanicLogging(err, "Unable to read message")
@@ -72,19 +107,4 @@ func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scen
 
 	// Receive scenario from trainer when trained
 	scenario = controller.KafkaService.ConsumeTrainedScenario(context.Background())
-}
-
-func (controller *OrchestratorController) listenForGeneralMessages(conn *websocket.Conn) {
-	for {
-		m := controller.KafkaService.ConsumeGeneralMessage(context.Background())
-
-		byteArray, err := json.Marshal(m)
-		exception.PanicLogging(err, "Unable to marshal general message to JSON")
-
-		// Send general message to the server via WebSocket
-		err = conn.WriteMessage(websocket.TextMessage, byteArray)
-		if err != nil {
-			slog.Error("Unable to send general message to server", "err", err)
-		}
-	}
 }
