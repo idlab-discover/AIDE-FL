@@ -84,66 +84,78 @@ func (service *kafkaServiceImpl) PublishTrainScenario(scenario model.Scenario) {
 	service.trainWriterRepo.Write(msg)
 }
 
-func (service *kafkaServiceImpl) ConsumePreparedScenario(ctx context.Context) model.Scenario {
+func (service *kafkaServiceImpl) ConsumePreparedScenario(ctx context.Context) (model.Scenario, error) {
 	slog.Info("Consuming prepared scenario messages")
 
-	m := service.preparedReaderRepo.Read(ctx)
+	m, err := service.preparedReaderRepo.Read(ctx)
+	if err != nil {
+		return model.Scenario{}, err
+	}
 
 	var scenario model.Scenario
-	err := json.Unmarshal(m.Value, &scenario)
+	err = json.Unmarshal(m.Value, &scenario)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
 	slog.Info("Received prepared", "scenario", scenario.Name)
 
 	service.preparedReaderRepo.Commit(ctx, m)
 
-	return scenario
+	return scenario, err
 }
 
-func (service *kafkaServiceImpl) ConsumePreprocessedScenario(ctx context.Context) model.Scenario {
+func (service *kafkaServiceImpl) ConsumePreprocessedScenario(ctx context.Context) (model.Scenario, error) {
 	slog.Info("Consuming preprocessed scenario messages")
 
-	m := service.preprocessedReaderRepo.Read(ctx)
+	m, err := service.preprocessedReaderRepo.Read(ctx)
+	if err != nil {
+		return model.Scenario{}, err
+	}
 
 	var scenario model.Scenario
-	err := json.Unmarshal(m.Value, &scenario)
+	err = json.Unmarshal(m.Value, &scenario)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
 	slog.Info("Received preprocessed", "scenario", scenario.Name)
 
 	service.preprocessedReaderRepo.Commit(ctx, m)
 
-	return scenario
+	return scenario, err
 }
 
-func (service *kafkaServiceImpl) ConsumeTrainedScenario(ctx context.Context) model.Scenario {
+func (service *kafkaServiceImpl) ConsumeTrainedScenario(ctx context.Context) (model.Scenario, error) {
 	slog.Info("Consuming trained scenario messages")
 
-	m := service.trainedReaderRepo.Read(ctx)
+	m, err := service.trainedReaderRepo.Read(ctx)
+	if err != nil {
+		return model.Scenario{}, err
+	}
 
 	var scenario model.Scenario
-	err := json.Unmarshal(m.Value, &scenario)
+	err = json.Unmarshal(m.Value, &scenario)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
 	slog.Info("Received trained", "scenario", scenario.Name)
 
 	service.trainedReaderRepo.Commit(ctx, m)
 
-	return scenario
+	return scenario, err
 }
 
-func (service *kafkaServiceImpl) ConsumeGeneralMessage(ctx context.Context) model.GeneralMessage {
+func (service *kafkaServiceImpl) ConsumeGeneralMessage(ctx context.Context) (model.GeneralMessage, error) {
 	slog.Info("Consuming general messages")
 
-	m := service.generalMessageReaderRepo.Read(ctx)
+	m, err := service.generalMessageReaderRepo.Read(ctx)
+	if err != nil {
+		return model.GeneralMessage{}, err
+	}
 
 	var message model.GeneralMessage
-	err := json.Unmarshal(m.Value, &message)
+	err = json.Unmarshal(m.Value, &message)
 	exception.PanicLogging(err, "Unable to unmarshal JSON to general message")
 
 	slog.Info("Received general message", "type", message.Type, "origin", message.Origin)
 
 	service.generalMessageReaderRepo.Commit(ctx, m)
 
-	return message
+	return message, err
 }

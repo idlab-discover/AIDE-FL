@@ -7,7 +7,7 @@ import (
 )
 
 type KafkaReaderRepository interface {
-	Read(ctx context.Context) kafka.Message
+	Read(ctx context.Context) (kafka.Message, error)
 	Commit(ctx context.Context, msg kafka.Message)
 	Close()
 }
