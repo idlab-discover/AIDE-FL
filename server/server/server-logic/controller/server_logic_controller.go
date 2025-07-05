@@ -75,14 +75,21 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 		slog.Info("Client disconnected:", "client", clientId)
 	}()
 
-	// Wait for 'done' message
+	// Wait for DONE message
 	for {
 		_, msg, err := conn.ReadMessage()
 		exception.PanicLogging(err, "Unable to read message from", "client", clientId)
 
-		if string(msg) == "done" {
+		var generalMessage model.GeneralMessage
+		err = json.Unmarshal(msg, &generalMessage)
+		if err != nil {
+			slog.Error("Unable to unmarshal JSON to general message", "error", err)
+			continue // Skip bad message
+		}
+
+		if generalMessage.Type == "INFO" && generalMessage.Origin == "orchestrator" && generalMessage.Message == "DONE" {
 			controller.doneCond.L.Lock()
-			slog.Info("Reported done by", "client", clientId)
+			slog.Info("Reported DONE by", "client", clientId)
 			controller.doneCount++
 			slog.Info("Progress:", "done", controller.doneCount, "total", controller.totalClients)
 			if controller.doneCount >= controller.totalClients {

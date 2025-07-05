@@ -108,10 +108,18 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 
 		controller.handleScenarioFlow(scenario)
 
-		slog.Info("Sending 'done' to server")
-		err = c.WriteMessage(websocket.TextMessage, []byte("done"))
+		slog.Info("Sending DONE to server")
+		m := model.GeneralMessage{
+			Type:    "INFO",
+			Origin:  "orchestrator",
+			Message: "DONE",
+		}
+		byteArray, err := json.Marshal(m)
+		exception.PanicLogging(err, "Unable to marshal general message to JSON")
+
+		err = c.WriteMessage(websocket.TextMessage, byteArray)
 		if err != nil {
-			return fmt.Errorf("unable to send 'done': %w", err)
+			return fmt.Errorf("unable to send DONE: %w", err)
 		}
 	}
 }
