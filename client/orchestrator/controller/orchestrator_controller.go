@@ -17,6 +17,8 @@ import (
 type OrchestratorController struct {
 	service.OrchestratorService
 	service.KafkaService
+
+	cancelScenarioFunc context.CancelFunc // This function can be called to stop scenario flow
 }
 
 func NewOrchestratorController(orchestratorService *service.OrchestratorService, kafkaService *service.KafkaService) *OrchestratorController {
@@ -52,9 +54,11 @@ func (controller OrchestratorController) ConnectServer(host string) {
 			continue
 		}
 
+		// Create context to cancel consuming general messages when connection is lost
+		ctxGenMessages, cancelConsumingGeneralMessages := context.WithCancel(context.Background())
+
 		// Start general message listener goroutine
-		ctx, cancel := context.WithCancel(context.Background())
-		go controller.consumeGeneralMessages(ctx, c)
+		go controller.consumeGeneralMessages(ctxGenMessages, c)
 
 		// Listen for incoming scenario from server
 		err = controller.listenForScenarios(c)
@@ -62,8 +66,8 @@ func (controller OrchestratorController) ConnectServer(host string) {
 		// Cleanup
 		slog.Warn("Disconnected from server, retrying", "error", err)
 		slog.Info("Stopping general message consumer")
-		cancel()  // Stop consuming general messages
-		c.Close() // Close connection before trying to reconnect
+		cancelConsumingGeneralMessages() // Stop consuming general messages
+		c.Close()                        // Close connection before trying to reconnect
 
 		time.Sleep(time.Second * 2)
 	}
@@ -77,6 +81,12 @@ func (controller *OrchestratorController) consumeGeneralMessages(ctx context.Con
 			return
 		}
 
+		if m.Type == "ERROR" && controller.cancelScenarioFunc != nil {
+			slog.Warn("Cancelling scenario flow due to ERROR")
+			controller.cancelScenarioFunc()
+			controller.cancelScenarioFunc = nil
+		}
+
 		byteArray, err := json.Marshal(m)
 		if err != nil {
 			slog.Error("Unable to marshal general message to JSON", "error", err)
@@ -84,6 +94,7 @@ func (controller *OrchestratorController) consumeGeneralMessages(ctx context.Con
 		}
 
 		// Send general message to the server via WebSocket
+		slog.Info("Sending general message to server")
 		err = conn.WriteMessage(websocket.TextMessage, byteArray)
 		if err != nil {
 			slog.Error("Unable to send general message to server", "err", err)
@@ -93,6 +104,8 @@ func (controller *OrchestratorController) consumeGeneralMessages(ctx context.Con
 
 func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) error {
 	for {
+		slog.Info("Waiting for incoming scenario...")
+
 		_, message, err := c.ReadMessage()
 		if err != nil {
 			return fmt.Errorf("unable to read message: %w", err)
@@ -102,48 +115,67 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 		var scenario model.Scenario
 		err = json.Unmarshal(message, &scenario)
 		if err != nil {
-			slog.Error("Unable to unmarshal JSON to scenario", "error", err)
+			slog.Error("Unable to unmarshal JSON to scenario. Skipping bad message.", "error", err)
 			continue // Skip bad message
 		}
 
-		controller.handleScenarioFlow(scenario)
+		// Create context + cancel func per scenario
+		handleScenarioCtx, cancelScenarioFlow := context.WithCancel(context.Background())
+		controller.cancelScenarioFunc = cancelScenarioFlow
 
-		slog.Info("Sending DONE to server")
-		m := model.GeneralMessage{
-			Type:    "INFO",
-			Origin:  "orchestrator",
-			Message: "DONE",
-		}
-		byteArray, err := json.Marshal(m)
-		exception.PanicLogging(err, "Unable to marshal general message to JSON")
+		controller.handleScenarioFlow(scenario, handleScenarioCtx)
 
-		err = c.WriteMessage(websocket.TextMessage, byteArray)
-		if err != nil {
-			return fmt.Errorf("unable to send DONE: %w", err)
+		select {
+		case <-handleScenarioCtx.Done():
+			continue
+		default:
+
+			slog.Info("Sending DONE to server")
+			m := model.GeneralMessage{
+				Type:    "INFO",
+				Origin:  "orchestrator",
+				Message: "DONE",
+			}
+			byteArray, err := json.Marshal(m)
+			exception.PanicLogging(err, "Unable to marshal general message to JSON")
+
+			err = c.WriteMessage(websocket.TextMessage, byteArray)
+			if err != nil {
+				return fmt.Errorf("unable to send DONE: %w", err)
+			}
 		}
 	}
 }
 
-func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scenario) {
+func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scenario, ctx context.Context) {
 
 	// Send scenario to datastore-logic for preparation
 	controller.KafkaService.PublishPrepareScenario(scenario)
 
 	// Receive scenario with status from datastore-logic
-	scenario, err := controller.KafkaService.ConsumePreparedScenario(context.Background())
-	exception.PanicLogging(err, "Unable to consume prepared scenario")
+	scenario, err := controller.KafkaService.ConsumePreparedScenario(ctx)
+	if err != nil {
+		slog.Error("Unable to consume prepared scenario. Cancelling scenario flow.", "error", err)
+		return
+	}
 
 	// Send scenario to preprocessor
 	controller.KafkaService.PublishPreprocessScenario(scenario)
 
 	// Receive scenario from preprocessor
-	scenario, err = controller.KafkaService.ConsumePreprocessedScenario(context.Background())
-	exception.PanicLogging(err, "Unable to consume preprocessed scenario")
+	scenario, err = controller.KafkaService.ConsumePreprocessedScenario(ctx)
+	if err != nil {
+		slog.Error("Unable to consume preprocessed scenario. Cancelling scenario flow.", "error", err)
+		return
+	}
 
 	// Send scenario to trainer
 	controller.KafkaService.PublishTrainScenario(scenario)
 
 	// Receive scenario from trainer when trained
-	scenario, err = controller.KafkaService.ConsumeTrainedScenario(context.Background())
-	exception.PanicLogging(err, "Unable to consume trained scenario")
+	scenario, err = controller.KafkaService.ConsumeTrainedScenario(ctx)
+	if err != nil {
+		slog.Error("Unable to consume trained scenario. Cancelling scenario flow.", "error", err)
+		return
+	}
 }
