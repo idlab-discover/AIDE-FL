@@ -37,7 +37,7 @@ func PanicLogging(err interface{}, msg string, args ...any) {
 		slog.Error(msg, args...)
 
 		m := model.GeneralMessage{
-			Type:    "FATAL",
+			Type:    "ERROR",
 			Origin:  "datastore",
 			Message: formatMessage(msg, args...),
 		}
