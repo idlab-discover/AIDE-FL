@@ -23,6 +23,7 @@ type ServerLogicController struct {
 	doneCount    int
 	totalClients int
 	doneCond     *sync.Cond
+	errorMessage *model.GeneralMessage
 }
 
 func NewServerLogicController(serverLogicService *service.ServerLogicService, minioService *service.MinioService, config configuration.Config) *ServerLogicController {
@@ -75,7 +76,11 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 		slog.Info("Client disconnected:", "client", clientId)
 	}()
 
-	// Wait for DONE message
+	controller.listenForGeneralMessages(conn, clientId)
+}
+
+// Given a client connection, listen for incoming general messages
+func (controller *ServerLogicController) listenForGeneralMessages(conn *websocket.Conn, clientId string) {
 	for {
 		_, msg, err := conn.ReadMessage()
 		exception.PanicLogging(err, "Unable to read message from", "client", clientId)
@@ -87,6 +92,7 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 			continue // Skip bad message
 		}
 
+		// Handle DONE message
 		if generalMessage.Type == "INFO" && generalMessage.Origin == "orchestrator" && generalMessage.Message == "DONE" {
 			controller.doneCond.L.Lock()
 			slog.Info("Reported DONE by", "client", clientId)
@@ -95,8 +101,19 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 			if controller.doneCount >= controller.totalClients {
 				controller.doneCond.Broadcast()
 			}
+			controller.doneCond.L.Unlock()
 		}
-		controller.doneCond.L.Unlock()
+
+		// Handle FATAL message
+		if generalMessage.Type == "ERROR" {
+			controller.doneCond.L.Lock()
+			slog.Error("ERROR received from", "clientId", clientId)
+
+			controller.errorMessage = &generalMessage
+
+			controller.doneCond.Broadcast()
+			controller.doneCond.L.Unlock()
+		}
 	}
 }
 
@@ -106,7 +123,8 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	controller.clientsMutex.Lock()
 	defer controller.clientsMutex.Unlock()
 
-	// Reset done count
+	// Reset fatal message and done count
+	controller.errorMessage = nil
 	controller.doneCount = 0
 
 	// Get scenario from request
@@ -123,10 +141,27 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 	// Start training when all clients are done preparing
 	controller.doneCond.L.Lock()
-	for controller.doneCount < controller.totalClients {
+	for controller.doneCount < controller.totalClients && controller.errorMessage == nil {
 		controller.doneCond.Wait()
 	}
 	controller.doneCond.L.Unlock()
+
+	// Abort on error
+	if controller.errorMessage != nil {
+		slog.Error("Aborting training due to error", "origin", controller.errorMessage.Origin, "message", controller.errorMessage.Message)
+
+		response := model.GeneralResponse{
+			Message: "Training run aborted due to client error",
+			Data:    controller.errorMessage,
+		}
+		jsonData, _ := json.Marshal(response)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(jsonData)
+		return
+	}
+
 	slog.Info("All clients reported done")
 	jsonStr := controller.ServerLogicService.StartTraining()
 
