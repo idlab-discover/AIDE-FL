@@ -1,12 +1,36 @@
 package model
 
 type Scenario struct {
-	Name          string                 `json:"name"`
-	Dataset       string                 `json:"dataset"`
-	LabelColumn   string                 `json:"label_column"`
-	Preprocessing map[string]interface{} `json:"preprocessing"`
-	Hyper         map[string]interface{} `json:"hyper"`
-	Strategy      map[string]interface{} `json:"strategy"`
-	ModelConfig   map[string]interface{} `json:"model_config"`
-	Model         map[string]interface{} `json:"model"`
+	Name          string                 `json:"name" validate:"required"`
+	Dataset       string                 `json:"dataset" validate:"required"`
+	LabelColumn   string                 `json:"label_column" validate:"required"`
+	Preprocessing Preprocessing          `json:"preprocessing" validate:"required"`
+	Hyper         Hyper                  `json:"hyper" validate:"required"`
+	Strategy      Strategy               `json:"strategy" validate:"required"`
+	Model         map[string]interface{} `json:"model" validate:"required"`
+}
+
+type Preprocessing struct {
+	DropColumns []string    `json:"drop_columns" validate:"required"`
+	DropRows    int         `json:"drop_rows" validate:"required"`
+	Shuffle     bool        `json:"shuffle" validate:"required"`
+	Split       SplitConfig `json:"split" validate:"required"`
+}
+
+type SplitConfig struct {
+	Train float64 `json:"train" validate:"required"`
+	Eval  float64 `json:"eval" validate:"required"`
+	Test  float64 `json:"test" validate:"required"`
+}
+
+type Hyper struct {
+	ServerRounds int `json:"server_rounds" validate:"required"`
+	LocalEpochs  int `json:"local_epochs" validate:"required"`
+	BatchSize    int `json:"batch_size" validate:"required"`
+}
+
+type Strategy struct {
+	FractionFit         float64 `json:"fraction_fit" validate:"required"`
+	FractionEvaluate    float64 `json:"fraction_evaluate" validate:"required"`
+	MinAvailableClients int     `json:"min_available_clients" validate:"required"`
 }
