@@ -32,14 +32,14 @@ func UnsetCommitter() {
 	commitFunction = nil
 }
 
-func PanicLogging(err interface{}, msg string, args ...any) {
+func PanicLogging(err error, msg string, args ...any) {
 	if err != nil {
-		slog.Error(msg, args...)
+		slog.Error(msg, append(args, "error", err)...)
 
 		m := model.GeneralMessage{
 			Type:    "ERROR",
 			Origin:  "datastore",
-			Message: formatMessage(msg, args...),
+			Message: formatMessage(msg, append(args, "error", err)...),
 		}
 
 		kafkaService.PublishGeneralMessage(m)
@@ -49,6 +49,24 @@ func PanicLogging(err interface{}, msg string, args ...any) {
 		}
 
 		panic(err)
+	}
+}
+
+func ErrorLogging(err error, msg string, args ...any) {
+	if err != nil {
+		slog.Error(msg, append(args, "error", err)...)
+
+		m := model.GeneralMessage{
+			Type:    "ERROR",
+			Origin:  "datastore",
+			Message: formatMessage(msg, append(args, "error", err)...),
+		}
+
+		kafkaService.PublishGeneralMessage(m)
+
+		if commitFunction != nil {
+			commitFunction(commitFunctionCtx, commitFunctionMsg)
+		}
 	}
 }
 
