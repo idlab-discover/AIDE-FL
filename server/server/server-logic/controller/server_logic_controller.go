@@ -127,11 +127,37 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	controller.errorMessage = nil
 	controller.doneCount = 0
 
-	// Get scenario from request
-	var scenario model.Scenario
-	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(&scenario)
-	exception.PanicLogging(err, "Unable to decode JSON to scenario")
+	// Decode body
+	scenario, err := controller.ServerLogicService.DecodeScenario(r.Body)
+	if err != nil {
+		slog.Error("Aborting training due to invalid request body", "error", err)
+
+		response := model.GeneralResponse{
+			Message: "Aborting training due to invalid request body",
+			Data:    err.Error(),
+		}
+		jsonData, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(jsonData)
+		return
+	}
+
+	// Validate scenario from request
+	err = controller.ServerLogicService.ValidateScenario(scenario)
+	if err != nil {
+		slog.Error("Aborting training due to invalid scenario", "error", err)
+
+		response := model.GeneralResponse{
+			Message: "Aborting training due to invalid scenario",
+			Data:    err.Error(),
+		}
+		jsonData, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(jsonData)
+		return
+	}
 
 	// Set config for Flower serverapp
 	controller.ServerLogicService.SetFlowerConfig(scenario)

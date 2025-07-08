@@ -2,6 +2,7 @@ package impl
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"maps"
@@ -18,18 +19,42 @@ import (
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
 	"github.com/fasthttp/websocket"
 	"github.com/fsnotify/fsnotify"
+	"github.com/go-playground/validator/v10"
 	"gopkg.in/ini.v1"
 )
 
 type serverLogicServiceImpl struct {
 	configuration.Config
+	*validator.Validate
 }
 
 func NewServerLogicServiceImpl(config configuration.Config) service.ServerLogicService {
-	return &serverLogicServiceImpl{Config: config}
+	return &serverLogicServiceImpl{
+		Config:   config,
+		Validate: validator.New(),
+	}
 }
 
-func (service *serverLogicServiceImpl) StartClients(scenario model.Scenario, clients map[string]*model.Client) {
+func (service *serverLogicServiceImpl) DecodeScenario(r io.ReadCloser) (*model.Scenario, error) {
+	defer r.Close()
+
+	var scenario model.Scenario
+	dec := json.NewDecoder(r)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&scenario)
+	if err != nil {
+		return nil, fmt.Errorf("unable to decode JSON to scenario: %w", err)
+	}
+
+	return &scenario, nil
+}
+
+func (service *serverLogicServiceImpl) ValidateScenario(scenario *model.Scenario) error {
+	err := service.Validate.Struct(scenario)
+	return err
+}
+
+func (service *serverLogicServiceImpl) StartClients(scenario *model.Scenario, clients map[string]*model.Client) {
 	slog.Info("Starting", "clients", slices.Collect(maps.Keys(clients)))
 
 	scenario_json, err := json.Marshal(scenario)
@@ -42,7 +67,7 @@ func (service *serverLogicServiceImpl) StartClients(scenario model.Scenario, cli
 	slog.Info("Sent scenario to", "#clients", len(clients))
 }
 
-func (service *serverLogicServiceImpl) SetFlowerConfig(scenario model.Scenario) {
+func (service *serverLogicServiceImpl) SetFlowerConfig(scenario *model.Scenario) {
 	slog.Info("Updating config file")
 	config_path := path.Join("app", "share", "config.ini")
 
