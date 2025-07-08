@@ -4,10 +4,11 @@ from repository.kafka_repository import KafkaConsumerRepository, KafkaProducerRe
 from configuration.logger import Logger
 
 class KafkaService:
-    def __init__(self, preprocess_consumer_repo: KafkaConsumerRepository, preprocessed_producer_repo: KafkaProducerRepository):
+    def __init__(self, preprocess_consumer_repo: KafkaConsumerRepository, preprocessed_producer_repo: KafkaProducerRepository, general_message_producer_repo: KafkaProducerRepository):
         self.logger = Logger.get_logger("KafkaService")
         self.preprocess_consumer = preprocess_consumer_repo
         self.preprocessed_producer = preprocessed_producer_repo
+        self.general_message_producer = general_message_producer_repo
     
     def consume_preprocess_scenario(self, handler):
         while True:
@@ -21,6 +22,8 @@ class KafkaService:
 
                 self.preprocess_consumer.commit(msg)
                 
-                
     def produce_preprocessed_scenario(self, scenario: dict):        
         self.preprocessed_producer.produce(scenario['name'], json.dumps(scenario))
+        
+    def produce_general_message(self, general_message: dict):
+        self.general_message_producer.produce(general_message['type'], json.dumps(general_message))

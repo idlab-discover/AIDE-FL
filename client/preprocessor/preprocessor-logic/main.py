@@ -4,7 +4,6 @@ from configuration.kafka import KafkaFactory
 from configuration.redis import RedisClient
 from configuration.logger import Logger
 from repository.minio_repository import MinioRepository
-from repository.kafka_repository import KafkaConsumerRepository, KafkaProducerRepository
 from repository.redis_repository import RedisRepository
 from service.local_service import LocalService
 from service.minio_service import MinioService
@@ -26,11 +25,12 @@ def main():
     redis_repository = RedisRepository(redis_client, config)
     kafka_preprocess_consumer_repository = kafka_factory.new_consumer_repository(config.kafka_preprocess_topic)
     kafka_preprocessed_producer_repository = kafka_factory.new_producer_repository(config.kafka_preprocessed_topic)
+    kafka_general_message_producer_repository = kafka_factory.new_producer_repository(config.kafka_message_topic)
     
     # service
     local_service = LocalService("/")
     minio_service = MinioService(minio_repository)
-    kafka_service = KafkaService(kafka_preprocess_consumer_repository, kafka_preprocessed_producer_repository)
+    kafka_service = KafkaService(kafka_preprocess_consumer_repository, kafka_preprocessed_producer_repository, kafka_general_message_producer_repository)
     redis_service = RedisService(redis_repository)
     preprocessor_service = PreprocessorService()
 
