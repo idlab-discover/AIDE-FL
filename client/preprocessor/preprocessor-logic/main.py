@@ -3,6 +3,7 @@ from configuration.minio import MinioClient
 from configuration.kafka import KafkaFactory
 from configuration.redis import RedisClient
 from configuration.logger import Logger
+from configuration.messenger import Messenger
 from repository.minio_repository import MinioRepository
 from repository.redis_repository import RedisRepository
 from service.local_service import LocalService
@@ -33,6 +34,9 @@ def main():
     kafka_service = KafkaService(kafka_preprocess_consumer_repository, kafka_preprocessed_producer_repository, kafka_general_message_producer_repository)
     redis_service = RedisService(redis_repository)
     preprocessor_service = PreprocessorService()
+    
+    # Initialise messenger
+    Messenger.init(kafka_service.produce_general_message)
 
     # controller
     preprocessor_controller = PreprocessorController(local_service, minio_service, redis_service, kafka_service, preprocessor_service)
