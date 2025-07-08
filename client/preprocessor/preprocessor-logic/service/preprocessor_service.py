@@ -43,7 +43,7 @@ class PreprocessorService:
     
     def drop_rows(self, df: pd.DataFrame, n: int) -> pd.DataFrame:
         if n >= len(df):
-            raise KeyError(f"Requested amount of rows to drop ({n}) is >= dataset size {len(df)}")
+            raise ValueError(f"Requested amount of rows to drop ({n}) is >= dataset size {len(df)}")
         
         self.logger.info(f"Dropping {n} rows out of {len(df)}")
         drop_indices = np.random.choice(df.index, n, replace=False)
@@ -57,6 +57,9 @@ class PreprocessorService:
     
 
     def split(self, df: pd.DataFrame, train: float, eval: float, test: float) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        if train + eval + test != 1.0:
+            raise ValueError(f"Sum of train, validation, and test splits should be 1.0, not {train + eval + test}")
+        
         df_train, df_temp = train_test_split(df, test_size=(1 - train), shuffle=False)
         eval_ratio = eval / (eval + test)
         df_eval, df_test = train_test_split(df_temp, test_size=(1 - eval_ratio), shuffle=False)
