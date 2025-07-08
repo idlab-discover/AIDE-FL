@@ -1,4 +1,5 @@
 from configuration.logger import Logger
+from configuration.messenger import send_error
 from service.local_service import LocalService
 from service.minio_service import MinioService
 from service.redis_service import RedisService
@@ -15,30 +16,42 @@ class PreprocessorController:
         self.preprocessor_service = preprocessor_service
     
     def StartConsumingPreprocessScenario(self):
-        self.logger.info("Consuming scenario.preprocess...")
         self.kafka_service.consume_preprocess_scenario(self.process)
 
     def process(self, scenario: dict):
         self.logger.info("Start processing")
         
-        # Check whether preprocessed dataset is cached in Redis
-        if not self.redis_service.are_datasets_cached(scenario["name"]):
-            
-            # Downloads dataset to ./dataset/dataset.parquet
-            dataset_path = self.minio_service.download_dataset(scenario["dataset"])
+        try:
+            # Check whether preprocessed dataset is cached in Redis
+            if not self.redis_service.are_datasets_cached(scenario["name"]):
+                
+                # Downloads dataset to ./dataset/dataset.parquet
+                dataset_path = self.minio_service.download_dataset(scenario["dataset"])
 
-            # Preprocess
-            df_train, df_eval, df_test = self.preprocessor_service.preprocess(scenario["preprocessing"], dataset_path)
+                # Preprocess
+                try:
+                    df_train, df_eval, df_test = self.preprocessor_service.preprocess(scenario["preprocessing"], dataset_path)
+                except Exception as e:
+                    error_msg = f"Unable to preprocess dataset: {str(e)}"
+                    self.logger.error(error_msg)
+                    send_error(error_msg)
+                    raise
+                finally:
+                    # Remove complete dataset
+                    self.local_service.delete(dataset_path)
 
-            # Remove complete dataset
-            self.local_service.delete(dataset_path)
-            
-            # Upload
-            self.redis_service.store_dataframes_as_parquet(scenario["name"], df_train, df_eval, df_test)
-            
-        else:
-            # Reset TTL of datasets
-            self.redis_service.reset_datasets_ttl(scenario["name"])
-            
-        # Publish scenario preprocessed
-        self.kafka_service.produce_preprocessed_scenario(scenario)
+                # Upload
+                self.redis_service.store_dataframes_as_parquet(scenario["name"], df_train, df_eval, df_test)
+                
+            else:
+                # Reset TTL of datasets
+                self.redis_service.reset_datasets_ttl(scenario["name"])
+                
+            # Publish scenario preprocessed
+            self.kafka_service.produce_preprocessed_scenario(scenario)
+
+        except Exception as e:
+            error_msg = f"Unable to process scenario '{scenario['name']}': {str(e)}"
+            self.logger.error(error_msg)
+            send_error(error_msg)
+            raise

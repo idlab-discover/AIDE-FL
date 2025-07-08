@@ -2,6 +2,7 @@ import json
 from repository.kafka_repository import KafkaConsumerRepository, KafkaProducerRepository
 
 from configuration.logger import Logger
+from configuration.messenger import send_error
 
 class KafkaService:
     def __init__(self, preprocess_consumer_repo: KafkaConsumerRepository, preprocessed_producer_repo: KafkaProducerRepository, general_message_producer_repo: KafkaProducerRepository):
@@ -11,6 +12,8 @@ class KafkaService:
         self.general_message_producer = general_message_producer_repo
     
     def consume_preprocess_scenario(self, handler):
+        self.logger.info("Started consuming preprocess scenarios")
+        
         while True:
             msg = self.preprocess_consumer.poll()
             if msg:
@@ -18,10 +21,17 @@ class KafkaService:
                 
                 scenario_json = msg.value().decode()
                 scenario_dict = json.loads(scenario_json)
-                handler(scenario_dict)
-
-                self.preprocess_consumer.commit(msg)
                 
+                try:
+                    handler(scenario_dict)
+                except Exception as e:
+                    error_msg = f"Failure in handler: {str(e)}"
+                    self.logger.error(error_msg)
+                    send_error(error_msg)
+                    continue
+                finally:
+                    self.preprocess_consumer.commit(msg)
+                     
     def produce_preprocessed_scenario(self, scenario: dict):        
         self.preprocessed_producer.produce(scenario['name'], json.dumps(scenario))
         
