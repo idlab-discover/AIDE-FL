@@ -6,5 +6,5 @@ type LocalRepository interface {
 	ScenarioToFile(outFilename string, scenario model.Scenario)
 	RemoveFile(filename string)
 	ExtractParquetFromZip(zipFilename string, outFilename string)
-	DownloadKaggleDataset(dataset string) string
+	DownloadKaggleDataset(dataset string) (string, error)
 }

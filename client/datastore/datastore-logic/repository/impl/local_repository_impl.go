@@ -3,6 +3,7 @@ package impl
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -70,8 +71,12 @@ func (repo *localRepositoryImpl) ExtractParquetFromZip(zipFilename string, outFi
 	repo.RemoveFile(zipFilename)
 }
 
-func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) string {
+func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) (string, error) {
 	slog.Info("Downloading Kaggle", "dataset", dataset)
+
+	if !strings.Contains(dataset, "-") {
+		return "", errors.New("dataset name must contain a '-' to split kaggle username from kaggle dataset")
+	}
 
 	fileKeyURL := repo.Config.Get("KAGGLE_URL") + strings.Replace(dataset, "-", "/", -1)
 
@@ -82,7 +87,7 @@ func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) string {
 
 	// TODO: error handling
 	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound {
-		exception.PanicLogging("Kaggle dataset not found", "Kaggle dataset not found", "URL", fileKeyURL)
+		return "", errors.New("Kaggle dataset not found with URL " + fileKeyURL)
 	}
 
 	//TODO: use WriteFile
@@ -94,5 +99,5 @@ func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) string {
 	_, err = io.Copy(file, resp.Body)
 	exception.PanicLogging(err, "Unable to write", "file", file)
 
-	return outFilename
+	return outFilename, nil
 }

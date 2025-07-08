@@ -15,18 +15,22 @@ func NewMinioServiceImpl(minioRepository *repository.MinioRepository, localRepos
 	return &minioServiceImpl{MinioRepository: *minioRepository, LocalRepository: *localRepository}
 }
 
-func (service *minioServiceImpl) Create(scenario model.Scenario) model.Scenario {
+func (service *minioServiceImpl) Create(scenario model.Scenario) (model.Scenario, error) {
 
 	datasetFilename := scenario.Dataset + ".parquet"
 
 	if !service.MinioRepository.ObjectExists(datasetFilename) {
-		zipName := service.LocalRepository.DownloadKaggleDataset(scenario.Dataset)
+		zipName, err := service.LocalRepository.DownloadKaggleDataset(scenario.Dataset)
+		if err != nil {
+			return model.Scenario{}, err
+		}
+
 		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
 		service.MinioRepository.Insert(datasetFilename, datasetFilename)
 		service.LocalRepository.RemoveFile(datasetFilename)
 	}
 
-	return scenario
+	return scenario, nil
 }
 
 func (service *minioServiceImpl) EnsureBucketExists(bucketName string) {
