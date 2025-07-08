@@ -43,8 +43,7 @@ class PreprocessorService:
     
     def drop_rows(self, df: pd.DataFrame, n: int) -> pd.DataFrame:
         if n >= len(df):
-            self.logger.info(f"Requested amount of rows to drop ({n}) is >= dataset size {len(df)}. Skipping..")
-            return df
+            raise KeyError(f"Requested amount of rows to drop ({n}) is >= dataset size {len(df)}")
         
         self.logger.info(f"Dropping {n} rows out of {len(df)}")
         drop_indices = np.random.choice(df.index, n, replace=False)
