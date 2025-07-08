@@ -13,7 +13,7 @@ class MinioService:
         self.logger.info(f"Downloading dataset {dataset_name}")
 
         dataset_filename = dataset_name + ".parquet"
-        self.minio_repository.download_object(os.path.join(dataset_name, dataset_filename), dataset_filename)
+        self.minio_repository.download_object(dataset_filename, dataset_filename)
         return dataset_filename
     
     

@@ -1,8 +1,6 @@
 package impl
 
 import (
-	"path/filepath"
-
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/model"
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/repository"
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/service"
@@ -20,35 +18,12 @@ func NewMinioServiceImpl(minioRepository *repository.MinioRepository, localRepos
 func (service *minioServiceImpl) Create(scenario model.Scenario) model.Scenario {
 
 	datasetFilename := scenario.Dataset + ".parquet"
-	scenarioFilename := scenario.Name + ".json"
-	indexFilename := scenario.Name + ".INDEX"
 
-	minioDatasetFilename := filepath.Join(scenario.Dataset, datasetFilename)
-	minioScenarioFilename := filepath.Join(scenario.Dataset, scenarioFilename)
-	minioIndexFilename := filepath.Join(scenario.Dataset, indexFilename)
-
-	if service.MinioRepository.ObjectExists(minioIndexFilename) {
-		scenario.Status = "preprocessed"
-	} else {
-		if !service.MinioRepository.ObjectExists(minioScenarioFilename) {
-
-			service.LocalRepository.ScenarioToFile(scenarioFilename, scenario)
-			service.MinioRepository.Insert(scenarioFilename, minioScenarioFilename)
-			service.LocalRepository.RemoveFile(scenarioFilename)
-
-			scenario.Status = "new scenario"
-		} else {
-			scenario.Status = "not preprocessed"
-		}
-
-		if !service.MinioRepository.ObjectExists(minioDatasetFilename) {
-			zipName := service.LocalRepository.DownloadKaggleDataset(scenario.Dataset)
-			service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
-			service.MinioRepository.Insert(datasetFilename, minioDatasetFilename)
-			service.LocalRepository.RemoveFile(datasetFilename)
-
-			scenario.Status = "new dataset"
-		}
+	if !service.MinioRepository.ObjectExists(datasetFilename) {
+		zipName := service.LocalRepository.DownloadKaggleDataset(scenario.Dataset)
+		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
+		service.MinioRepository.Insert(datasetFilename, datasetFilename)
+		service.LocalRepository.RemoveFile(datasetFilename)
 	}
 
 	return scenario

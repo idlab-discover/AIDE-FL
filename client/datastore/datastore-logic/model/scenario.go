@@ -9,5 +9,4 @@ type Scenario struct {
 	Strategy      map[string]interface{} `json:"strategy"`
 	ModelConfig   map[string]interface{} `json:"model_config"`
 	Model         map[string]interface{} `json:"model"`
-	Status        string                 `json:"status"`
 }
