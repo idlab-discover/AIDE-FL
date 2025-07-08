@@ -20,8 +20,3 @@ class LocalService:
         path = self.base_path / file
         if path.exists():
             path.unlink()
-            
-    
-    def df_to_parquet(self, df: pd.DataFrame, path: str):
-        self.logger.info(f"Saving dataframe to parquet: {path}")
-        df.to_parquet(path, index=False)
