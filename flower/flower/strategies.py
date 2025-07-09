@@ -63,6 +63,10 @@ class SaveModelFedAvg(FedAvg):
             json.dump(self.all_metrics, file, indent=4)
         print(f"Updated metrics in {path}")
         
+        # There are no "metrics" if all clients fail. Then nothing to log to wandb
+        if not metrics_aggregated.get("metrics"): # get("metrics") returns None if not present instead of KeyError in case of ["metrics"]
+            return loss_aggregated, metrics_aggregated
+        
         # Log to wandb
         client_metrics_list = metrics_aggregated["metrics"]
         metric_sums = defaultdict(float)
