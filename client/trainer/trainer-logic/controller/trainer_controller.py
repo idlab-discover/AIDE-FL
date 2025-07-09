@@ -1,14 +1,17 @@
 from configuration.logger import Logger
+from configuration.messenger import send_error
 from service.local_service import LocalService
 from service.redis_service import RedisService
 from service.kafka_service import KafkaService
+from service.trainer_service import TrainerService
 
 class TrainerController:
-    def __init__(self, local_service: LocalService, redis_service: RedisService, kafka_service: KafkaService):
+    def __init__(self, local_service: LocalService, redis_service: RedisService, kafka_service: KafkaService, trainer_service: TrainerService):
         self.logger = Logger.get_logger("TrainerController")
         self.local_service = local_service
         self.redis_service = redis_service
         self.kafka_service = kafka_service
+        self.trainer_service = trainer_service
     
     
     def StartConsumingTrainScenario(self):
@@ -18,9 +21,18 @@ class TrainerController:
 
     def process(self, scenario: dict):
         self.logger.info("Start processing")
-
+        
         # Download datasets (to shared volume)
         self.redis_service.download_datasets_to_parquet(scenario["name"])
+
+        # Check validity of trainer properties of scenario
+        try:
+            self.trainer_service.validate(scenario)
+        except Exception as e:
+            error_msg = f"Exception during validation of scenario: {str(e)}"
+            self.logger.error(error_msg)
+            send_error(error_msg)
+            raise
 
         # Publish scenario trained
         self.kafka_service.produce_trained_scenario(scenario)
