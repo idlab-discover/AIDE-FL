@@ -87,7 +87,7 @@ func (controller *ServerLogicController) Route() {
 }
 
 func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http.Request) {
-	// Get client ID from HTTP header
+	// Get client ID from HTTP header (no need to check for duplicates since client ID = node name)
 	clientId := r.Header.Get("X-Client-ID")
 
 	conn, err := controller.upgrader.Upgrade(w, r, nil)
@@ -101,14 +101,14 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 	client := &model.Client{Conn: conn, Id: clientId, Address: clientAddress}
 	controller.clientsMutex.Lock()
 	controller.clients[clientId] = client
-	controller.totalClients++
 	controller.clientsMutex.Unlock()
+	controller.totalClients++
 
 	defer func() {
 		controller.clientsMutex.Lock()
 		delete(controller.clients, clientId)
-		controller.totalClients--
 		controller.clientsMutex.Unlock()
+		controller.totalClients--
 		conn.Close()
 		slog.Info("Client disconnected:", "ID", clientId, "address", clientAddress)
 	}()
@@ -228,6 +228,29 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Check whether a dataset has been provided for every connected client if there is a datasets entry
+	if len(scenario.Datasets) != 0 {
+		controller.clientsMutex.Lock()
+		for _, client := range controller.clients {
+			_, ok := scenario.Datasets[client.Id]
+			if !ok {
+				controller.clientsMutex.Unlock()
+				slog.Error("No dataset has been provided for", "client", client.Id)
+
+				response := model.GeneralResponse{
+					Message: fmt.Sprintf("No dataset has been provided for %s", client.Id),
+					Data:    nil,
+				}
+				jsonData, _ := json.Marshal(response)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write(jsonData)
+				return
+			}
+		}
+		controller.clientsMutex.Unlock()
+	}
+
 	// Start of training
 	controller.setIsTraining(true)
 
@@ -264,6 +287,8 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(jsonData)
+
+		controller.setIsTraining(false)
 		return
 	}
 

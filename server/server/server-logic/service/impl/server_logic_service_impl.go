@@ -29,9 +29,33 @@ type serverLogicServiceImpl struct {
 }
 
 func NewServerLogicServiceImpl(config configuration.Config) service.ServerLogicService {
+	validate := validator.New()
+	validate.RegisterStructValidation(datasetsValidation, model.Scenario{})
+
 	return &serverLogicServiceImpl{
 		Config:   config,
-		Validate: validator.New(),
+		Validate: validate,
+	}
+}
+
+func datasetsValidation(sl validator.StructLevel) {
+	scenario := sl.Current().Interface().(model.Scenario)
+
+	// dataset and datasets cannot both be empty
+	if scenario.Dataset == "" && len(scenario.Datasets) == 0 {
+		sl.ReportError(scenario.Dataset, "Dataset", "dataset", "required_if_missing_datasets", "")
+		sl.ReportError(scenario.Dataset, "Datasets", "datasets", "required_if_missing_dataset", "")
+	}
+
+	// dataset and datasets cannot both be filled
+	if scenario.Dataset != "" && len(scenario.Datasets) > 0 {
+		sl.ReportError(scenario.Dataset, "Dataset", "dataset", "mutually_exclusive", "")
+		sl.ReportError(scenario.Datasets, "Datasets", "datasets", "mutually_exclusive", "")
+	}
+
+	// datasets must contain at least as much entries as the min amount of available clients that are required
+	if len(scenario.Datasets) > 0 && len(scenario.Datasets) < scenario.Strategy.MinAvailableClients {
+		sl.ReportError(scenario.Datasets, "Datasets", "datasets", "min_available_clients", fmt.Sprintf("need at least %d datasets, got %d", scenario.Strategy.MinAvailableClients, len(scenario.Datasets)))
 	}
 }
 
@@ -54,14 +78,33 @@ func (service *serverLogicServiceImpl) ValidateScenario(scenario *model.Scenario
 	return err
 }
 
+func (service *serverLogicServiceImpl) scenarioForClient(baseScenario model.Scenario, clientId string) model.Scenario {
+	// Use the dataset from Datasets if present
+	if baseScenario.Dataset != "" {
+		// Already a single dataset — nothing to do
+		return baseScenario
+	}
+
+	// Use dataset for specified client
+	dataset := baseScenario.Datasets[clientId]
+
+	// Set only the relevant dataset
+	baseScenario.Dataset = dataset
+	baseScenario.Datasets = nil // remove the full map before sending
+
+	return baseScenario
+}
+
 func (service *serverLogicServiceImpl) StartClients(scenario *model.Scenario, clients map[string]*model.Client) {
 	slog.Info("Starting", "clients", slices.Collect(maps.Keys(clients)))
 
-	scenario_json, err := json.Marshal(scenario)
-	exception.PanicLogging(err, "Unable to marshal scenario into JSON")
-
 	for _, c := range clients {
-		err := c.Conn.WriteMessage(websocket.TextMessage, scenario_json)
+		clientScenario := service.scenarioForClient(*scenario, c.Id)
+
+		scenarioJson, err := json.Marshal(clientScenario)
+		exception.PanicLogging(err, "Unable to marshal scenario into JSON")
+
+		err = c.Conn.WriteMessage(websocket.TextMessage, scenarioJson)
 		exception.PanicLogging(err, "Unable to send scenario to", "client", c.Id)
 	}
 	slog.Info("Sent scenario to", "#clients", len(clients))

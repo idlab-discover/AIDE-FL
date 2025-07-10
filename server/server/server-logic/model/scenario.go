@@ -2,7 +2,8 @@ package model
 
 type Scenario struct {
 	Name          string                 `json:"name" validate:"required"`
-	Dataset       string                 `json:"dataset" validate:"required"`
+	Dataset       string                 `json:"dataset,omitempty"`
+	Datasets      map[string]string      `json:"datasets,omitempty"`
 	LabelColumn   string                 `json:"label_column" validate:"required"`
 	Preprocessing Preprocessing          `json:"preprocessing" validate:"required"`
 	Hyper         Hyper                  `json:"hyper" validate:"required"`
