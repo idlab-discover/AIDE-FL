@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -104,7 +105,7 @@ func (controller *ServerLogicController) listenForGeneralMessages(conn *websocke
 			controller.doneCond.L.Unlock()
 		}
 
-		// Handle FATAL message
+		// Handle ERROR message
 		if generalMessage.Type == "ERROR" {
 			controller.doneCond.L.Lock()
 			slog.Error("ERROR received from", "clientId", clientId)
@@ -123,7 +124,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	controller.clientsMutex.Lock()
 	defer controller.clientsMutex.Unlock()
 
-	// Reset fatal message and done count
+	// Reset error message and done count
 	controller.errorMessage = nil
 	controller.doneCount = 0
 
@@ -159,13 +160,28 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Check for ample client connections
+	if controller.totalClients < scenario.Strategy.MinAvailableClients {
+		slog.Error("Aborting training due to insufficient client connections", "current", controller.totalClients, "required", scenario.Strategy.MinAvailableClients)
+
+		response := model.GeneralResponse{
+			Message: fmt.Sprintf("Aborting training due to insufficient client connections (%d out of %d)", controller.totalClients, scenario.Strategy.MinAvailableClients),
+			Data:    nil,
+		}
+		jsonData, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusTooEarly)
+		w.Write(jsonData)
+		return
+	}
+
 	// Set config for Flower serverapp
 	controller.ServerLogicService.SetFlowerConfig(scenario)
 
 	// Send request to clients
 	controller.ServerLogicService.StartClients(scenario, controller.clients)
 
-	// Start training when all clients are done preparing
+	// Wait for doneCount to Broadcast (when all clients report DONE or when an ERROR message is received)
 	controller.doneCond.L.Lock()
 	for controller.doneCount < controller.totalClients && controller.errorMessage == nil {
 		controller.doneCond.Wait()
@@ -188,6 +204,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Start Flower training if no error message
 	slog.Info("All clients reported done")
 	jsonStr := controller.ServerLogicService.StartTraining()
 
