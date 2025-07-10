@@ -113,7 +113,7 @@ func (service *serverLogicServiceImpl) StartTraining() string {
 }
 
 func (service *serverLogicServiceImpl) GetTrainingStatus(runId string) string {
-	slog.Info("Getting training status")
+	slog.Info("Getting training status for", "runId", runId)
 	resp, err := http.Get("http://localhost:8080/ls?runId=" + runId)
 	exception.PanicLogging(err, "Unable to get training status")
 	defer resp.Body.Close()
@@ -150,6 +150,7 @@ func (service *serverLogicServiceImpl) WatchForSafetensors(callback func(string)
 					slog.Info("Safetensors file found", "file", event.Name)
 					time.Sleep(1 * time.Second)
 					callback(event.Name)
+					return
 				}
 			}
 		case err, ok := <-watcher.Errors:
