@@ -18,13 +18,15 @@ type ServerLogicController struct {
 	service.ServerLogicService
 	service.MinioService
 	configuration.Config
-	upgrader     websocket.Upgrader
-	clients      map[string]*model.Client
-	clientsMutex *sync.Mutex
-	doneCount    int
-	totalClients int
-	doneCond     *sync.Cond
-	errorMessage *model.GeneralMessage
+	upgrader        websocket.Upgrader
+	clients         map[string]*model.Client
+	clientsMutex    *sync.Mutex
+	totalClients    int
+	doneCount       int
+	isTraining      bool
+	isTrainingMutex *sync.Mutex
+	doneCond        *sync.Cond
+	errorMessage    *model.GeneralMessage
 }
 
 func NewServerLogicController(serverLogicService *service.ServerLogicService, minioService *service.MinioService, config configuration.Config) *ServerLogicController {
@@ -35,11 +37,13 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService, mi
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
-		clients:      make(map[string]*model.Client),
-		clientsMutex: &sync.Mutex{},
-		doneCount:    0,
-		totalClients: 0,
-		doneCond:     sync.NewCond(&sync.Mutex{}),
+		clients:         make(map[string]*model.Client),
+		clientsMutex:    &sync.Mutex{},
+		totalClients:    0,
+		doneCount:       0,
+		isTraining:      false,
+		isTrainingMutex: &sync.Mutex{},
+		doneCond:        sync.NewCond(&sync.Mutex{}),
 	}
 
 	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_BUCKET"))
@@ -120,13 +124,26 @@ func (controller *ServerLogicController) listenForGeneralMessages(conn *websocke
 
 func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Received /start request")
-	slog.Info("start", "totalClients", controller.totalClients)
-	controller.clientsMutex.Lock()
-	defer controller.clientsMutex.Unlock()
 
-	// Reset error message and done count
-	controller.errorMessage = nil
-	controller.doneCount = 0
+	// Abort if there is an ongoing training run / client preparations
+	controller.isTrainingMutex.Lock()
+	if controller.isTraining {
+		slog.Error("Aborting training due to already ongoing training run")
+
+		response := model.GeneralResponse{
+			Message: "Aborting training due to already ongoing training run",
+			Data:    nil,
+		}
+		jsonData, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Retry-After", "60")
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write(jsonData)
+
+		controller.isTrainingMutex.Unlock()
+		return
+	}
+	controller.isTrainingMutex.Unlock()
 
 	// Decode body
 	scenario, err := controller.ServerLogicService.DecodeScenario(r.Body)
@@ -175,10 +192,20 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Start of training
+	controller.setIsTraining(true)
+
+	// Reset error message and done count
+	controller.errorMessage = nil
+	controller.doneCount = 0
+
 	// Set config for Flower serverapp
 	controller.ServerLogicService.SetFlowerConfig(scenario)
 
-	// Send request to clients
+	// Send scenario to clients
+	slog.Info("start", "totalClients", controller.totalClients)
+	controller.clientsMutex.Lock()
+	defer controller.clientsMutex.Unlock()
 	controller.ServerLogicService.StartClients(scenario, controller.clients)
 
 	// Wait for doneCount to Broadcast (when all clients report DONE or when an ERROR message is received)
@@ -219,8 +246,15 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
 
-	// Watch for creation of safetensors file in shared folder and upload to datastore
-	go controller.ServerLogicService.WatchForSafetensors(controller.MinioService.UploadSafetensors)
+	// Go routine so that HTTP response may already be sent
+	go func() {
+		// Watch for creation of safetensors file in shared folder and upload to datastore
+		controller.ServerLogicService.WatchForSafetensors(controller.MinioService.UploadSafetensors)
+
+		// Free to start another training run
+		controller.setIsTraining(false)
+	}()
+
 }
 
 func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.Request) {
@@ -241,4 +275,10 @@ func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.R
 	jsonData, _ := json.Marshal(response)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
+}
+
+func (controller *ServerLogicController) setIsTraining(isTraining bool) {
+	controller.isTrainingMutex.Lock()
+	controller.isTraining = isTraining
+	controller.isTrainingMutex.Unlock()
 }
