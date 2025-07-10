@@ -91,13 +91,20 @@ Interacting with the framework happens fully through the central server (`http:/
   curl -X POST -H "Content-Type: application/json" -d @scenario.json http://[server-address]/start
   ```
 
-- GET`/status?runId=`: Get the status of a training run. If no `runId` is given, all runs are requested. Set `runId` to request details of a specific run.
+- GET `/status?runId=`: Get the status of a training run. If no `runId` is given, all runs are requested. Set `runId` to request details of a specific run.
 
   ```bash
   # Get details about all runs
   curl http://[server-address]/status
   # Get details about specific run
   curl -G -d "runId=[run-id]" http://[server-address]/status
+  ```
+
+- GET `/clients`: Get details about currently connected clients. Namely their `id`, which is used to target datasets when using `datasets` in the scenario, and connection `address`.
+
+  ```bash
+  # Get connected client details
+  curl http://[server-address]/clients
   ```
 
 After a training run, the resulting aggregated dataset can be downloaded from the Minio instance by surfing to the web UI on `http://[server-address]:9001` with default credentials `aide-fl1:aide-fl1`. It's also possible to interact with Minio using S3 over port `:9000`.
