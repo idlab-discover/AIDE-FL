@@ -7,7 +7,7 @@ from tensorflow.keras.models import model_from_json
 
 
 def get_model():
-    inputs = Input(shape=(22, 1))
+    inputs = Input(shape=(23, 1))
 
     # Conv Layer with L2 regularization
     x = Conv1D(8, 3, padding='same', kernel_regularizer=l2(0.001))(inputs)

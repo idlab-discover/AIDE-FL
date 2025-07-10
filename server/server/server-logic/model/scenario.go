@@ -30,7 +30,7 @@ type Hyper struct {
 }
 
 type Strategy struct {
-	FractionFit         float64 `json:"fraction_fit" validate:"required"`
-	FractionEvaluate    float64 `json:"fraction_evaluate" validate:"required"`
-	MinAvailableClients int     `json:"min_available_clients" validate:"required"`
+	FractionFit         float64 `json:"fraction_fit" validate:"required,gt=0,lte=1.0"`
+	FractionEvaluate    float64 `json:"fraction_evaluate" validate:"required,gt=0,lte=1.0"`
+	MinAvailableClients int     `json:"min_available_clients" validate:"required,gte=1"`
 }
