@@ -87,15 +87,18 @@ func (controller *ServerLogicController) Route() {
 }
 
 func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http.Request) {
+	// Get client ID from HTTP header
+	clientId := r.Header.Get("X-Client-ID")
+
 	conn, err := controller.upgrader.Upgrade(w, r, nil)
 	exception.PanicLogging(err, "Unable to upgrade connection to WebSocket")
 
-	// Use client address as client ID
-	clientId := conn.RemoteAddr().String()
-	slog.Info("Client connected:", "ip", clientId)
+	// Get client address
+	clientAddress := conn.RemoteAddr().String()
+	slog.Info("Client connected:", "ID", clientId, "address", clientAddress)
 
 	// Add new client to clients
-	client := &model.Client{Conn: conn, Id: clientId}
+	client := &model.Client{Conn: conn, Id: clientId, Address: clientAddress}
 	controller.clientsMutex.Lock()
 	controller.clients[clientId] = client
 	controller.totalClients++
@@ -107,7 +110,7 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 		controller.totalClients--
 		controller.clientsMutex.Unlock()
 		conn.Close()
-		slog.Info("Client disconnected:", "client", clientId)
+		slog.Info("Client disconnected:", "ID", clientId, "address", clientAddress)
 	}()
 
 	controller.listenForGeneralMessages(conn, clientId)
