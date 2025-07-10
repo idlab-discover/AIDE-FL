@@ -43,5 +43,5 @@ func main() {
 	orchestratorController := controller.NewOrchestratorController(&orchestratorService, &kafkaService)
 
 	// start
-	orchestratorController.ConnectServer(config.Get("SERVER_IP") + config.Get("SERVER_PORT"))
+	orchestratorController.ConnectServer(config.Get("SERVER_IP")+config.Get("SERVER_PORT"), config.Get("NODE_NAME"))
 }

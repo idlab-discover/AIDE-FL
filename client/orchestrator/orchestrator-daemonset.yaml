@@ -27,3 +27,7 @@ spec:
             configMapKeyRef:
               name: server-ip
               key: SERVER_IP
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName

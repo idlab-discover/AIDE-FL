@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -28,10 +29,14 @@ func NewOrchestratorController(orchestratorService *service.OrchestratorService,
 	}
 }
 
-func (controller OrchestratorController) ConnectServer(host string) {
+func (controller OrchestratorController) ConnectServer(host string, clientId string) {
 	u := url.URL{Scheme: "ws", Host: host, Path: "/ws"}
-	maxRetries := 8
+	maxRetries := 7
 	baseDelay := time.Second
+
+	// Create custom header containing client identifier (node name)
+	headers := http.Header{}
+	headers.Set("X-Client-ID", clientId)
 
 	for {
 		var c *websocket.Conn
@@ -39,7 +44,7 @@ func (controller OrchestratorController) ConnectServer(host string) {
 
 		// Retry loop for (re)connection
 		for i := 0; i < maxRetries; i++ {
-			c, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+			c, _, err = websocket.DefaultDialer.Dial(u.String(), headers)
 			if err == nil {
 				slog.Info("Connected to", "url", u.String())
 				break
