@@ -18,15 +18,17 @@ type ServerLogicController struct {
 	service.ServerLogicService
 	service.MinioService
 	configuration.Config
-	upgrader        websocket.Upgrader
-	clients         map[string]*model.Client
-	clientsMutex    *sync.Mutex
-	totalClients    int
-	doneCount       int
-	isTraining      bool
-	isTrainingMutex *sync.Mutex
-	doneCond        *sync.Cond
-	errorMessage    *model.GeneralMessage
+	upgrader                 websocket.Upgrader
+	clients                  map[string]*model.Client
+	clientsMutex             *sync.Mutex
+	totalClients             int
+	doneCount                int
+	isTraining               bool
+	isTrainingMutex          *sync.Mutex
+	latestTrainingRunId      string
+	latestTrainingRunIdMutex *sync.Mutex
+	doneCond                 *sync.Cond
+	errorMessage             *model.GeneralMessage
 }
 
 func NewServerLogicController(serverLogicService *service.ServerLogicService, minioService *service.MinioService, config configuration.Config) *ServerLogicController {
@@ -37,18 +39,45 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService, mi
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
-		clients:         make(map[string]*model.Client),
-		clientsMutex:    &sync.Mutex{},
-		totalClients:    0,
-		doneCount:       0,
-		isTraining:      false,
-		isTrainingMutex: &sync.Mutex{},
-		doneCond:        sync.NewCond(&sync.Mutex{}),
+		clients:                  make(map[string]*model.Client),
+		clientsMutex:             &sync.Mutex{},
+		totalClients:             0,
+		doneCount:                0,
+		isTraining:               false,
+		isTrainingMutex:          &sync.Mutex{},
+		latestTrainingRunIdMutex: &sync.Mutex{},
+		doneCond:                 sync.NewCond(&sync.Mutex{}),
 	}
 
 	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_BUCKET"))
 
 	return this
+}
+
+func (controller *ServerLogicController) getIsTraining() bool {
+	controller.isTrainingMutex.Lock()
+	isTraining := controller.isTraining
+	controller.isTrainingMutex.Unlock()
+	return isTraining
+}
+
+func (controller *ServerLogicController) setIsTraining(isTraining bool) {
+	controller.isTrainingMutex.Lock()
+	controller.isTraining = isTraining
+	controller.isTrainingMutex.Unlock()
+}
+
+func (controller *ServerLogicController) getLatestTrainingRunId() string {
+	controller.latestTrainingRunIdMutex.Lock()
+	latestTrainingRunId := controller.latestTrainingRunId
+	controller.latestTrainingRunIdMutex.Unlock()
+	return latestTrainingRunId
+}
+
+func (controller *ServerLogicController) setLatestTrainingRunId(latestTrainingRunId string) {
+	controller.latestTrainingRunIdMutex.Lock()
+	controller.latestTrainingRunId = latestTrainingRunId
+	controller.latestTrainingRunIdMutex.Unlock()
 }
 
 func (controller *ServerLogicController) Route() {
@@ -126,13 +155,19 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	slog.Info("Received /start request")
 
 	// Abort if there is an ongoing training run / client preparations
-	controller.isTrainingMutex.Lock()
-	if controller.isTraining {
+	if controller.getIsTraining() {
 		slog.Error("Aborting training due to already ongoing training run")
+
+		// Get Flower details about current run to include in response
+		runId := controller.getLatestTrainingRunId()
+		flowerStr := controller.ServerLogicService.GetTrainingStatus(runId)
+
+		var flowerOut map[string]interface{}
+		json.Unmarshal([]byte(flowerStr), &flowerOut)
 
 		response := model.GeneralResponse{
 			Message: "Aborting training due to already ongoing training run",
-			Data:    nil,
+			Data:    flowerOut["runs"].([]interface{})[0],
 		}
 		jsonData, _ := json.Marshal(response)
 		w.Header().Set("Content-Type", "application/json")
@@ -140,10 +175,8 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		w.WriteHeader(http.StatusTooManyRequests)
 		w.Write(jsonData)
 
-		controller.isTrainingMutex.Unlock()
 		return
 	}
-	controller.isTrainingMutex.Unlock()
 
 	// Decode body
 	scenario, err := controller.ServerLogicService.DecodeScenario(r.Body)
@@ -238,6 +271,10 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	// Response
 	var jsonFlower map[string]interface{}
 	json.Unmarshal([]byte(jsonStr), &jsonFlower)
+
+	runId, _ := jsonFlower["run-id"].(string)
+	controller.setLatestTrainingRunId(runId)
+
 	response := model.GeneralResponse{
 		Message: "Clients are done preparing, training has started.",
 		Data:    jsonFlower,
@@ -254,7 +291,6 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		// Free to start another training run
 		controller.setIsTraining(false)
 	}()
-
 }
 
 func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.Request) {
@@ -275,10 +311,4 @@ func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.R
 	jsonData, _ := json.Marshal(response)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
-}
-
-func (controller *ServerLogicController) setIsTraining(isTraining bool) {
-	controller.isTrainingMutex.Lock()
-	controller.isTraining = isTraining
-	controller.isTrainingMutex.Unlock()
 }
