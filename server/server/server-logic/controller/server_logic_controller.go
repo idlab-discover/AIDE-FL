@@ -80,10 +80,18 @@ func (controller *ServerLogicController) setLatestTrainingRunId(latestTrainingRu
 	controller.latestTrainingRunIdMutex.Unlock()
 }
 
+func (controller *ServerLogicController) getClients() map[string]*model.Client {
+	controller.clientsMutex.Lock()
+	clients := controller.clients
+	controller.clientsMutex.Unlock()
+	return clients
+}
+
 func (controller *ServerLogicController) Route() {
 	http.HandleFunc("/ws", controller.handleWS)
 	http.HandleFunc("/start", controller.start)
 	http.HandleFunc("/status", controller.status)
+	http.HandleFunc("/clients", controller.connectedClients)
 }
 
 func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -165,12 +173,12 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		runId := controller.getLatestTrainingRunId()
 		flowerStr := controller.ServerLogicService.GetTrainingStatus(runId)
 
-		var flowerOut map[string]interface{}
+		var flowerOut model.FlowerResponse
 		json.Unmarshal([]byte(flowerStr), &flowerOut)
 
 		response := model.GeneralResponse{
 			Message: "Aborting training due to already ongoing training run",
-			Data:    flowerOut["runs"].([]interface{})[0],
+			Data:    flowerOut.Runs[0],
 		}
 		jsonData, _ := json.Marshal(response)
 		w.Header().Set("Content-Type", "application/json")
@@ -230,11 +238,9 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 	// Check whether a dataset has been provided for every connected client if there is a datasets entry
 	if len(scenario.Datasets) != 0 {
-		controller.clientsMutex.Lock()
-		for _, client := range controller.clients {
+		for _, client := range controller.getClients() {
 			_, ok := scenario.Datasets[client.Id]
 			if !ok {
-				controller.clientsMutex.Unlock()
 				slog.Error("No dataset has been provided for", "client", client.Id)
 
 				response := model.GeneralResponse{
@@ -248,7 +254,6 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 				return
 			}
 		}
-		controller.clientsMutex.Unlock()
 	}
 
 	// Start of training
@@ -263,9 +268,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 	// Send scenario to clients
 	slog.Info("start", "totalClients", controller.totalClients)
-	controller.clientsMutex.Lock()
-	defer controller.clientsMutex.Unlock()
-	controller.ServerLogicService.StartClients(scenario, controller.clients)
+	controller.ServerLogicService.StartClients(scenario, controller.getClients())
 
 	// Wait for doneCount to Broadcast (when all clients report DONE or when an ERROR message is received)
 	controller.doneCond.L.Lock()
@@ -335,6 +338,27 @@ func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.R
 	response := model.GeneralResponse{
 		Message: "Flower results",
 		Data:    flowerResponse,
+	}
+	jsonData, _ := json.Marshal(response)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
+}
+
+func (controller *ServerLogicController) connectedClients(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Received /clients request")
+
+	clients := controller.getClients()
+
+	clientList := make([]*model.Client, 0, 2)
+	for key := range clients {
+		clients[key].Conn = nil // Don't try to return Conn
+		clientList = append(clientList, clients[key])
+	}
+
+	// Response
+	response := model.GeneralResponse{
+		Message: "Following clients are connected to the server",
+		Data:    clientList,
 	}
 	jsonData, _ := json.Marshal(response)
 	w.Header().Set("Content-Type", "application/json")
