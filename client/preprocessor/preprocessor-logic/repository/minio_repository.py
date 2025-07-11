@@ -4,7 +4,7 @@ from configuration.logger import Logger
 
 class MinioRepository:
     def __init__(self, minio_client: MinioClient, config: Config):
-        self.minio = minio_client.client
+        self.minio = minio_client
         self.config = config
         self.logger = Logger.get_logger("MinioRepository")
     
