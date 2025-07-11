@@ -37,6 +37,7 @@ Following example scenario works out the box:
 {
   "name": "test",
   "dataset": "dhoogla-nfunswnb15v2",
+  "centralised": false,
   "label_column": "Label",
   "preprocessing": {
     "drop_columns": ["RETRANSMITTED_IN_BYTES","RETRANSMITTED_IN_PKTS","RETRANSMITTED_OUT_BYTES","RETRANSMITTED_OUT_PKTS","SRC_TO_DST_AVG_THROUGHPUT","DST_TO_SRC_AVG_THROUGHPUT","NUM_PKTS_UP_TO_128_BYTES","NUM_PKTS_128_TO_256_BYTES","NUM_PKTS_256_TO_512_BYTES","NUM_PKTS_512_TO_1024_BYTES","NUM_PKTS_1024_TO_1514_BYTES","TCP_WIN_MAX_IN","TCP_WIN_MAX_OUT","ICMP_TYPE","ICMP_IPV4_TYPE","DNS_QUERY_ID","DNS_QUERY_TYPE","DNS_TTL_ANSWER","FTP_COMMAND_RET_CODE","Attack"],
@@ -65,6 +66,7 @@ Following example scenario works out the box:
 - `name`: Name for the scenario. This is the UID for the scenario. Change the name of the scenario if modifications are made. If a training session is started with a different scenario but with the same name as a previous one, the previous scenario will be used.
 - `dataset` (mutually exclusive with `datasets`): Uses the parquet dataset in each client's Minio datastore with matching name (under `datasets/[datasetname].parquet`), or tries downloading the dataset from Kaggle (e.g. `dhoogla-nfunswnb15v2` matches with dataset `nfunswnb15v2` (case insensitive) of user `dhoogla`) and uploads it to the Minio datastore. NOTE: The downloaded zip from Kaggle must contain a dataset as parquet file and the first one is taken if there would be multiple parquet files.
 - `datasets` (mutually exclusive with `dataset`): Similar to `dataset` but with the ability to define a dataset per client (clients are identified by the node's name on which they run). Value must be a dictionary (e.g. `{"client1": "some-dataset"}`). The length of `datasets` must be greater than or equal to `strategy.min_available_clients`.
+- `centralised`: If `true`, the framework retrieves the dataset(s) set in `dataset` or `datasets` from the server's Minio datastore. If `false`, the client's own Minio datastores are used.
 - `label_column`: The name of the column containing the labels of your dataset. 
 - `preprocessing.drop_columns`: Columns to be dropped/ignored from dataset.
 - `preprocessing.drop_rows`: Drop amount of random rows ro shrink dataset.
@@ -109,11 +111,13 @@ Interacting with the framework happens fully through the central server (`http:/
 
 After a training run, the resulting aggregated dataset can be downloaded from the Minio instance by surfing to the web UI on `http://[server-address]:9001` with default credentials `aide-fl1:aide-fl1`. It's also possible to interact with Minio using S3 over port `:9000`.
 
+If `centralised` is set to `true` and the to be used datasets do not originate from Kaggle, upload the datasets manually to the `datasets` bucket of the server side Minio instance.
+
 ### Client
 
-As maintainer of a client node, your job is to provide your client with the right datasets on which it is supposed to train. Do this by uploading the parquet dataset to the Minio datastore using its web UI on `http://[client-address]:9001` with default credentials `aide-fl1:aide-fl1`. It's also possible to upload the dataset using S3 over port `:9000`.
+If the to be used datasets do not originate from Kaggle, it is the client node maintainer's job to provide their client with the right datasets on which it is supposed to train. Do this by uploading the parquet dataset to the Minio datastore using its web UI on `http://[client-address]:9001` with default credentials `aide-fl1:aide-fl1`. It's also possible to upload the dataset using S3 over port `:9000`.
 
-Be sure to let the server maintainer know what the dataset's filename is.
+Be sure to let the server maintainer know what the dataset's filename is so it may be correctly specified in the scenario.
 
 ## Client Services
 
