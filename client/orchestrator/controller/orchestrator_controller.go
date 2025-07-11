@@ -154,21 +154,27 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 
 func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scenario, ctx context.Context) {
 
-	// Send scenario to datastore-logic for preparation
-	controller.KafkaService.PublishPrepareScenario(scenario)
+	// Do not make datastore prepare scenario because datasets must be retrieved from server if "centralised" is true
+	if !scenario.Centralised {
+		// Send scenario to datastore-logic for preparation
+		controller.KafkaService.PublishPrepareScenario(scenario)
 
-	// Receive scenario with status from datastore-logic
-	scenario, err := controller.KafkaService.ConsumePreparedScenario(ctx)
-	if err != nil {
-		slog.Error("Unable to consume prepared scenario. Cancelling scenario flow.", "error", err)
-		return
+		// Receive scenario with status from datastore-logic
+		var err error
+		scenario, err = controller.KafkaService.ConsumePreparedScenario(ctx)
+		if err != nil {
+			slog.Error("Unable to consume prepared scenario. Cancelling scenario flow.", "error", err)
+			return
+		}
+	} else {
+		slog.Info("Use of centralised datasets. Skipping datastore preparation")
 	}
 
 	// Send scenario to preprocessor
 	controller.KafkaService.PublishPreprocessScenario(scenario)
 
 	// Receive scenario from preprocessor
-	scenario, err = controller.KafkaService.ConsumePreprocessedScenario(ctx)
+	scenario, err := controller.KafkaService.ConsumePreprocessedScenario(ctx)
 	if err != nil {
 		slog.Error("Unable to consume preprocessed scenario. Cancelling scenario flow.", "error", err)
 		return
