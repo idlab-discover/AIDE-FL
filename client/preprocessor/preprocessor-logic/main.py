@@ -1,5 +1,5 @@
 from configuration.config import Config
-from configuration.minio import MinioClient
+from configuration.minio import MinioClient, MinioServerClient
 from configuration.kafka import KafkaFactory
 from configuration.redis import RedisClient
 from configuration.logger import Logger
@@ -23,7 +23,7 @@ def main():
     redis_client = RedisClient(config)
     
     # repository
-    minio_repository = MinioRepository(minio_client, config)
+    minio_repository = MinioRepository(minio_client, minio_server_client, config)
     redis_repository = RedisRepository(redis_client, config)
     kafka_preprocess_consumer_repository = kafka_factory.new_consumer_repository(config.kafka_preprocess_topic)
     kafka_preprocessed_producer_repository = kafka_factory.new_producer_repository(config.kafka_preprocessed_topic)

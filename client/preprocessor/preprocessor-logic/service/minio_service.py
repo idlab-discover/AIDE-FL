@@ -9,10 +9,10 @@ class MinioService:
         self.minio_repository = minio_repository
 
 
-    def download_dataset(self, dataset_name: str) -> str:
-        self.logger.info(f"Downloading dataset {dataset_name}")
+    def download_dataset(self, dataset_name: str, from_server: bool = False) -> str:
+        self.logger.info(f"Downloading dataset '{dataset_name}'")
 
         dataset_filename = dataset_name + ".parquet"
-        self.minio_repository.download_object(dataset_filename, dataset_filename)
+        self.minio_repository.download_dataset(dataset_filename, dataset_filename, from_server)
         return dataset_filename
         

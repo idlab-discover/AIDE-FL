@@ -26,7 +26,7 @@ class PreprocessorController:
             if not self.redis_service.are_datasets_cached(scenario["name"]):
                 
                 # Downloads dataset to ./dataset/dataset.parquet
-                dataset_path = self.minio_service.download_dataset(scenario["dataset"])
+                dataset_path = self.minio_service.download_dataset(scenario["dataset"], scenario['centralised'])
 
                 # Preprocess
                 try:
