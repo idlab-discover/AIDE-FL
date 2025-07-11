@@ -378,9 +378,16 @@ func (controller *ServerLogicController) connectedClients(w http.ResponseWriter,
 
 	clientList := make([]*model.Client, 0, 2)
 	for key := range controller.clients {
-		controller.clients[key].Conn = nil // Don't try to return Conn
-		clientList = append(clientList, controller.clients[key])
+		copiedClient := model.Client{
+			Conn:    nil, // Don't try to return Conn
+			Id:      controller.clients[key].Id,
+			Address: controller.clients[key].Address,
+		}
+
+		clientList = append(clientList, &copiedClient)
 	}
+
+	controller.clientsMutex.Unlock()
 
 	// Response
 	response := model.GeneralResponse{
@@ -391,5 +398,4 @@ func (controller *ServerLogicController) connectedClients(w http.ResponseWriter,
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
 
-	controller.clientsMutex.Unlock()
 }
