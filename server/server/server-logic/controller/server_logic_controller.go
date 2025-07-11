@@ -85,13 +85,6 @@ func (controller *ServerLogicController) setLatestTrainingRunId(latestTrainingRu
 	controller.latestTrainingRunIdMutex.Unlock()
 }
 
-func (controller *ServerLogicController) getClients() map[string]*model.Client {
-	controller.clientsMutex.Lock()
-	clients := controller.clients
-	controller.clientsMutex.Unlock()
-	return clients
-}
-
 func (controller *ServerLogicController) getPrepId() uuid.UUID {
 	controller.prepIdMutex.Lock()
 	uuid := controller.prepId
@@ -263,7 +256,8 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 	// Check whether a dataset has been provided for every connected client if there is a datasets entry
 	if len(scenario.Datasets) != 0 {
-		for _, client := range controller.getClients() {
+		controller.clientsMutex.Lock()
+		for _, client := range controller.clients {
 			_, ok := scenario.Datasets[client.Id]
 			if !ok {
 				slog.Error("No dataset has been provided for", "client", client.Id)
@@ -276,9 +270,12 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write(jsonData)
+
+				controller.clientsMutex.Unlock()
 				return
 			}
 		}
+		controller.clientsMutex.Unlock()
 	}
 
 	// Start of training
@@ -296,7 +293,9 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 	// Send scenario to clients with uuid
 	slog.Info("start", "totalClients", controller.totalClients)
-	controller.ServerLogicService.StartClients(scenario, controller.getPrepId(), controller.getClients())
+	controller.clientsMutex.Lock()
+	controller.ServerLogicService.StartClients(scenario, controller.getPrepId(), controller.clients)
+	controller.clientsMutex.Unlock()
 
 	// Wait for doneCount to Broadcast (when all clients report DONE or when an ERROR message is received)
 	controller.doneCond.L.Lock()
@@ -375,12 +374,12 @@ func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.R
 func (controller *ServerLogicController) connectedClients(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Received /clients request")
 
-	clients := controller.getClients()
+	controller.clientsMutex.Lock()
 
 	clientList := make([]*model.Client, 0, 2)
-	for key := range clients {
-		clients[key].Conn = nil // Don't try to return Conn
-		clientList = append(clientList, clients[key])
+	for key := range controller.clients {
+		controller.clients[key].Conn = nil // Don't try to return Conn
+		clientList = append(clientList, controller.clients[key])
 	}
 
 	// Response
@@ -391,4 +390,6 @@ func (controller *ServerLogicController) connectedClients(w http.ResponseWriter,
 	jsonData, _ := json.Marshal(response)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
+
+	controller.clientsMutex.Unlock()
 }
