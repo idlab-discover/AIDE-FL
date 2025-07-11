@@ -85,7 +85,7 @@ func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) (string, 
 	exception.PanicLogging(err, "Unable to download from Kaggle", "dataset", fileKeyURL)
 	defer resp.Body.Close()
 
-	// TODO: error handling
+	// Dataset not reachable on Kaggle
 	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound {
 		return "", errors.New("Kaggle dataset not found with URL " + fileKeyURL)
 	}
