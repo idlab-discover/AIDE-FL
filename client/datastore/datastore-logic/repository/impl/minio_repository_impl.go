@@ -38,7 +38,7 @@ func (repo *minioRepositoryImpl) ObjectExists(filename string) bool {
 func (repo *minioRepositoryImpl) BucketExists(bucketName string) bool {
 	slog.Info("Checking Minio", "bucket", bucketName)
 
-	exists, err := repo.Client.BucketExists(context.Background(), repo.Config.Get("MINIO_BUCKET"))
+	exists, err := repo.Client.BucketExists(context.Background(), bucketName)
 	exception.PanicLogging(err, "Unable to check for", "bucket", bucketName)
 
 	return exists
@@ -57,6 +57,6 @@ func (repo *minioRepositoryImpl) GetObject(filename string) io.Reader {
 func (repo *minioRepositoryImpl) CreateBucket(bucketName string) {
 	slog.Info("Creating Minio", "bucket", bucketName)
 
-	err := repo.Client.MakeBucket(context.Background(), repo.Config.Get("MINIO_BUCKET"), minio.MakeBucketOptions{})
+	err := repo.Client.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{})
 	exception.PanicLogging(err, "Unable to create", "bucket", bucketName)
 }
