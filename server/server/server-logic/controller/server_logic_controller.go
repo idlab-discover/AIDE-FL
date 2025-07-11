@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/configuration"
@@ -12,6 +13,7 @@ import (
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/model"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
 	"github.com/fasthttp/websocket"
+	"github.com/google/uuid"
 )
 
 type ServerLogicController struct {
@@ -27,6 +29,8 @@ type ServerLogicController struct {
 	isTrainingMutex          *sync.Mutex
 	latestTrainingRunId      string
 	latestTrainingRunIdMutex *sync.Mutex
+	prepId                   uuid.UUID
+	prepIdMutex              *sync.Mutex
 	doneCond                 *sync.Cond
 	errorMessage             *model.GeneralMessage
 }
@@ -46,6 +50,7 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService, mi
 		isTraining:               false,
 		isTrainingMutex:          &sync.Mutex{},
 		latestTrainingRunIdMutex: &sync.Mutex{},
+		prepIdMutex:              &sync.Mutex{},
 		doneCond:                 sync.NewCond(&sync.Mutex{}),
 	}
 
@@ -85,6 +90,21 @@ func (controller *ServerLogicController) getClients() map[string]*model.Client {
 	clients := controller.clients
 	controller.clientsMutex.Unlock()
 	return clients
+}
+
+func (controller *ServerLogicController) getPrepId() uuid.UUID {
+	controller.prepIdMutex.Lock()
+	uuid := controller.prepId
+	controller.prepIdMutex.Unlock()
+	return uuid
+}
+
+func (controller *ServerLogicController) setNewPrepId() uuid.UUID {
+	controller.prepIdMutex.Lock()
+	controller.prepId = uuid.New()
+	uuid := controller.prepId
+	controller.prepIdMutex.Unlock()
+	return uuid
 }
 
 func (controller *ServerLogicController) Route() {
@@ -138,7 +158,12 @@ func (controller *ServerLogicController) listenForGeneralMessages(conn *websocke
 		}
 
 		// Handle DONE message
-		if generalMessage.Type == "INFO" && generalMessage.Origin == "orchestrator" && generalMessage.Message == "DONE" {
+		if generalMessage.Type == "INFO" && generalMessage.Origin == "orchestrator" && strings.HasPrefix(generalMessage.Message, "DONE:") {
+			if strings.Split(generalMessage.Message, ":")[1] != controller.getPrepId().String() {
+				slog.Info("Reported DONE with mismatching prep ID by", "client", clientId)
+				continue
+			}
+
 			controller.doneCond.L.Lock()
 			slog.Info("Reported DONE by", "client", clientId)
 			controller.doneCount++
@@ -263,12 +288,15 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	controller.errorMessage = nil
 	controller.doneCount = 0
 
+	// Set new preparation ID (is sent to client together with scenario so that DONE messages can be identified to be matching with the current training run request; outdated IDs can be received if one of multiple clients sent an error aborting the run, a new run is starting, and other clients are reporting DONE from the previous run)
+	controller.setNewPrepId()
+
 	// Set config for Flower serverapp
 	controller.ServerLogicService.SetFlowerConfig(scenario)
 
-	// Send scenario to clients
+	// Send scenario to clients with uuid
 	slog.Info("start", "totalClients", controller.totalClients)
-	controller.ServerLogicService.StartClients(scenario, controller.getClients())
+	controller.ServerLogicService.StartClients(scenario, controller.getPrepId(), controller.getClients())
 
 	// Wait for doneCount to Broadcast (when all clients report DONE or when an ERROR message is received)
 	controller.doneCond.L.Lock()

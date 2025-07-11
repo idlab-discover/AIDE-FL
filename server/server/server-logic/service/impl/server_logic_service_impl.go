@@ -20,6 +20,7 @@ import (
 	"github.com/fasthttp/websocket"
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"gopkg.in/ini.v1"
 )
 
@@ -95,19 +96,24 @@ func (service *serverLogicServiceImpl) scenarioForClient(baseScenario model.Scen
 	return baseScenario
 }
 
-func (service *serverLogicServiceImpl) StartClients(scenario *model.Scenario, clients map[string]*model.Client) {
+func (service *serverLogicServiceImpl) StartClients(scenario *model.Scenario, prepId uuid.UUID, clients map[string]*model.Client) {
 	slog.Info("Starting", "clients", slices.Collect(maps.Keys(clients)))
 
 	for _, c := range clients {
 		clientScenario := service.scenarioForClient(*scenario, c.Id)
 
-		scenarioJson, err := json.Marshal(clientScenario)
-		exception.PanicLogging(err, "Unable to marshal scenario into JSON")
+		scenarioMessage := model.ScenarioMessage{
+			PrepId:   prepId.String(),
+			Scenario: clientScenario,
+		}
+
+		scenarioJson, err := json.Marshal(scenarioMessage)
+		exception.PanicLogging(err, "Unable to marshal scenario message into JSON")
 
 		err = c.Conn.WriteMessage(websocket.TextMessage, scenarioJson)
-		exception.PanicLogging(err, "Unable to send scenario to", "client", c.Id)
+		exception.PanicLogging(err, "Unable to send scenario message to", "client", c.Id)
 	}
-	slog.Info("Sent scenario to", "#clients", len(clients))
+	slog.Info("Sent scenario message to", "#clients", len(clients))
 }
 
 func (service *serverLogicServiceImpl) SetFlowerConfig(scenario *model.Scenario) {

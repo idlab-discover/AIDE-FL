@@ -116,11 +116,11 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 			return fmt.Errorf("unable to read message: %w", err)
 		}
 
-		// Suppose message is a scenario in JSON format
-		var scenario model.Scenario
-		err = json.Unmarshal(message, &scenario)
+		// Suppose message is a scenarioMessage message in JSON format
+		var scenarioMessage model.ScenarioMessage
+		err = json.Unmarshal(message, &scenarioMessage)
 		if err != nil {
-			slog.Error("Unable to unmarshal JSON to scenario. Skipping bad message.", "error", err)
+			slog.Error("Unable to unmarshal JSON to scenario message. Skipping bad message.", "error", err)
 			continue // Skip bad message
 		}
 
@@ -128,7 +128,7 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 		handleScenarioCtx, cancelScenarioFlow := context.WithCancel(context.Background())
 		controller.cancelScenarioFunc = cancelScenarioFlow
 
-		controller.handleScenarioFlow(scenario, handleScenarioCtx)
+		controller.handleScenarioFlow(scenarioMessage.Scenario, handleScenarioCtx)
 
 		select {
 		case <-handleScenarioCtx.Done():
@@ -139,7 +139,7 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 			m := model.GeneralMessage{
 				Type:    "INFO",
 				Origin:  "orchestrator",
-				Message: "DONE",
+				Message: "DONE:" + scenarioMessage.PrepId,
 			}
 			byteArray, err := json.Marshal(m)
 			exception.PanicLogging(err, "Unable to marshal general message to JSON")
