@@ -18,6 +18,7 @@ def main():
     config = Config()
     Logger.init(config)
     minio_client = MinioClient(config)
+    minio_server_client = MinioServerClient(config)
     kafka_factory = KafkaFactory(config)
     redis_client = RedisClient(config)
     

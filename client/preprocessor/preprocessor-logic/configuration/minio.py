@@ -11,3 +11,12 @@ class MinioClient(Minio):
             secure=False
         )
         
+
+class MinioServerClient(Minio):
+    def __init__(self, config: Config):
+        super().__init__(
+            config.minio_server_endpoint,
+            access_key=config.minio_server_access_key,
+            secret_key=config.minio_server_secret_key,
+            secure=False
+        )
