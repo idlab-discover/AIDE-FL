@@ -54,7 +54,8 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService, mi
 		doneCond:                 sync.NewCond(&sync.Mutex{}),
 	}
 
-	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_BUCKET"))
+	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_MODELS_BUCKET"))
+	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_DATASETS_BUCKET"))
 
 	return this
 }
@@ -276,6 +277,17 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 			}
 		}
 		controller.clientsMutex.Unlock()
+	}
+
+	// Download datasets if centralised property is set true
+	if scenario.Centralised {
+		if scenario.Dataset != "" {
+			controller.MinioService.CreateDataset(scenario.Dataset)
+		} else { // If "dataset" isn't set, "datasets" must be set (part of scenario validation)
+			for _, dataset := range scenario.Datasets {
+				controller.MinioService.CreateDataset(dataset)
+			}
+		}
 	}
 
 	// Start of training

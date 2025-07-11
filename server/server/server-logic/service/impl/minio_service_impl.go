@@ -9,10 +9,14 @@ import (
 
 type minioServiceImpl struct {
 	repository.MinioRepository
+	repository.LocalRepository
 }
 
-func NewMinioServiceImpl(minioRepository *repository.MinioRepository) service.MinioService {
-	return &minioServiceImpl{MinioRepository: *minioRepository}
+func NewMinioServiceImpl(minioRepository *repository.MinioRepository, localRepository *repository.LocalRepository) service.MinioService {
+	return &minioServiceImpl{
+		MinioRepository: *minioRepository,
+		LocalRepository: *localRepository,
+	}
 }
 
 func (service *minioServiceImpl) EnsureBucketExists(bucketName string) {
@@ -21,6 +25,24 @@ func (service *minioServiceImpl) EnsureBucketExists(bucketName string) {
 	}
 }
 
+func (service *minioServiceImpl) CreateDataset(dataset string) error {
+
+	datasetFilename := dataset + ".parquet"
+
+	if !service.MinioRepository.DatasetExists(datasetFilename) {
+		zipName, err := service.LocalRepository.DownloadKaggleDataset(dataset)
+		if err != nil {
+			return err
+		}
+
+		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
+		service.MinioRepository.InsertDataset(datasetFilename, datasetFilename)
+		service.LocalRepository.RemoveFile(datasetFilename)
+	}
+
+	return nil
+}
+
 func (service *minioServiceImpl) UploadSafetensors(path string) {
-	service.MinioRepository.Insert(path, filepath.Base(path))
+	service.MinioRepository.InsertModel(path, filepath.Base(path))
 }

@@ -4,6 +4,7 @@ type Scenario struct {
 	Name          string                 `json:"name" validate:"required"`
 	Dataset       string                 `json:"dataset,omitempty"`
 	Datasets      map[string]string      `json:"datasets,omitempty"`
+	Centralised   bool                   `json:"centralised" validate:"required"`
 	LabelColumn   string                 `json:"label_column" validate:"required"`
 	Preprocessing Preprocessing          `json:"preprocessing" validate:"required"`
 	Hyper         Hyper                  `json:"hyper" validate:"required"`

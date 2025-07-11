@@ -20,17 +20,32 @@ func NewMinioRepositoryImpl(minioClient *minio.Client, config configuration.Conf
 	return &minioRepositoryImpl{Client: minioClient, Config: config}
 }
 
-func (repo *minioRepositoryImpl) Insert(srcFilename string, dstFilename string) {
-	slog.Info("Uploading to Minio", "file", srcFilename)
+func (repo *minioRepositoryImpl) InsertModel(srcFilename string, dstFilename string) {
+	slog.Info("Uploading model to Minio", "file", srcFilename)
 
-	_, err := repo.Client.FPutObject(context.Background(), repo.Config.Get("MINIO_BUCKET"), dstFilename, srcFilename, minio.PutObjectOptions{})
-	exception.PanicLogging(err, "Unable to upload", "object", srcFilename)
+	_, err := repo.Client.FPutObject(context.Background(), repo.Config.Get("MINIO_MODELS_BUCKET"), dstFilename, srcFilename, minio.PutObjectOptions{})
+	exception.PanicLogging(err, "Unable to upload", "model", srcFilename)
 }
 
-func (repo *minioRepositoryImpl) ObjectExists(filename string) bool {
-	slog.Info("Checking Minio", "object", filename)
+func (repo *minioRepositoryImpl) InsertDataset(srcFilename string, dstFilename string) {
+	slog.Info("Uploading dataset to Minio", "file", srcFilename)
 
-	_, err := repo.Client.StatObject(context.Background(), repo.Config.Get("MINIO_BUCKET"), filename, minio.StatObjectOptions{})
+	_, err := repo.Client.FPutObject(context.Background(), repo.Config.Get("MINIO_DATASETS_BUCKET"), dstFilename, srcFilename, minio.PutObjectOptions{})
+	exception.PanicLogging(err, "Unable to upload", "dataset", srcFilename)
+}
+
+func (repo *minioRepositoryImpl) ModelExists(filename string) bool {
+	slog.Info("Checking Minio", "model", filename)
+
+	_, err := repo.Client.StatObject(context.Background(), repo.Config.Get("MINIO_MODELS_BUCKET"), filename, minio.StatObjectOptions{})
+
+	return err == nil
+}
+
+func (repo *minioRepositoryImpl) DatasetExists(filename string) bool {
+	slog.Info("Checking Minio", "dataset", filename)
+
+	_, err := repo.Client.StatObject(context.Background(), repo.Config.Get("MINIO_DATASETS_BUCKET"), filename, minio.StatObjectOptions{})
 
 	return err == nil
 }
@@ -38,17 +53,27 @@ func (repo *minioRepositoryImpl) ObjectExists(filename string) bool {
 func (repo *minioRepositoryImpl) BucketExists(bucketName string) bool {
 	slog.Info("Checking Minio", "bucket", bucketName)
 
-	exists, err := repo.Client.BucketExists(context.Background(), repo.Config.Get("MINIO_BUCKET"))
+	exists, err := repo.Client.BucketExists(context.Background(), bucketName)
 	exception.PanicLogging(err, "Unable to check for", "bucket", bucketName)
 
 	return exists
 }
 
-func (repo *minioRepositoryImpl) GetObject(filename string) io.Reader {
-	slog.Info("Getting Minio", "object", filename)
+func (repo *minioRepositoryImpl) GetModel(filename string) io.Reader {
+	slog.Info("Getting Minio", "model", filename)
 
-	obj, err := repo.Client.GetObject(context.Background(), repo.Config.Get("MINIO_BUCKET"), filename, minio.GetObjectOptions{})
-	exception.PanicLogging(err, "Unable to get", "object", filename)
+	obj, err := repo.Client.GetObject(context.Background(), repo.Config.Get("MINIO_MODELS_BUCKET"), filename, minio.GetObjectOptions{})
+	exception.PanicLogging(err, "Unable to get", "model", filename)
+	defer obj.Close()
+
+	return obj
+}
+
+func (repo *minioRepositoryImpl) GetDataset(filename string) io.Reader {
+	slog.Info("Getting Minio", "dataset", filename)
+
+	obj, err := repo.Client.GetObject(context.Background(), repo.Config.Get("MINIO_DATASETS_BUCKET"), filename, minio.GetObjectOptions{})
+	exception.PanicLogging(err, "Unable to get", "dataset", filename)
 	defer obj.Close()
 
 	return obj
@@ -57,6 +82,6 @@ func (repo *minioRepositoryImpl) GetObject(filename string) io.Reader {
 func (repo *minioRepositoryImpl) CreateBucket(bucketName string) {
 	slog.Info("Creating Minio", "bucket", bucketName)
 
-	err := repo.Client.MakeBucket(context.Background(), repo.Config.Get("MINIO_BUCKET"), minio.MakeBucketOptions{})
+	err := repo.Client.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{})
 	exception.PanicLogging(err, "Unable to create", "bucket", bucketName)
 }

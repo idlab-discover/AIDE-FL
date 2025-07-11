@@ -3,9 +3,12 @@ package repository
 import "io"
 
 type MinioRepository interface {
-	Insert(srcFilename string, dstFilename string)
-	ObjectExists(filename string) bool
+	InsertModel(srcFilename string, dstFilename string)
+	InsertDataset(srcFilename string, dstFilename string)
+	ModelExists(filename string) bool
+	DatasetExists(filename string) bool
 	BucketExists(bucketName string) bool
-	GetObject(filename string) io.Reader
+	GetModel(filename string) io.Reader
+	GetDataset(filename string) io.Reader
 	CreateBucket(bucketName string)
 }

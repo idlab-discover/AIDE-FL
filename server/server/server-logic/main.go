@@ -18,9 +18,10 @@ func main() {
 
 	// repository
 	minioRepository := repository.NewMinioRepositoryImpl(minioClient, config)
+	localRepository := repository.NewLocalRepositoryImpl(config)
 
 	// service
-	minioService := service.NewMinioServiceImpl(&minioRepository)
+	minioService := service.NewMinioServiceImpl(&minioRepository, &localRepository)
 	serverLogicService := service.NewServerLogicServiceImpl(config)
 
 	// controller
