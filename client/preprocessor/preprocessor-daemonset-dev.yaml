@@ -38,7 +38,13 @@ spec:
 
       - name: preprocessor-logic
         image: ghcr.io/martienskienum1/preprocessor-logic:dev
-
+        env:
+        - name: SERVER_IP
+          valueFrom:
+            configMapKeyRef:
+              name: server-ip
+              key: SERVER_IP
+              
       volumes:
       - name: data
         emptyDir: {}
