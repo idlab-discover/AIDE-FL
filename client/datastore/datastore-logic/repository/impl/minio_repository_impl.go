@@ -49,7 +49,6 @@ func (repo *minioRepositoryImpl) GetObject(filename string) io.Reader {
 
 	obj, err := repo.Client.GetObject(context.Background(), repo.Config.Get("MINIO_BUCKET"), filename, minio.GetObjectOptions{})
 	exception.PanicLogging(err, "Unable to get", "object", filename)
-	defer obj.Close()
 
 	return obj
 }

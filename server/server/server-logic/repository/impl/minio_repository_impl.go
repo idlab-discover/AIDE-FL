@@ -64,7 +64,6 @@ func (repo *minioRepositoryImpl) GetModel(filename string) io.Reader {
 
 	obj, err := repo.Client.GetObject(context.Background(), repo.Config.Get("MINIO_MODELS_BUCKET"), filename, minio.GetObjectOptions{})
 	exception.PanicLogging(err, "Unable to get", "model", filename)
-	defer obj.Close()
 
 	return obj
 }
@@ -74,7 +73,6 @@ func (repo *minioRepositoryImpl) GetDataset(filename string) io.Reader {
 
 	obj, err := repo.Client.GetObject(context.Background(), repo.Config.Get("MINIO_DATASETS_BUCKET"), filename, minio.GetObjectOptions{})
 	exception.PanicLogging(err, "Unable to get", "dataset", filename)
-	defer obj.Close()
 
 	return obj
 }
