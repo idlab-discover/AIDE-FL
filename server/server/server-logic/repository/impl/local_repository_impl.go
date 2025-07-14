@@ -89,3 +89,23 @@ func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) (string, 
 
 	return outFilename, nil
 }
+
+func (repo *localRepositoryImpl) MoveFile(srcFilename string, dstFilename string) {
+	slog.Info("Moving", "srcFilename", srcFilename, "dstFilename", dstFilename)
+
+	err := os.Rename(srcFilename, dstFilename)
+	exception.PanicLogging(err, "Unable to move a file", "srcFilename", srcFilename, "dstFilename", dstFilename)
+}
+
+func (repo *localRepositoryImpl) SaveToFile(reader io.Reader, dstPath string) {
+	slog.Info("Saving new file", "dstPath", dstPath)
+
+	// Create new file
+	outFile, err := os.Create(dstPath)
+	exception.PanicLogging(err, "Unable to create new file", "dstPath", dstPath)
+	defer outFile.Close()
+
+	// Copy data from reader to new file
+	_, err = io.Copy(outFile, reader)
+	exception.PanicLogging(err, "Unable to copy data to new file", "dstPath", dstPath)
+}
