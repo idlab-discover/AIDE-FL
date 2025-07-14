@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"path"
 	"path/filepath"
 
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/repository"
@@ -38,6 +39,26 @@ func (service *minioServiceImpl) CreateDataset(dataset string) error {
 		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
 		service.MinioRepository.InsertDataset(datasetFilename, datasetFilename)
 		service.LocalRepository.RemoveFile(datasetFilename)
+	}
+
+	return nil
+}
+
+func (service *minioServiceImpl) CreateAndShareHoldOutDataset(dataset string) error {
+	datasetFilename := dataset + ".parquet"
+
+	if !service.MinioRepository.DatasetExists(datasetFilename) {
+		zipName, err := service.LocalRepository.DownloadKaggleDataset(dataset)
+		if err != nil {
+			return err
+		}
+
+		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
+		service.MinioRepository.InsertDataset(datasetFilename, datasetFilename)
+		service.LocalRepository.MoveFile(datasetFilename, path.Join("app", "share", "hold-out.parquet"))
+	} else {
+		reader := service.MinioRepository.GetDataset(datasetFilename)
+		service.LocalRepository.SaveToFile(reader, path.Join("app", "share", "hold-out.parquet"))
 	}
 
 	return nil
