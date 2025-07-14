@@ -279,7 +279,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		controller.clientsMutex.Unlock()
 	}
 
-	// Download datasets if centralised property is set true
+	// Download datasets (if not present) if centralised property is set true
 	if scenario.Centralised {
 		if scenario.Dataset != "" {
 			controller.MinioService.CreateDataset(scenario.Dataset)
@@ -288,6 +288,11 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 				controller.MinioService.CreateDataset(dataset)
 			}
 		}
+	}
+
+	// Download hold-out dataset (if not present) if hold_out_dataset property is set
+	if scenario.HoldOutDataset != "" {
+		controller.MinioService.CreateAndShareHoldOutDataset(scenario.HoldOutDataset)
 	}
 
 	// Start of training
