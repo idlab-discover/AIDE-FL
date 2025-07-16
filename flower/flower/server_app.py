@@ -22,6 +22,20 @@ class CustomServer(Server):
         return history, elapsed
 
 
+def get_centralised_evaluation_fn(model, x_hold_out, y_hold_out): # testloader loads the centralised test set
+
+    def evaluate_centralised(server_round, parameters_ndarray, config):
+
+        model.set_weights(parameters_ndarray)
+        metrics = model.evaluate(x_hold_out, y_hold_out, verbose=0, return_dict=True)
+        loss = metrics.pop("loss")
+        metrics_str = json.dumps(metrics)
+
+        return loss, {"centralised_metrics": metrics_str}
+    
+    return evaluate_centralised
+
+
 def handle_fit_metrics(metrics: list[tuple[int, Metrics]]) -> Metrics:
     """Handle metrics from fit method in clients"""
     
@@ -63,13 +77,19 @@ def make_on_fit_config(model_data: dict, local_epochs: int, batch_size: int, lab
 
 
 def server_fn(context: Context):
-    scenario_name, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column = load_server_config()
+    scenario_name, hold_out_dataset, drop_cols, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column = load_server_config()
 
     # Load model from json
     model = keras.models.model_from_json(json.dumps(model_data))
 
     # Get parameters to initialize global model
-    parameters = ndarrays_to_parameters(model.get_weights()) # Currently no initial parameters. Could be randomized 
+    parameters = ndarrays_to_parameters(model.get_weights()) # Currently no initial parameters. Could be randomized
+
+    # Load hold-out dataset from shared folder
+    evaluate_fn = None
+    if hold_out_dataset:
+        x_hold_out, y_hold_out = load_server_data(label_column, drop_cols)
+        evaluate_fn = get_centralised_evaluation_fn(model, x_hold_out, y_hold_out)
 
     # Define strategy
     strategy = SaveModelFedAvg(
@@ -84,6 +104,7 @@ def server_fn(context: Context):
         fit_metrics_aggregation_fn=handle_fit_metrics, # Which function to use to handle metrics passed by client's fit function (e.g. history metrics for each epoch)
         evaluate_metrics_aggregation_fn=handle_eval_metrics, # Which function to use to handle metrics passed by client's evaluate function (e.g. accuracy)
         on_fit_config_fn=make_on_fit_config(model_data, local_epochs, batch_size, label_column), # Which function to use to relay a config from server to all clients
+        evaluate_fn=evaluate_fn # Which function to use to evaluate the aggregated model on server-side
     )
     config = ServerConfig(num_rounds=server_rounds)
 

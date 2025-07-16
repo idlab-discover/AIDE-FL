@@ -22,6 +22,8 @@ def load_server_config():
     scenario = json.loads(config["serverapp"]["scenario"])
 
     scenario_name = scenario["name"]
+    hold_out_dataset = scenario["hold_out_dataset"]
+    drop_cols = scenario["preprocessing"]["drop_columns"]
     model_data = scenario["model"]
     fraction_fit = scenario["strategy"]["fraction_fit"]
     fraction_evaluate = scenario["strategy"]["fraction_evaluate"]
@@ -34,7 +36,7 @@ def load_server_config():
 
     print(f"Reloaded config")
 
-    return scenario_name, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column
+    return scenario_name, hold_out_dataset, drop_cols, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column
     
 
 def prepare_data(df: pd.DataFrame, label_column: str) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -47,8 +49,29 @@ def prepare_data(df: pd.DataFrame, label_column: str) -> tuple[pd.DataFrame, pd.
     return x, y
 
 
+def load_server_data(label_column: str, drop_cols) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return x and y for hold-out dataset named 'hold-out.parquet' in shared folder"""
+
+    # Read dataset from parquet file
+    hold_out_file = os.path.join("share", "hold-out.parquet")
+    
+    try:
+        hold_out_df = pd.read_parquet(hold_out_file)
+    except Exception as e:
+        print(f"Error loading parquet file: {e}")
+        raise
+
+    hold_out_df = drop_columns(hold_out_df, drop_cols)
+
+    x_hold_out, y_hold_out = prepare_data(hold_out_df, label_column)
+    
+    print("Hold-out dataset loaded from file")
+
+    return x_hold_out, y_hold_out
+
+
 def load_data(label_column: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Return x and y for train, eval and test dataset"""
+    """Return x and y for train, eval and test dataset named 'train.parquet', 'eval.parquet', 'test.parquet' in shared folder"""
 
     # Read datasets from parquet files
     train_file = os.path.join("share", "train.parquet")
@@ -70,3 +93,8 @@ def load_data(label_column: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
     print("Datasets loaded from files")
 
     return x_train, y_train, x_eval, y_eval, x_test, y_test
+
+
+def drop_columns(df: pd.DataFrame, cols: list) -> pd.DataFrame:
+    print(f"Dropping columns: {cols}")
+    return df.drop(columns=cols)
