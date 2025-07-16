@@ -1,0 +1,3 @@
+*.safetensors
+*.parquet
+scenario.json
