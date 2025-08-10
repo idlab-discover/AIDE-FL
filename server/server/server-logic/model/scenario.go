@@ -5,7 +5,7 @@ type Scenario struct {
 	Dataset        string                 `json:"dataset,omitempty"`
 	Datasets       map[string]string      `json:"datasets,omitempty"`
 	HoldOutDataset string                 `json:"hold_out_dataset"`
-	Centralised    bool                   `json:"centralised" validate:"required"`
+	Centralised    bool                   `json:"centralised"`
 	LabelColumn    string                 `json:"label_column" validate:"required"`
 	Preprocessing  Preprocessing          `json:"preprocessing" validate:"required"`
 	Hyper          Hyper                  `json:"hyper" validate:"required"`
@@ -15,8 +15,8 @@ type Scenario struct {
 
 type Preprocessing struct {
 	DropColumns []string    `json:"drop_columns" validate:"required"`
-	DropRows    int         `json:"drop_rows" validate:"required"`
-	Shuffle     bool        `json:"shuffle" validate:"required"`
+	DropRows    int         `json:"drop_rows"`
+	Shuffle     bool        `json:"shuffle"`
 	Split       SplitConfig `json:"split" validate:"required"`
 }
 
