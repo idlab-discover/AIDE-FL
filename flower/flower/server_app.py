@@ -57,7 +57,7 @@ def handle_eval_metrics(metrics: list[tuple[int, Metrics]]) -> Metrics: # One Me
         metrics_json = json.loads(metrics_str)
         eval_metrics.append(metrics_json)
         
-    return {"metrics": eval_metrics}
+    return {"distributed_metrics": eval_metrics}
 
 
 def make_on_fit_config(model_data: dict, local_epochs: int, batch_size: int, label_column: str):
