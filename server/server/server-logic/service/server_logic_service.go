@@ -14,5 +14,6 @@ type ServerLogicService interface {
 	SetFlowerConfig(scenario *model.Scenario)
 	StartTraining() string
 	GetTrainingStatus(runId string) string
-	WatchForSafetensors(callback func(string))
+	WatchForSafetensors(callback func(string), scenario_name string)
+	RemoveArtifacts()
 }

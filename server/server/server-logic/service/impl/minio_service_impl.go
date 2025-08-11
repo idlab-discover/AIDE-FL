@@ -1,9 +1,12 @@
 package impl
 
 import (
+	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
+	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/repository"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
 )
@@ -64,6 +67,36 @@ func (service *minioServiceImpl) CreateAndShareHoldOutDataset(dataset string) er
 	return nil
 }
 
-func (service *minioServiceImpl) UploadSafetensors(path string) {
-	service.MinioRepository.InsertModel(path, filepath.Base(path))
+func (service *minioServiceImpl) UploadArtifacts(scenario_name string) {
+	dir := path.Join("app", "share")
+
+	files, err := os.ReadDir(dir)
+	exception.PanicLogging(err, "Unable to get artifacts")
+
+	// Get metrics
+	var matched_metrics []string
+	for _, entry := range files {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
+			matched_metrics = append(matched_metrics, path.Join(dir, entry.Name()))
+		}
+	}
+
+	for _, f := range matched_metrics {
+		service.MinioRepository.InsertMetric(f, filepath.Base(f))
+	}
+
+	// Get checkpoints
+	var matched_checkp []string
+	for _, entry := range files {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".weights.h5") {
+			matched_checkp = append(matched_checkp, path.Join(dir, entry.Name()))
+		}
+	}
+
+	for _, f := range matched_checkp {
+		service.MinioRepository.InsertCheckpoint(f, filepath.Base(f))
+	}
+
+	// Get final model
+	service.MinioRepository.InsertModel(path.Join("app", "share", scenario_name+".safetensors"), scenario_name+".safetensors")
 }

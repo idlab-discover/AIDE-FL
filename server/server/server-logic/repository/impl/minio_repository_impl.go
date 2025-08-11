@@ -34,6 +34,20 @@ func (repo *minioRepositoryImpl) InsertDataset(srcFilename string, dstFilename s
 	exception.PanicLogging(err, "Unable to upload", "dataset", srcFilename)
 }
 
+func (repo *minioRepositoryImpl) InsertCheckpoint(srcFilename string, dstFilename string) {
+	slog.Info("Uploading checkpoint to Minio", "file", srcFilename)
+
+	_, err := repo.Client.FPutObject(context.Background(), repo.Config.Get("MINIO_CHECKPOINTS_BUCKET"), dstFilename, srcFilename, minio.PutObjectOptions{})
+	exception.PanicLogging(err, "Unable to upload", "checkpoint", srcFilename)
+}
+
+func (repo *minioRepositoryImpl) InsertMetric(srcFilename string, dstFilename string) {
+	slog.Info("Uploading metric to Minio", "file", srcFilename)
+
+	_, err := repo.Client.FPutObject(context.Background(), repo.Config.Get("MINIO_METRICS_BUCKET"), dstFilename, srcFilename, minio.PutObjectOptions{})
+	exception.PanicLogging(err, "Unable to upload", "metric", srcFilename)
+}
+
 func (repo *minioRepositoryImpl) ModelExists(filename string) bool {
 	slog.Info("Checking Minio", "model", filename)
 

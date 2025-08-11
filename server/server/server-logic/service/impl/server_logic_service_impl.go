@@ -174,7 +174,7 @@ func (service *serverLogicServiceImpl) GetTrainingStatus(runId string) string {
 	return bodyString
 }
 
-func (service *serverLogicServiceImpl) WatchForSafetensors(callback func(string)) {
+func (service *serverLogicServiceImpl) WatchForSafetensors(callback func(string), scenario_name string) {
 	slog.Info("Watching for creation of safetensors file...")
 
 	watcher, err := fsnotify.NewWatcher()
@@ -198,7 +198,7 @@ func (service *serverLogicServiceImpl) WatchForSafetensors(callback func(string)
 					// Wait to ensure file is fully written
 					slog.Info("Safetensors file found", "file", event.Name)
 					time.Sleep(1 * time.Second)
-					callback(event.Name)
+					callback(scenario_name)
 					return
 				}
 			}
@@ -209,4 +209,23 @@ func (service *serverLogicServiceImpl) WatchForSafetensors(callback func(string)
 			slog.Error("Watcher", "error", err)
 		}
 	}
+}
+
+func (service *serverLogicServiceImpl) RemoveArtifacts() {
+	dir := path.Join("app", "share")
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, entry := range entries {
+		entryPath := path.Join(dir, entry.Name())
+		err := os.RemoveAll(entryPath) // removes file or recursively removes folder
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	fmt.Printf("Emptied folder: %s\n", dir)
 }

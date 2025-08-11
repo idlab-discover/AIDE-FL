@@ -56,6 +56,8 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService, mi
 
 	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_MODELS_BUCKET"))
 	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_DATASETS_BUCKET"))
+	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_CHECKPOINTS_BUCKET"))
+	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_METRICS_BUCKET"))
 
 	return this
 }
@@ -361,7 +363,10 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	// Go routine so that HTTP response may already be sent
 	go func() {
 		// Watch for creation of safetensors file in shared folder and upload to datastore
-		controller.ServerLogicService.WatchForSafetensors(controller.MinioService.UploadSafetensors)
+		controller.ServerLogicService.WatchForSafetensors(controller.MinioService.UploadArtifacts, scenario.Name)
+
+		// Empty shared folder
+		controller.ServerLogicService.RemoveArtifacts()
 
 		// Free to start another training run
 		controller.setIsTraining(false)
