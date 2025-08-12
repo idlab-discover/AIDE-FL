@@ -363,7 +363,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	// Go routine so that HTTP response may already be sent
 	go func() {
 		// Watch for creation of safetensors file in shared folder and upload to datastore
-		controller.ServerLogicService.WatchForSafetensors(controller.MinioService.UploadArtifacts, scenario.Name)
+		controller.ServerLogicService.WatchForEndOfTraining(controller.MinioService.UploadArtifacts, scenario.Name)
 
 		// Empty shared folder
 		controller.ServerLogicService.RemoveArtifacts()

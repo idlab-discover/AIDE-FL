@@ -9,9 +9,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
-	"strings"
-	"time"
 
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
@@ -174,8 +173,8 @@ func (service *serverLogicServiceImpl) GetTrainingStatus(runId string) string {
 	return bodyString
 }
 
-func (service *serverLogicServiceImpl) WatchForSafetensors(callback func(string), scenario_name string) {
-	slog.Info("Watching for creation of safetensors file...")
+func (service *serverLogicServiceImpl) WatchForEndOfTraining(callback func(string), scenario_name string) {
+	slog.Info("Watching for creation of 'done' file...")
 
 	watcher, err := fsnotify.NewWatcher()
 	exception.PanicLogging(err, "Unable to create new watcher")
@@ -194,10 +193,8 @@ func (service *serverLogicServiceImpl) WatchForSafetensors(callback func(string)
 
 			// Only interested in create events
 			if event.Op&(fsnotify.Create) != 0 {
-				if strings.HasSuffix(event.Name, ".safetensors") {
-					// Wait to ensure file is fully written
-					slog.Info("Safetensors file found", "file", event.Name)
-					time.Sleep(1 * time.Second)
+				if filepath.Base(event.Name) == "done" { // File created by Flower server is named 'done'
+					slog.Info("'done' file found marking end of training")
 					callback(scenario_name)
 					return
 				}

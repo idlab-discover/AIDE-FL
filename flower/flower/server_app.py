@@ -16,6 +16,9 @@ class CustomServer(Server):
     def fit(self, num_rounds, timeout):
         history, elapsed = super().fit(num_rounds, timeout)
         
+        # Create 'done' file so server-logic knows that training has concluded
+        open(os.path.join("share", "done"), "x")
+        
         # Notify wandb when server is done fitting
         wandb.finish()
         
