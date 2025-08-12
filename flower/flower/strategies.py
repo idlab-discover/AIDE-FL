@@ -18,6 +18,7 @@ class SaveModelFedAvg(FedAvg):
         self.model = model
         self.share_dir = share_dir
         self.server_rounds = server_rounds
+        self.fitted_validated_metrics = {}
         self.distributed_metrics = {}
         self.centralised_metrics = {}
         
@@ -29,26 +30,36 @@ class SaveModelFedAvg(FedAvg):
         
         parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
         
-        if parameters_aggregated is not None:
-            # Set aggregated weights to the model
-            weights = parameters_to_ndarrays(parameters_aggregated)
-            self.model.set_weights(weights)
+        if parameters_aggregated is None:
+            return parameters_aggregated, metrics_aggregated
+        
+        self.fitted_validated_metrics[server_round] = metrics_aggregated.get("histories")
+        
+        # Save metrics as json
+        path = os.path.join(self.share_dir, f"{self.scenario_name}_fitted_validated_metrics.json")
+        with open(path, 'w') as file:
+            json.dump(self.fitted_validated_metrics, file, indent=4)
+        print(f"Updated fitted_validated metrics in {path}")
+        
+        # Set aggregated weights to the model
+        weights = parameters_to_ndarrays(parameters_aggregated)
+        self.model.set_weights(weights)
+        
+        # Save model checkpoint
+        if server_round == self.server_rounds:
             
-            # Save model checkpoint
-            if server_round == self.server_rounds:
-                
-                # Safe last aggregated model in safetensors
-                weights_dict = {
-                    f"weight_{i}": w.astype(np.float32) if not np.issubdtype(w.dtype, np.floating) else w for i, w in enumerate(weights)
-                }
-                
-                st_path = os.path.join(self.share_dir, f"{self.scenario_name}.safetensors")
-                save_file(weights_dict, st_path)
-                print(f"Saved checkpoint to {st_path}")
+            # Safe last aggregated model in safetensors
+            weights_dict = {
+                f"weight_{i}": w.astype(np.float32) if not np.issubdtype(w.dtype, np.floating) else w for i, w in enumerate(weights)
+            }
             
-            path = os.path.join(self.share_dir, f"{self.scenario_name}_round_{server_round}.weights.h5") # Must end with .weights.h5
-            self.model.save_weights(path)
-            print(f"Saved checkpoint to {path}")
+            st_path = os.path.join(self.share_dir, f"{self.scenario_name}.safetensors")
+            save_file(weights_dict, st_path)
+            print(f"Saved checkpoint to {st_path}")
+        
+        path = os.path.join(self.share_dir, f"{self.scenario_name}_round_{server_round}.weights.h5") # Must end with .weights.h5
+        self.model.save_weights(path)
+        print(f"Saved checkpoint to {path}")
         
         return parameters_aggregated, metrics_aggregated
     
@@ -98,7 +109,7 @@ class SaveModelFedAvg(FedAvg):
             return None
         
         loss, str_metrics = eval_res
-        dict_metrics = json.loads(str_metrics.get("centralised_metrics")) # For some reason a string is returned so needs to be converted to dict
+        dict_metrics = json.loads(str_metrics.get("centralised_metrics")) # Flower does not support setting a dict type as value so had to be sent as a string
 
         metrics_combined = {"loss": loss, **dict_metrics}
         self.centralised_metrics[server_round] = metrics_combined
