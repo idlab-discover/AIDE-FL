@@ -68,7 +68,7 @@ class SaveModelFedAvg(FedAvg):
 
         loss_aggregated, metrics_aggregated = super().aggregate_evaluate(server_round, results, failures)
         
-        metrics = {"loss": loss_aggregated, **metrics_aggregated}
+        metrics = {"avg_loss": loss_aggregated, **metrics_aggregated}
         
         self.distributed_metrics[server_round] = metrics
         
