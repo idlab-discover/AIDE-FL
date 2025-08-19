@@ -37,6 +37,7 @@ Following example scenario works out the box:
 {
   "name": "test",
   "dataset": "dhoogla-nfunswnb15v2",
+  "hold_out_dataset": "dhoogla-nfunswnb15v2",
   "centralised": false,
   "label_column": "Label",
   "preprocessing": {
@@ -66,6 +67,7 @@ Following example scenario works out the box:
 - `name`: Name for the scenario. This is the UID for the scenario. Change the name of the scenario if modifications are made. If a training session is started with a different scenario but with the same name as a previous one, the previous scenario will be used.
 - `dataset` (mutually exclusive with `datasets`): Uses the parquet dataset in each client's Minio datastore with matching name (under `datasets/[datasetname].parquet`), or tries downloading the dataset from Kaggle (e.g. `dhoogla-nfunswnb15v2` matches with dataset `nfunswnb15v2` (case insensitive) of user `dhoogla`) and uploads it to the Minio datastore. NOTE: The downloaded zip from Kaggle must contain a dataset as parquet file and the first one is taken if there would be multiple parquet files.
 - `datasets` (mutually exclusive with `dataset`): Similar to `dataset` but with the ability to define a dataset per client (clients are identified by the node's name on which they run). Value must be a dictionary (e.g. `{"client1": "some-dataset"}`). The length of `datasets` must be greater than or equal to `strategy.min_available_clients`.
+- `hold_out_dataset`: This optional value holds the name of a dataset which is used to evaluate the aggregated model at the end of each round at server-side. This dataset must be placed in the server’s datastore or, like before, may refer to a Kaggle dataset which will be downloaded to the server’s datastore.
 - `centralised`: If `true`, the framework retrieves the dataset(s) set in `dataset` or `datasets` from the server's Minio datastore. If `false`, the client's own Minio datastores are used.
 - `label_column`: The name of the column containing the labels of your dataset. 
 - `preprocessing.drop_columns`: Columns to be dropped/ignored from dataset.
@@ -118,6 +120,12 @@ If `centralised` is set to `true` and the to be used datasets do not originate f
 If the to be used datasets do not originate from Kaggle, it is the client node maintainer's job to provide their client with the right datasets on which it is supposed to train. Do this by uploading the parquet dataset to the Minio datastore using its web UI on `http://[client-address]:9001` with default credentials `aide-fl1:aide-fl1`. It's also possible to upload the dataset using S3 over port `:9000`.
 
 Be sure to let the server maintainer know what the dataset's filename is so it may be correctly specified in the scenario.
+
+### Inference
+
+Although this project is completely focused on the training side of model development and the accumulation of metrics that come with it, it is nice to be able to quickly assess the new model's performance in a local inference test.
+
+This repository contains a folder named `inference` containing a Jupyter notebook. Provided with the scenario used to train the model, the dataset to be used for inference (must contain the same features as the scenario's dataset), and access details to the server's datastore, the notebook will output a confusion matrix showing how the model performs on 50 randomly chosen data entries from the dataset.
 
 ## Client Services
 
