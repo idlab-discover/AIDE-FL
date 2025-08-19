@@ -102,6 +102,8 @@ def server_fn(context: Context):
         server_rounds=server_rounds,
         fraction_fit=fraction_fit,
         fraction_evaluate=fraction_evaluate,
+        min_fit_clients=1,
+        min_evaluate_clients=1,
         min_available_clients=min_available_clients,
         initial_parameters=parameters, # If not defined, the server gets its initial parameters from a random client
         fit_metrics_aggregation_fn=handle_fit_metrics, # Which function to use to handle metrics passed by client's fit function (e.g. history metrics for each epoch)
