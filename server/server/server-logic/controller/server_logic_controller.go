@@ -135,6 +135,21 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 		controller.totalClients--
 		conn.Close()
 		slog.Info("Client disconnected:", "ID", clientId, "address", clientAddress)
+
+		// Abort training run if client disconnected during preparation (error message is implicitly ignored once preparation is done)
+		if controller.getIsTraining() {
+			controller.doneCond.L.Lock()
+			slog.Info("Aborting training if in preparation phase.")
+
+			controller.errorMessage = &model.GeneralMessage{
+				Type:    "ERROR",
+				Origin:  "server",
+				Message: "Client '" + clientId + "' disconnected while preparing.",
+			}
+
+			controller.doneCond.Broadcast()
+			controller.doneCond.L.Unlock()
+		}
 	}()
 
 	controller.listenForGeneralMessages(conn, clientId)
