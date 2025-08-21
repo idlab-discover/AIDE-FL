@@ -96,7 +96,7 @@ class SaveModelFedAvg(FedAvg):
         
         # Log average per metric
         avg_metrics = {f"distributed/avg_{i}": metric_sums[i] / metric_counts[i] for i in metric_sums}
-        wandb.log({"distributed/loss": loss_aggregated, **avg_metrics}, step=server_round)
+        wandb.log({"distributed/avg_loss": loss_aggregated, **avg_metrics}, step=server_round)
         
         return loss_aggregated, metrics_aggregated
     
