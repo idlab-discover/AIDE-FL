@@ -126,9 +126,13 @@ Be sure to let the server maintainer know what the dataset's filename is so it m
 
 ### Manual Testing
 
-Although this project is completely focused on the training side of model development and the accumulation of metrics that come with it, it is nice to be able to quickly assess the new model's performance in a local inference test.
+Although this project is completely focused on the training side of model development, it is nice to be able to quickly assess the new model's performance in a local inference test, and to get a view on each client's training performance with learning and validation curves.
 
-This repository contains a folder named `manual-testing` containing two Jupyter notebooks: One for creating learning and validation curves for each client and another to perform local inderence on the aggregated model.
+This is possible with the two Jupyter notebooks contained in the `manual-testing` directory: One for creating learning and validation curves for each client and another to perform local inderence on the aggregated model.
+
+### Examples
+
+The `examples` directory contains Python scripts, used to generate datasets, and corresponding scenarios. Each script generates three parquet files: Parts 1 and 2, each containing 3/7 of the original set, are to be uploaded to two separate clients, number 3, containing 1/7 of the original set, needs to be uploaded to the server’s datastore to serve as hold-out dataset. The scenarios need to be completed with the correct client IDs under the datasets key. The directory also contains a scenario for use of a NIDS dataset, which retrieves its datasets directly from Kaggle.
 
 ## Client Services
 
