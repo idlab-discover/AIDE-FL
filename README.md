@@ -134,23 +134,45 @@ This is possible with the two Jupyter notebooks contained in the `manual-testing
 
 The `examples` directory contains Python scripts, used to generate datasets, and corresponding scenarios. Each script generates three parquet files: Parts 1 and 2, each containing 3/7 of the original set, are to be uploaded to two separate clients, number 3, containing 1/7 of the original set, needs to be uploaded to the server’s datastore to serve as hold-out dataset. The scenarios need to be completed with the correct client IDs under the datasets key. The directory also contains a scenario for use of a NIDS dataset, which retrieves its datasets directly from Kaggle.
 
+## Server Services
+
+Services residing on the one server node.
+
+### Server
+
+This service is one of the three services the user communicates with directly and is the
+entry point to the framework. The user supplies a scenario to `server-logic` over HTTP which is relayed to all client nodes so they can start preparing for the training run. Once all clients are done preparing, `server-logic` triggers the Flower training process which is coordinated by the `flower-serverapp`. `flower-superlink` retains a persistent connection with the clients’ `flower-supernodes`. The use of separate containers to manage this connection abstracts away the underlying transport mechanisms and ensures reliable bidirectional communication necessary for parameter aggregation during a training run. Upon completion of the run, `server-logic` uploads the resulting artifacts, including the aggregated model, to the server’s `datastore` service. Metrics are logged to Weights & Biases for a visual representation.
+
+### Datastore
+
+The second service with which a user can communicate directly. Its purpose is to store aggregated models, metrics, and model checkpoints resulting from running scenarios, and optionally also datasets provided by the user which can be used by clients to train upon for a more centralised experience rather than distributed, or to evaluate the final model at the end of a training run as a holdout dataset. The technology used is a MinIO object store which hosts a web interface for easy user access.
+
 ## Client Services
 
 Except for `server` is each service part of the client. These services are deployed as daemonsets so that they may run on each node of the K8s instance. The nodes in your K8s instance each represent an individual Federated Learning client.
 
 ### Orchestrator
 
-This service accepts commands from the central server and deligates all steps to be taken to the corresponding service.
+As its name suggests, the `orchestrator` service orchestrates all other client node services. Its first task is to connect to `server-logic`, waiting to receive a scenario. Upon acquiring one, a succession of messages is sent between the `orchestrator` and other client services, triggering multiple steps such as `datastore-logic` organising files in the `datastore`, preprocessing of the dataset in `preprocessor-logic`, and making `trainer-logic` prepare for the Flower training run in `trainer`. Once these steps have been
+completed, `orchestrator` conveys to `server-logic` that the client is ready for the training run. The `orchestrator` is also in charge of relaying messages from other services to the server. Such messages can contain handy information or error messages. The latter will abort further client preparations together with the training run in general.
 
-### Minio Datastore
+### Datastore
 
-This service exists out of two containers: A default Minio image and a `datastore-logic`. The `datastore-logic` accepts scenarios from the `orchestrator`. It makes sure that the required dataset is downloaded from Kaggle (if not already present) and the scenario is saved along with the dataset.
+`datastore-logic` organises the file structure in `minio`, a MinIO object store, and keeps
+track of whether the necessary dataset (in parquet format) is present for the scenario. If not, it attempts to download the dataset from Kaggle.
 
-After the dataset has been preprocessed by `preprocessor`, an index file containing train-, test- and validationset indices is sent to `datastore-logic` to be saved.
+### Preprocessor
 
-Upon receiving a scenario, `datastore-logic` responds with one of four statuses:
+This service downloads the dataset for a given scenario from `minio` and performs the necessary preprocessing steps set in the scenario. The dataset may be downloaded from either the client Minio instance or the server’s instance depending on whether the scenario specifies a distributed or centralised approach. To reduce storage usage, the resulting training, validation, and test sets are not uploaded to `minio`, but kept in `redis`, a Redis database, for a certain time period or until it is overwritten by another preprocessing task. This caching enables reusability of the preprocessed datasets would the same scenario be ran again.
 
-- `new dataset`: The dataset has been downloaded and the scenario saved.
-- `new scenario`: The dataset is already present but the scenario is new and saved.
-- `not preprocessed`: Dataset and scenario are both already present but no preprocessing has been executed.
-- `preprocessed`: Dataset, scenario and index file are all present.
+### Trainer
+
+`trainer-logic` downloads the preprocessed datasets from `redis` for `flower-clientapp` to
+use, and completes the last preparation step. The `flower-supernode` initialises a connection with `flower-superlink`, registering the client node as a potential FL client in the federation. The `flower-clientapp` contains the logic to perform the Flower training steps on the preprocessed datasets.
+
+### Kafka
+
+Communication between `orchestrator` and other services on that same client node moves through a Kafka broker dedicated to that node. A total of seven topics are used to relay information:
+
+- 3 times 2 topics for two-way communication between `orchestrator` and the 3 other services.
+- All services may publish messages with info or errors to the 7th topic. These are consumed by `orchestrator` and sent to the server.
