@@ -176,3 +176,25 @@ Communication between `orchestrator` and other services on that same client node
 
 - 3 times 2 topics for two-way communication between `orchestrator` and the 3 other services.
 - All services may publish messages with info or errors to the 7th topic. These are consumed by `orchestrator` and sent to the server.
+
+## Known Bugs
+
+Currently, there are two known bugs that might impede smooth operation of the framework.
+
+### Initial Deployment
+
+After completion of the deployment script, everything might seem fine at first glance. But, when trying to start a training run using `/start`, the HTTP request will load indefinitely waiting for a response.
+
+Inspecting the server logs reveals that one or multiple clients don't submit a `DONE` message, halting the training process. Inspecting the `orchestrator` and `datastore` services of those clients reveals that either the message from `orchestrator` to `datastore`, telling `datastore` to prepare the dataset, is not received by `datastore`, or the message from `datastore` back to `orchestrator`, telling `orchestrator` that the dataset has been prepared, is not received by `orchestrator`.
+
+I can confirm that those messages are in every case received by the dedicated Kafka instances which makes me think that either `orchestrator` or `datastore` couldn't always make a reliable connection to consume those messages.
+
+The solution is to restart both `orchestrator`, `datastore` and `server` which can be done by simply deleting the services (K8s will start them back up). Doing this results in `orchestrator` and `datastore` reconnecting with `kafka` fixing the issue. Restarting `server` is necessary to cancel the training loop it is stuck in. After that restart, it might take a few seconds to let the `trainer` and `orchestrator` services connect back to the `server`.
+
+### Preprocessed Datasets
+
+When running a scenario where datasets need to be preprocessed (not using cached datasets), an error will be thrown saying that `trainer` couldn't find the preprocessed datasets within `redis`.
+
+This is thrown because `preprocessor-logic` messages `orchestrator` that it is done preprocessing before the datasets are fully uploaded to `redis` which results in `trainer-logic` attempting to get those datasets before they are fully present.
+
+The solution is to simply rerun the scenario at which time the datasets should've gotten ample time to be uploaded.
