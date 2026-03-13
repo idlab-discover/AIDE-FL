@@ -4,6 +4,55 @@ set -e # Exit if a command exits with non-zero status
 set -o pipefail # Exit if part of pipeline fails
 
 DIR=$(dirname "$0")
+DEFAULT_KUBECONFIG="${HOME}/.kube/aide"
+KUBECONFIG_PATH="${KUBECONFIG_PATH:-${KUBECONFIG:-$DEFAULT_KUBECONFIG}}"
+WANDB_KEY_VALUE="${WANDB_API_KEY:-}"
+
+usage() {
+  cat <<EOF
+Usage: $0 [--kubeconfig PATH] [--wandb-api-key KEY]
+
+Options:
+  --kubeconfig PATH   Path to kubeconfig file. Defaults to \$KUBECONFIG_PATH,
+                      then \$KUBECONFIG, then ${DEFAULT_KUBECONFIG}.
+  --wandb-api-key KEY Weights & Biases API key. Defaults to \$WANDB_API_KEY.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --kubeconfig)
+      KUBECONFIG_PATH="$2"
+      shift 2
+      ;;
+    --wandb-api-key)
+      WANDB_KEY_VALUE="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Error: Unknown argument '$1'"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z "$KUBECONFIG_PATH" ]]; then
+  echo "Error: No kubeconfig path provided."
+  exit 1
+fi
+
+if [[ ! -f "$KUBECONFIG_PATH" ]]; then
+  echo "Error: Kubeconfig file '$KUBECONFIG_PATH' does not exist."
+  exit 1
+fi
+
+export KUBECONFIG="$KUBECONFIG_PATH"
+echo "Using kubeconfig: $KUBECONFIG"
 
 # Check for dependencies
 echo "Checking dependencies..."
@@ -73,9 +122,18 @@ if kubectl get secret wandb-api-key -n aide-fl >/dev/null 2>&1; then
 fi
 
 # Create wandb API key secret
-read -p "Enter your Weights & Biases API key: " wandb_key
+if [[ -z "$WANDB_KEY_VALUE" ]]; then
+  read -s -p "Enter your Weights & Biases API key: " WANDB_KEY_VALUE
+  echo
+fi
+
+if [[ -z "$WANDB_KEY_VALUE" ]]; then
+  echo "Error: No Weights & Biases API key provided."
+  exit 1
+fi
+
 echo "Creating wandb API key secret..."
-kubectl create secret generic wandb-api-key --from-literal=WANDB_API_KEY=$wandb_key -n aide-fl
+kubectl create secret generic wandb-api-key --from-literal=WANDB_API_KEY=$WANDB_KEY_VALUE -n aide-fl
 
 # Check if secret and configmap with certs exist
 if kubectl get configmap ca-cert -n aide-fl >/dev/null 2>&1 || kubectl get secret server-cert -n aide-fl >/dev/null 2>&1; then

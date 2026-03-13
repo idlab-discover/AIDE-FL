@@ -19,7 +19,7 @@ spec:
       hostNetwork: true
       containers:
         - name: kafka
-          image: bitnami/kafka:3.6.1
+          image: apache/kafka:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: KUBE_NODE_NAME
@@ -31,7 +31,7 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: KAFKA_LOG_DIR
-              value: "/bitnami/kafka/data"
+              value: "/var/lib/kafka/data"
             - name: TOPICS
               valueFrom:
                 configMapKeyRef:
@@ -42,8 +42,8 @@ spec:
             - -c
             - |
               NODE_NAME=$(echo $KUBE_NODE_NAME)
-              UUID=$(kafka-storage.sh random-uuid)
-              NODE_ID_FILE="/bitnami/kafka/${KUBE_NODE_NAME}.id"
+              UUID=$(/opt/kafka/bin/kafka-storage.sh random-uuid)
+              NODE_ID_FILE="/var/lib/kafka/${KUBE_NODE_NAME}.id"
 
               if [[ -f "$NODE_ID_FILE" ]]; then
                 export NODE_ID=$(cat "$NODE_ID_FILE")
@@ -55,8 +55,8 @@ spec:
 
               echo "Starting Kafka with node.id=$NODE_ID for K8s node $NODE_NAME"
 
-              mkdir -p /bitnami/kafka/config
-              cat <<EOF > /bitnami/kafka/config/kraft-server.properties
+              mkdir -p /var/lib/kafka/config
+              cat <<EOF > /var/lib/kafka/config/kraft-server.properties
               process.roles=broker,controller
               node.id=${NODE_ID}
               controller.quorum.voters=${NODE_ID}@localhost:9093
@@ -71,11 +71,11 @@ spec:
               num.io.threads=8
               EOF
 
-              kafka-storage.sh format -t ${UUID} -c /bitnami/kafka/config/kraft-server.properties --ignore-formatted
-              kafka-server-start.sh /bitnami/kafka/config/kraft-server.properties &
+              /opt/kafka/bin/kafka-storage.sh format -t ${UUID} -c /var/lib/kafka/config/kraft-server.properties --ignore-formatted
+              /opt/kafka/bin/kafka-server-start.sh /var/lib/kafka/config/kraft-server.properties &
 
               echo "Waiting for Kafka to become available..."
-              until kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1; do
+              until /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1; do
                 sleep 1
               done
               echo "Kafka is ready!"
@@ -84,7 +84,7 @@ spec:
               read -ra topics <<< ${TOPICS}
               for topic in ${topics[@]}; do
                 echo "Creating topic: $topic"
-                kafka-topics.sh --create --topic $topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --if-not-exists
+                /opt/kafka/bin/kafka-topics.sh --create --topic $topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 --if-not-exists
               done
 
               wait
@@ -97,7 +97,7 @@ spec:
               name: controller
           volumeMounts:
             - name: kafka-data
-              mountPath: /bitnami/kafka
+              mountPath: /var/lib/kafka
       volumes:
         - name: kafka-data
           emptyDir: {}
