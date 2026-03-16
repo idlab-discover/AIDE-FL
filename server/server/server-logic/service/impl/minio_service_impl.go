@@ -49,6 +49,7 @@ func (service *minioServiceImpl) CreateDataset(dataset string) error {
 
 func (service *minioServiceImpl) CreateAndShareHoldOutDataset(dataset string) error {
 	datasetFilename := dataset + ".parquet"
+	holdOutPath := path.Join(shareDir, "hold-out.parquet")
 
 	if !service.MinioRepository.DatasetExists(datasetFilename) {
 		zipName, err := service.LocalRepository.DownloadKaggleDataset(dataset)
@@ -58,17 +59,17 @@ func (service *minioServiceImpl) CreateAndShareHoldOutDataset(dataset string) er
 
 		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
 		service.MinioRepository.InsertDataset(datasetFilename, datasetFilename)
-		service.LocalRepository.MoveFile(datasetFilename, path.Join("app", "share", "hold-out.parquet"))
+		service.LocalRepository.MoveFile(datasetFilename, holdOutPath)
 	} else {
 		reader := service.MinioRepository.GetDataset(datasetFilename)
-		service.LocalRepository.SaveToFile(reader, path.Join("app", "share", "hold-out.parquet"))
+		service.LocalRepository.SaveToFile(reader, holdOutPath)
 	}
 
 	return nil
 }
 
 func (service *minioServiceImpl) UploadArtifacts(scenario_name string) {
-	dir := path.Join("app", "share")
+	dir := shareDir
 
 	files, err := os.ReadDir(dir)
 	exception.PanicLogging(err, "Unable to get artifacts")
@@ -98,5 +99,5 @@ func (service *minioServiceImpl) UploadArtifacts(scenario_name string) {
 	}
 
 	// Get final model
-	service.MinioRepository.InsertModel(path.Join("app", "share", scenario_name+".safetensors"), scenario_name+".safetensors")
+	service.MinioRepository.InsertModel(path.Join(shareDir, scenario_name+".safetensors"), scenario_name+".safetensors")
 }

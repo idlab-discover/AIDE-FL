@@ -23,6 +23,8 @@ import (
 	"gopkg.in/ini.v1"
 )
 
+const shareDir = "/app/share"
+
 type serverLogicServiceImpl struct {
 	configuration.Config
 	*validator.Validate
@@ -117,10 +119,13 @@ func (service *serverLogicServiceImpl) StartClients(scenario *model.Scenario, pr
 
 func (service *serverLogicServiceImpl) SetFlowerConfig(scenario *model.Scenario) {
 	slog.Info("Updating config file")
-	config_path := path.Join("app", "share", "config.ini")
+	config_path := path.Join(shareDir, "config.ini")
 
 	scenario_json, err := json.Marshal(scenario)
 	exception.PanicLogging(err, "Unable to unmarshal scenario from JSON")
+
+	err = os.MkdirAll(filepath.Dir(config_path), 0o755)
+	exception.PanicLogging(err, "Unable to create config directory")
 
 	if _, err := os.Stat(config_path); err != nil {
 		if os.IsNotExist(err) {
@@ -181,7 +186,10 @@ func (service *serverLogicServiceImpl) WatchForEndOfTraining(callback func(strin
 	defer watcher.Close()
 
 	// Add directory to watch to watcher
-	err = watcher.Add(path.Join("app", "share"))
+	err = os.MkdirAll(shareDir, 0o755)
+	exception.PanicLogging(err, "Unable to create shared folder")
+
+	err = watcher.Add(shareDir)
 	exception.PanicLogging(err, "Unable to add shared folder to watcher")
 
 	for {
@@ -209,7 +217,7 @@ func (service *serverLogicServiceImpl) WatchForEndOfTraining(callback func(strin
 }
 
 func (service *serverLogicServiceImpl) RemoveArtifacts() {
-	dir := path.Join("app", "share")
+	dir := shareDir
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {

@@ -131,6 +131,9 @@ func (repo *localRepositoryImpl) copyFile(srcFilename string, dstFilename string
 func (repo *localRepositoryImpl) SaveToFile(reader io.Reader, dstPath string) {
 	slog.Info("Saving new file", "dstPath", dstPath)
 
+	err := os.MkdirAll(filepath.Dir(dstPath), 0o755)
+	exception.PanicLogging(err, "Unable to create file directory", "dstPath", dstPath)
+
 	// Create new file
 	outFile, err := os.Create(dstPath)
 	exception.PanicLogging(err, "Unable to create new file", "dstPath", dstPath)
