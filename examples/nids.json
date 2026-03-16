@@ -1,6 +1,6 @@
 {
   "name": "nids",
-  "dataset": "dhoogla-nfunswnb15v2",
+  "dataset": "dhoogla-nfunswnb15v2", 
   "hold_out_dataset": "dhoogla-nfunswnb15v2",
   "centralised": false,
   "label_column": "Label",
