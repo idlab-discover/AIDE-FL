@@ -7,13 +7,16 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY .env.example /app/.env
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /datastore-logic ./main.go
 
 # Create minimal container
 FROM scratch
+WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /datastore-logic /app/.env .
-CMD ["/datastore-logic"]
+COPY --from=builder /datastore-logic /app/datastore-logic
+COPY --from=builder /app/.env /app/.env
+CMD ["/app/datastore-logic"]
 
-LABEL org.opencontainers.image.source=https://github.com/MartienskieNum1/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/Str-Gen/AIDE-FL

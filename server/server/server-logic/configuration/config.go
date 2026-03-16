@@ -20,6 +20,8 @@ func (config *configImpl) Get(key string) string {
 
 func New(filenames ...string) Config {
 	err := godotenv.Load(filenames...)
-	exception.PanicLogging(err, "Unable to load", "filenames", filenames)
+	if err != nil && !os.IsNotExist(err) {
+		exception.PanicLogging(err, "Unable to load", "filenames", filenames)
+	}
 	return &configImpl{}
 }

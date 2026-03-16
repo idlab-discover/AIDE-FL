@@ -9,7 +9,7 @@ The `deploy.sh` script in the root of the repo should guide you through the nece
 The only requirement for the k8s cluster is to have at least two worker nodes. Three is recommended.
 
 ```sh
-git clone https://github.com/MartienskieNum1/AIDE-FL.git
+git clone https://github.com/Str-Gen/AIDE-FL.git
 
 cd AIDE-FL
 

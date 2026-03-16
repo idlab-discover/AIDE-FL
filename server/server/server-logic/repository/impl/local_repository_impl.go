@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/configuration"
 	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
@@ -94,7 +96,36 @@ func (repo *localRepositoryImpl) MoveFile(srcFilename string, dstFilename string
 	slog.Info("Moving", "srcFilename", srcFilename, "dstFilename", dstFilename)
 
 	err := os.Rename(srcFilename, dstFilename)
+	if err == nil {
+		return
+	}
+
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) && errors.Is(linkErr.Err, syscall.EXDEV) {
+		slog.Info("Rename crossed filesystems, falling back to copy", "srcFilename", srcFilename, "dstFilename", dstFilename)
+
+		repo.copyFile(srcFilename, dstFilename)
+		repo.RemoveFile(srcFilename)
+		return
+	}
+
 	exception.PanicLogging(err, "Unable to move a file", "srcFilename", srcFilename, "dstFilename", dstFilename)
+}
+
+func (repo *localRepositoryImpl) copyFile(srcFilename string, dstFilename string) {
+	srcFile, err := os.Open(srcFilename)
+	exception.PanicLogging(err, "Unable to open source file", "srcFilename", srcFilename)
+	defer srcFile.Close()
+
+	err = os.MkdirAll(filepath.Dir(dstFilename), 0o755)
+	exception.PanicLogging(err, "Unable to create destination directory", "dstFilename", dstFilename)
+
+	dstFile, err := os.Create(dstFilename)
+	exception.PanicLogging(err, "Unable to create destination file", "dstFilename", dstFilename)
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	exception.PanicLogging(err, "Unable to copy moved file", "srcFilename", srcFilename, "dstFilename", dstFilename)
 }
 
 func (repo *localRepositoryImpl) SaveToFile(reader io.Reader, dstPath string) {

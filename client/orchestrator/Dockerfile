@@ -7,12 +7,15 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY .env.example /app/.env
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /orchestrator ./main.go
 
 # Create minimal container
 FROM scratch
-COPY --from=builder /orchestrator /app/.env .
-CMD ["/orchestrator"]
+WORKDIR /app
+COPY --from=builder /orchestrator /app/orchestrator
+COPY --from=builder /app/.env /app/.env
+CMD ["/app/orchestrator"]
 
-LABEL org.opencontainers.image.source=https://github.com/MartienskieNum1/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/Str-Gen/AIDE-FL

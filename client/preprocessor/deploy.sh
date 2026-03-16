@@ -3,6 +3,7 @@
 set -e
 
 DIR=$(dirname "$0")
+IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
 
 if [ "$1" == "prod" ]; then
     TAG="latest"
@@ -13,8 +14,8 @@ fi
 echo "Deploying environment with tag: $TAG"
 
 # Build and push preprocessor-logic image
-docker build --tag ghcr.io/martienskienum1/preprocessor-logic:$TAG ${DIR}/preprocessor-logic
-docker push ghcr.io/martienskienum1/preprocessor-logic:$TAG
+docker build --tag ${IMAGE_REPO}/preprocessor-logic:$TAG ${DIR}/preprocessor-logic
+docker push ${IMAGE_REPO}/preprocessor-logic:$TAG
 
 # Recreate redis configmap for Redis config
 kubectl delete configmap redis-config -n aide-fl

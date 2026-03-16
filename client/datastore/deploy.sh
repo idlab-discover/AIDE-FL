@@ -3,6 +3,7 @@
 set -e
 
 DIR=$(dirname "$0")
+IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
 
 if [ "$1" == "prod" ]; then
     TAG="latest"
@@ -13,8 +14,8 @@ fi
 echo "Deploying environment with tag: $TAG"
 
 # Build and push datastore-logic image
-docker build --tag ghcr.io/martienskienum1/datastore-logic:$TAG ${DIR}/datastore-logic
-docker push ghcr.io/martienskienum1/datastore-logic:$TAG
+docker build --tag ${IMAGE_REPO}/datastore-logic:$TAG ${DIR}/datastore-logic
+docker push ${IMAGE_REPO}/datastore-logic:$TAG
 
 # Recreate Minio + datastore-logic daemonset
 kubectl delete daemonset datastore-daemonset --namespace aide-fl || true

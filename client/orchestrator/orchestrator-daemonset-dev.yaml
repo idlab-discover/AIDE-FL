@@ -20,7 +20,7 @@ spec:
       hostNetwork: true
       containers:
       - name: orchestrator
-        image: ghcr.io/martienskienum1/orchestrator:dev
+        image: ghcr.io/str-gen/orchestrator:dev
         env:
         - name: SERVER_IP
           valueFrom:

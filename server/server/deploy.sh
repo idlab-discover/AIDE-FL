@@ -3,6 +3,7 @@
 set -e
 
 DIR=$(dirname "$0")
+IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
 
 if [ "$1" == "prod" ]; then
     TAG="latest"
@@ -13,12 +14,12 @@ fi
 echo "Deploying environment with tag: $TAG"
 
 # Build and push flower-serverapp image
-docker build -f ${DIR}/../../flower/serverapp.Dockerfile --tag ghcr.io/martienskienum1/flower-serverapp:$TAG ${DIR}/../../flower
-docker push ghcr.io/martienskienum1/flower-serverapp:$TAG
+docker build -f ${DIR}/../../flower/serverapp.Dockerfile --tag ${IMAGE_REPO}/flower-serverapp:$TAG ${DIR}/../../flower
+docker push ${IMAGE_REPO}/flower-serverapp:$TAG
 
 # Build and push server-logic image
-docker build --tag ghcr.io/martienskienum1/server-logic:$TAG ${DIR}/server-logic
-docker push ghcr.io/martienskienum1/server-logic:$TAG
+docker build --tag ${IMAGE_REPO}/server-logic:$TAG ${DIR}/server-logic
+docker push ${IMAGE_REPO}/server-logic:$TAG
 
 # Recreate flower-superlink + flower-serverapp + server-logic deployment
 kubectl delete deployment server-deployment --namespace aide-fl || true

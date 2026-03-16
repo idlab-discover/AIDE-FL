@@ -7,4 +7,4 @@ RUN python -m pip install -U --no-cache-dir .
 
 ENTRYPOINT ["flwr-clientapp"]
 
-LABEL org.opencontainers.image.source=https://github.com/MartienskieNum1/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/Str-Gen/AIDE-FL

@@ -37,7 +37,7 @@ spec:
           name: config
 
       - name: preprocessor-logic
-        image: ghcr.io/martienskienum1/preprocessor-logic:dev
+        image: ghcr.io/str-gen/preprocessor-logic:dev
         env:
         - name: SERVER_IP
           valueFrom:

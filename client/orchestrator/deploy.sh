@@ -3,6 +3,7 @@
 set -e
 
 DIR=$(dirname "$0")
+IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
 
 if [ "$1" == "prod" ]; then
     TAG="latest"
@@ -13,8 +14,8 @@ fi
 echo "Deploying environment with tag: $TAG"
 
 # Build and push orchestrator image
-docker build --tag ghcr.io/martienskienum1/orchestrator:$TAG ${DIR}
-docker push ghcr.io/martienskienum1/orchestrator:$TAG
+docker build --tag ${IMAGE_REPO}/orchestrator:$TAG ${DIR}
+docker push ${IMAGE_REPO}/orchestrator:$TAG
 
 # Recreate orchestrator daemonset
 kubectl delete daemonset orchestrator-daemonset --namespace aide-fl || true
