@@ -105,9 +105,24 @@ func (controller *ServerLogicController) setNewPrepId() uuid.UUID {
 
 func (controller *ServerLogicController) Route() {
 	http.HandleFunc("/ws", controller.handleWS)
-	http.HandleFunc("/start", controller.start)
-	http.HandleFunc("/status", controller.status)
-	http.HandleFunc("/clients", controller.connectedClients)
+	http.HandleFunc("/start", controller.withCORS(controller.start))
+	http.HandleFunc("/status", controller.withCORS(controller.status))
+	http.HandleFunc("/clients", controller.withCORS(controller.connectedClients))
+}
+
+func (controller *ServerLogicController) withCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next(w, r)
+	}
 }
 
 func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -207,14 +222,40 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 		// Get Flower details about current run to include in response
 		runId := controller.getLatestTrainingRunId()
-		flowerStr := controller.ServerLogicService.GetTrainingStatus(runId)
+		flowerStr, err := controller.ServerLogicService.GetTrainingStatus(runId)
+		if err != nil {
+			slog.Error("Unable to get ongoing training status", "error", err)
+
+			response := model.GeneralResponse{
+				Message: "Aborting training due to already ongoing training run",
+				Data: map[string]interface{}{
+					"run-id": runId,
+					"status": "unavailable",
+					"error":  err.Error(),
+				},
+			}
+			jsonData, _ := json.Marshal(response)
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Retry-After", "60")
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write(jsonData)
+
+			return
+		}
 
 		var flowerOut model.FlowerResponse
 		json.Unmarshal([]byte(flowerStr), &flowerOut)
+		var responseData interface{} = map[string]interface{}{
+			"run-id": runId,
+			"status": "unknown",
+		}
+		if len(flowerOut.Runs) > 0 {
+			responseData = flowerOut.Runs[0]
+		}
 
 		response := model.GeneralResponse{
 			Message: "Aborting training due to already ongoing training run",
-			Data:    flowerOut.Runs[0],
+			Data:    responseData,
 		}
 		jsonData, _ := json.Marshal(response)
 		w.Header().Set("Content-Type", "application/json")
@@ -358,7 +399,22 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 	// Start Flower training if no error message
 	slog.Info("All clients reported done")
-	jsonStr := controller.ServerLogicService.StartTraining()
+	jsonStr, err := controller.ServerLogicService.StartTraining()
+	if err != nil {
+		slog.Error("Unable to start Flower training", "error", err)
+
+		response := model.GeneralResponse{
+			Message: "Unable to start Flower training",
+			Data:    err.Error(),
+		}
+		jsonData, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write(jsonData)
+
+		controller.setIsTraining(false)
+		return
+	}
 
 	// Response
 	var jsonFlower map[string]interface{}
@@ -392,11 +448,28 @@ func (controller *ServerLogicController) status(w http.ResponseWriter, r *http.R
 	slog.Info("Received /status request with", "params", r.URL.Query())
 
 	runId := r.URL.Query().Get("runId")
-	jsonStr := controller.ServerLogicService.GetTrainingStatus(runId)
+	jsonStr, err := controller.ServerLogicService.GetTrainingStatus(runId)
+	if err != nil {
+		slog.Error("Unable to get training status", "error", err)
+
+		response := model.GeneralResponse{
+			Message: "Flower status unavailable",
+			Data: map[string]interface{}{
+				"success": false,
+				"runs":    []interface{}{},
+				"error":   err.Error(),
+			},
+		}
+		jsonData, _ := json.Marshal(response)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write(jsonData)
+		return
+	}
 
 	// Response
 	var flowerResponse model.FlowerResponse
-	err := json.Unmarshal([]byte(jsonStr), &flowerResponse)
+	err = json.Unmarshal([]byte(jsonStr), &flowerResponse)
 	exception.PanicLogging(err, "Unable to unmarshal json to FlowerResponse")
 
 	response := model.GeneralResponse{

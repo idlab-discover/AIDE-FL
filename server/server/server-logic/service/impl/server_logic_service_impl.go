@@ -152,30 +152,38 @@ func (service *serverLogicServiceImpl) SetFlowerConfig(scenario *model.Scenario)
 	exception.PanicLogging(err, "Unable to save config file")
 }
 
-func (service *serverLogicServiceImpl) StartTraining() string {
+func (service *serverLogicServiceImpl) StartTraining() (string, error) {
 	slog.Info("Sending training trigger to Flower serverapp")
 	resp, err := http.Post("http://localhost:8080/run", "application/json", nil)
-	exception.PanicLogging(err, "Unable to send trigger to start training")
+	if err != nil {
+		return "", err
+	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	exception.PanicLogging(err, "Unable to read body")
+	if err != nil {
+		return "", err
+	}
 
 	bodyString := string(bodyBytes)
-	return bodyString
+	return bodyString, nil
 }
 
-func (service *serverLogicServiceImpl) GetTrainingStatus(runId string) string {
+func (service *serverLogicServiceImpl) GetTrainingStatus(runId string) (string, error) {
 	slog.Info("Getting training status for", "runId", runId)
 	resp, err := http.Get("http://localhost:8080/ls?runId=" + runId)
-	exception.PanicLogging(err, "Unable to get training status")
+	if err != nil {
+		return "", err
+	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	exception.PanicLogging(err, "Unable to read body")
+	if err != nil {
+		return "", err
+	}
 
 	bodyString := string(bodyBytes)
-	return bodyString
+	return bodyString, nil
 }
 
 func (service *serverLogicServiceImpl) WatchForEndOfTraining(callback func(string), scenario_name string) {

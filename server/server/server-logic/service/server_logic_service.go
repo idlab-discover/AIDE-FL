@@ -12,8 +12,8 @@ type ServerLogicService interface {
 	ValidateScenario(scenario *model.Scenario) error
 	StartClients(scenario *model.Scenario, prepId uuid.UUID, clients map[string]*model.Client)
 	SetFlowerConfig(scenario *model.Scenario)
-	StartTraining() string
-	GetTrainingStatus(runId string) string
+	StartTraining() (string, error)
+	GetTrainingStatus(runId string) (string, error)
 	WatchForEndOfTraining(callback func(string), scenario_name string)
 	RemoveArtifacts()
 }
