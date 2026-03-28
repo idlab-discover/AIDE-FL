@@ -3,6 +3,7 @@
 import os
 import json
 import configparser
+import numpy as np
 
 from tensorflow import keras
 import pandas as pd
@@ -49,6 +50,36 @@ def prepare_data(df: pd.DataFrame, label_column: str) -> tuple[pd.DataFrame, pd.
     return x, y
 
 
+def get_model_input_shape(model_data: dict) -> list:
+    """Return the model input layer batch shape."""
+
+    layers = model_data["config"]["layers"]
+    if not layers:
+        raise ValueError("model does not define any layers")
+
+    input_config = layers[0]["config"]
+    input_shape = input_config.get("batch_shape")
+    if input_shape is None:
+        input_shape = input_config.get("batch_input_shape")
+    if input_shape is None:
+        raise ValueError("model input layer is missing batch_shape")
+
+    return input_shape
+
+
+def adapt_features_to_model_input(x: np.ndarray, model_data: dict) -> np.ndarray:
+    """Adapt tabular features to the model's expected input rank."""
+
+    input_shape = get_model_input_shape(model_data)
+    if len(input_shape) == 2:
+        return x
+
+    if len(input_shape) == 3 and input_shape[2] == 1:
+        return np.expand_dims(x, axis=-1)
+
+    raise ValueError(f"Unsupported model input shape: {input_shape}")
+
+
 def load_server_data(label_column: str, drop_cols) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return x and y for hold-out dataset named 'hold-out.parquet' in shared folder"""
 
@@ -70,7 +101,7 @@ def load_server_data(label_column: str, drop_cols) -> tuple[pd.DataFrame, pd.Dat
     return x_hold_out, y_hold_out
 
 
-def load_data(label_column: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_data(label_column: str, model_data: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Return x and y for train, eval and test dataset named 'train.parquet', 'eval.parquet', 'test.parquet' in shared folder"""
 
     # Read datasets from parquet files
@@ -89,6 +120,9 @@ def load_data(label_column: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
     x_train, y_train = prepare_data(train_df, label_column)
     x_eval, y_eval = prepare_data(eval_df, label_column)
     x_test, y_test = prepare_data(test_df, label_column)
+    x_train = adapt_features_to_model_input(x_train, model_data)
+    x_eval = adapt_features_to_model_input(x_eval, model_data)
+    x_test = adapt_features_to_model_input(x_test, model_data)
     
     print("Datasets loaded from files")
 

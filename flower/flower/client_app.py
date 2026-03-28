@@ -28,10 +28,11 @@ class FlowerClient(NumPyClient):
             local_epochs = config["local_epochs"]
             batch_size = config["batch_size"]
             model_data_str = config["model_data"] # Model is sent as json string
+            model_data = json.loads(model_data_str)
             
             model = keras.models.model_from_json(model_data_str)
             
-            x_train, y_train, x_eval, y_eval, x_test, y_test = load_data(config["label_column"])
+            x_train, y_train, x_eval, y_eval, x_test, y_test = load_data(config["label_column"], model_data)
         else: # When {} is received
             print("No new parameters received from server. Using cached parameters")
             
