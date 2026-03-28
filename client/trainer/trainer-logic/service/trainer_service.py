@@ -21,7 +21,11 @@ class TrainerService:
             raise ValueError(f"label_column ({label_column}) does not match any column in dataset")
         
         # Check if scenario model is compatible with dataset's shape
-        num_columns = len(schema) - 2 # Minus one for label column and minus another for some non existing name added by pyarrow (__index_level_0__)
+        feature_columns = [
+            name for name in schema.names
+            if name != label_column and not name.startswith("__index_level_")
+        ]
+        num_columns = len(feature_columns)
         input_layer = scenario['model']['config']['layers'][0]
         input_shape = input_layer['config']['batch_shape']
         if num_columns != input_shape[1]:

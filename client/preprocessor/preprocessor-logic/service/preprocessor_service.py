@@ -1,6 +1,7 @@
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import numpy as np
+import math
 
 from configuration.logger import Logger
 
@@ -57,8 +58,13 @@ class PreprocessorService:
     
 
     def split(self, df: pd.DataFrame, train: float, eval: float, test: float) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        if train + eval + test != 1.0:
-            raise ValueError(f"Sum of train, validation, and test splits should be 1.0, not {train + eval + test}")
+        splits = {"train": train, "eval": eval, "test": test}
+        if any(value < 0 or value > 1 for value in splits.values()):
+            raise ValueError(f"Split values must stay within [0, 1], got {splits}")
+
+        split_sum = train + eval + test
+        if not math.isclose(split_sum, 1.0, rel_tol=0.0, abs_tol=1e-9):
+            raise ValueError(f"Sum of train, validation, and test splits should be 1.0, not {split_sum}")
         
         df_train, df_temp = train_test_split(df, test_size=(1 - train), shuffle=False)
         eval_ratio = eval / (eval + test)

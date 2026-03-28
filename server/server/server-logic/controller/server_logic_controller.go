@@ -23,15 +23,14 @@ type ServerLogicController struct {
 	upgrader                 websocket.Upgrader
 	clients                  map[string]*model.Client
 	clientsMutex             *sync.Mutex
-	totalClients             int
-	doneCount                int
 	isTraining               bool
 	isTrainingMutex          *sync.Mutex
 	latestTrainingRunId      string
 	latestTrainingRunIdMutex *sync.Mutex
-	prepId                   uuid.UUID
-	prepIdMutex              *sync.Mutex
 	doneCond                 *sync.Cond
+	trainingClients          map[string]*model.Client
+	completedClients         map[string]struct{}
+	prepID                   uuid.UUID
 	errorMessage             *model.GeneralMessage
 }
 
@@ -45,13 +44,12 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService, mi
 		},
 		clients:                  make(map[string]*model.Client),
 		clientsMutex:             &sync.Mutex{},
-		totalClients:             0,
-		doneCount:                0,
 		isTraining:               false,
 		isTrainingMutex:          &sync.Mutex{},
 		latestTrainingRunIdMutex: &sync.Mutex{},
-		prepIdMutex:              &sync.Mutex{},
 		doneCond:                 sync.NewCond(&sync.Mutex{}),
+		trainingClients:          make(map[string]*model.Client),
+		completedClients:         make(map[string]struct{}),
 	}
 
 	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_MODELS_BUCKET"))
@@ -75,6 +73,18 @@ func (controller *ServerLogicController) setIsTraining(isTraining bool) {
 	controller.isTrainingMutex.Unlock()
 }
 
+func (controller *ServerLogicController) tryStartTraining() bool {
+	controller.isTrainingMutex.Lock()
+	defer controller.isTrainingMutex.Unlock()
+
+	if controller.isTraining {
+		return false
+	}
+
+	controller.isTraining = true
+	return true
+}
+
 func (controller *ServerLogicController) getLatestTrainingRunId() string {
 	controller.latestTrainingRunIdMutex.Lock()
 	latestTrainingRunId := controller.latestTrainingRunId
@@ -88,19 +98,129 @@ func (controller *ServerLogicController) setLatestTrainingRunId(latestTrainingRu
 	controller.latestTrainingRunIdMutex.Unlock()
 }
 
-func (controller *ServerLogicController) getPrepId() uuid.UUID {
-	controller.prepIdMutex.Lock()
-	uuid := controller.prepId
-	controller.prepIdMutex.Unlock()
-	return uuid
+func (controller *ServerLogicController) connectedClientCount() int {
+	controller.clientsMutex.Lock()
+	defer controller.clientsMutex.Unlock()
+
+	return len(controller.clients)
 }
 
-func (controller *ServerLogicController) setNewPrepId() uuid.UUID {
-	controller.prepIdMutex.Lock()
-	controller.prepId = uuid.New()
-	uuid := controller.prepId
-	controller.prepIdMutex.Unlock()
-	return uuid
+func (controller *ServerLogicController) snapshotClients() map[string]*model.Client {
+	controller.clientsMutex.Lock()
+	defer controller.clientsMutex.Unlock()
+
+	clients := make(map[string]*model.Client, len(controller.clients))
+	for id, client := range controller.clients {
+		clients[id] = client
+	}
+
+	return clients
+}
+
+func (controller *ServerLogicController) registerClient(client *model.Client) *model.Client {
+	controller.clientsMutex.Lock()
+	defer controller.clientsMutex.Unlock()
+
+	replaced := controller.clients[client.Id]
+	controller.clients[client.Id] = client
+
+	return replaced
+}
+
+func (controller *ServerLogicController) unregisterClient(client *model.Client) bool {
+	controller.clientsMutex.Lock()
+	defer controller.clientsMutex.Unlock()
+
+	current, ok := controller.clients[client.Id]
+	if !ok || current != client {
+		return false
+	}
+
+	delete(controller.clients, client.Id)
+	return true
+}
+
+func (controller *ServerLogicController) resetTrainingState(clients map[string]*model.Client) uuid.UUID {
+	controller.doneCond.L.Lock()
+	defer controller.doneCond.L.Unlock()
+
+	controller.trainingClients = make(map[string]*model.Client, len(clients))
+	for id, client := range clients {
+		controller.trainingClients[id] = client
+	}
+
+	controller.completedClients = make(map[string]struct{}, len(clients))
+	controller.errorMessage = nil
+	controller.prepID = uuid.New()
+
+	return controller.prepID
+}
+
+func (controller *ServerLogicController) currentPrepID() string {
+	controller.doneCond.L.Lock()
+	defer controller.doneCond.L.Unlock()
+
+	return controller.prepID.String()
+}
+
+func (controller *ServerLogicController) trackClientDone(clientID string, prepID string) bool {
+	controller.doneCond.L.Lock()
+	defer controller.doneCond.L.Unlock()
+
+	if prepID != controller.prepID.String() {
+		return false
+	}
+
+	if _, ok := controller.trainingClients[clientID]; !ok {
+		return false
+	}
+
+	if _, ok := controller.completedClients[clientID]; ok {
+		return false
+	}
+
+	controller.completedClients[clientID] = struct{}{}
+	slog.Info("Progress:", "done", len(controller.completedClients), "total", len(controller.trainingClients))
+
+	if len(controller.completedClients) >= len(controller.trainingClients) {
+		controller.doneCond.Broadcast()
+	}
+
+	return true
+}
+
+func (controller *ServerLogicController) reportTrainingError(message *model.GeneralMessage) {
+	controller.doneCond.L.Lock()
+	defer controller.doneCond.L.Unlock()
+
+	if !controller.getIsTraining() {
+		return
+	}
+
+	controller.errorMessage = message
+	controller.doneCond.Broadcast()
+}
+
+func (controller *ServerLogicController) handleClientDisconnect(client *model.Client) {
+	controller.doneCond.L.Lock()
+	defer controller.doneCond.L.Unlock()
+
+	if !controller.getIsTraining() {
+		return
+	}
+
+	trainingClient, ok := controller.trainingClients[client.Id]
+	if !ok || trainingClient != client {
+		return
+	}
+
+	slog.Info("Aborting training if in preparation phase.")
+	controller.errorMessage = &model.GeneralMessage{
+		Type:    "ERROR",
+		Origin:  "server",
+		Message: "Client '" + client.Id + "' disconnected while preparing.",
+	}
+	controller.doneCond.Broadcast()
 }
 
 func (controller *ServerLogicController) Route() {
@@ -136,35 +256,21 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 	clientAddress := conn.RemoteAddr().String()
 	slog.Info("Client connected:", "ID", clientId, "address", clientAddress)
 
-	// Add new client to clients
 	client := &model.Client{Conn: conn, Id: clientId, Address: clientAddress}
-	controller.clientsMutex.Lock()
-	controller.clients[clientId] = client
-	controller.clientsMutex.Unlock()
-	controller.totalClients++
+	replacedClient := controller.registerClient(client)
+	if replacedClient != nil {
+		slog.Warn("Replacing existing client connection", "ID", clientId)
+		replacedClient.Conn.Close()
+	}
 
 	defer func() {
-		controller.clientsMutex.Lock()
-		delete(controller.clients, clientId)
-		controller.clientsMutex.Unlock()
-		controller.totalClients--
 		conn.Close()
-		slog.Info("Client disconnected:", "ID", clientId, "address", clientAddress)
-
-		// Abort training run if client disconnected during preparation (error message is implicitly ignored once preparation is done)
-		if controller.getIsTraining() {
-			controller.doneCond.L.Lock()
-			slog.Info("Aborting training if in preparation phase.")
-
-			controller.errorMessage = &model.GeneralMessage{
-				Type:    "ERROR",
-				Origin:  "server",
-				Message: "Client '" + clientId + "' disconnected while preparing.",
-			}
-
-			controller.doneCond.Broadcast()
-			controller.doneCond.L.Unlock()
+		if !controller.unregisterClient(client) {
+			return
 		}
+
+		slog.Info("Client disconnected:", "ID", clientId, "address", clientAddress)
+		controller.handleClientDisconnect(client)
 	}()
 
 	controller.listenForGeneralMessages(conn, clientId)
@@ -185,39 +291,29 @@ func (controller *ServerLogicController) listenForGeneralMessages(conn *websocke
 
 		// Handle DONE message
 		if generalMessage.Type == "INFO" && generalMessage.Origin == "orchestrator" && strings.HasPrefix(generalMessage.Message, "DONE:") {
-			if strings.Split(generalMessage.Message, ":")[1] != controller.getPrepId().String() {
-				slog.Info("Reported DONE with mismatching prep ID by", "client", clientId)
+			prepID := strings.TrimPrefix(generalMessage.Message, "DONE:")
+			if !controller.trackClientDone(clientId, prepID) {
+				slog.Info("Ignoring DONE message", "client", clientId, "prepId", prepID)
 				continue
 			}
 
-			controller.doneCond.L.Lock()
 			slog.Info("Reported DONE by", "client", clientId)
-			controller.doneCount++
-			slog.Info("Progress:", "done", controller.doneCount, "total", controller.totalClients)
-			if controller.doneCount >= controller.totalClients {
-				controller.doneCond.Broadcast()
-			}
-			controller.doneCond.L.Unlock()
 		}
 
 		// Handle ERROR message
 		if generalMessage.Type == "ERROR" {
-			controller.doneCond.L.Lock()
 			slog.Error("ERROR received from", "clientId", clientId)
-
-			controller.errorMessage = &generalMessage
-
-			controller.doneCond.Broadcast()
-			controller.doneCond.L.Unlock()
+			controller.reportTrainingError(&generalMessage)
 		}
 	}
 }
 
 func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Received /start request")
+	releaseTraining := false
 
 	// Abort if there is an ongoing training run / client preparations
-	if controller.getIsTraining() {
+	if !controller.tryStartTraining() {
 		slog.Error("Aborting training due to already ongoing training run")
 
 		// Get Flower details about current run to include in response
@@ -265,6 +361,12 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 		return
 	}
+	releaseTraining = true
+	defer func() {
+		if releaseTraining {
+			controller.setIsTraining(false)
+		}
+	}()
 
 	// Decode body
 	scenario, err := controller.ServerLogicService.DecodeScenario(r.Body)
@@ -299,11 +401,13 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	}
 
 	// Check for ample client connections
-	if controller.totalClients < scenario.Strategy.MinAvailableClients {
-		slog.Error("Aborting training due to insufficient client connections", "current", controller.totalClients, "required", scenario.Strategy.MinAvailableClients)
+	clients := controller.snapshotClients()
+	clientCount := len(clients)
+	if clientCount < scenario.Strategy.MinAvailableClients {
+		slog.Error("Aborting training due to insufficient client connections", "current", clientCount, "required", scenario.Strategy.MinAvailableClients)
 
 		response := model.GeneralResponse{
-			Message: fmt.Sprintf("Aborting training due to insufficient client connections (%d out of %d)", controller.totalClients, scenario.Strategy.MinAvailableClients),
+			Message: fmt.Sprintf("Aborting training due to insufficient client connections (%d out of %d)", clientCount, scenario.Strategy.MinAvailableClients),
 			Data:    nil,
 		}
 		jsonData, _ := json.Marshal(response)
@@ -315,8 +419,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 
 	// Check whether a dataset has been provided for every connected client if there is a datasets entry
 	if len(scenario.Datasets) != 0 {
-		controller.clientsMutex.Lock()
-		for _, client := range controller.clients {
+		for _, client := range clients {
 			_, ok := scenario.Datasets[client.Id]
 			if !ok {
 				slog.Error("No dataset has been provided for", "client", client.Id)
@@ -329,12 +432,9 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write(jsonData)
-
-				controller.clientsMutex.Unlock()
 				return
 			}
 		}
-		controller.clientsMutex.Unlock()
 	}
 
 	// Download datasets (if not present) if centralised property is set true
@@ -353,47 +453,38 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		controller.MinioService.CreateAndShareHoldOutDataset(scenario.HoldOutDataset)
 	}
 
-	// Start of training
-	controller.setIsTraining(true)
-
-	// Reset error message and done count
-	controller.errorMessage = nil
-	controller.doneCount = 0
-
-	// Set new preparation ID (is sent to client together with scenario so that DONE messages can be identified to be matching with the current training run request; outdated IDs can be received if one of multiple clients sent an error aborting the run, a new run is starting, and other clients are reporting DONE from the previous run)
-	controller.setNewPrepId()
+	// Set new preparation ID and reset run state.
+	prepID := controller.resetTrainingState(clients)
 
 	// Set config for Flower serverapp
 	controller.ServerLogicService.SetFlowerConfig(scenario)
 
 	// Send scenario to clients with uuid
-	slog.Info("start", "totalClients", controller.totalClients)
-	controller.clientsMutex.Lock()
-	controller.ServerLogicService.StartClients(scenario, controller.getPrepId(), controller.clients)
-	controller.clientsMutex.Unlock()
+	slog.Info("start", "totalClients", len(clients))
+	controller.ServerLogicService.StartClients(scenario, prepID, clients)
 
-	// Wait for doneCount to Broadcast (when all clients report DONE or when an ERROR message is received)
+	// Wait until all expected clients report DONE or an ERROR message is received.
+	var errorMessage *model.GeneralMessage
 	controller.doneCond.L.Lock()
-	for controller.doneCount < controller.totalClients && controller.errorMessage == nil {
+	for len(controller.completedClients) < len(controller.trainingClients) && controller.errorMessage == nil {
 		controller.doneCond.Wait()
 	}
+	errorMessage = controller.errorMessage
 	controller.doneCond.L.Unlock()
 
 	// Abort on error
-	if controller.errorMessage != nil {
-		slog.Error("Aborting training due to error", "origin", controller.errorMessage.Origin, "message", controller.errorMessage.Message)
+	if errorMessage != nil {
+		slog.Error("Aborting training due to error", "origin", errorMessage.Origin, "message", errorMessage.Message)
 
 		response := model.GeneralResponse{
 			Message: "Training run aborted due to client error",
-			Data:    controller.errorMessage,
+			Data:    errorMessage,
 		}
 		jsonData, _ := json.Marshal(response)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(jsonData)
-
-		controller.setIsTraining(false)
 		return
 	}
 
@@ -432,6 +523,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	w.Write(jsonData)
 
 	// Go routine so that HTTP response may already be sent
+	releaseTraining = false
 	go func() {
 		// Watch for creation of safetensors file in shared folder and upload to datastore
 		controller.ServerLogicService.WatchForEndOfTraining(controller.MinioService.UploadArtifacts, scenario.Name)
