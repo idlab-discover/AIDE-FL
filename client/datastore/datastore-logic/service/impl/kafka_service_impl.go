@@ -43,13 +43,13 @@ func (service *kafkaServiceImpl) ConsumePrepareScenario(ctx context.Context, han
 }
 
 func (service *kafkaServiceImpl) PublishPreparedScenario(scenario model.Scenario) {
-	slog.Info("Publishing prepared", "scenario", scenario.Name)
+	slog.Info("Publishing prepared", "scenario", scenario.Name, "prepId", scenario.PrepID)
 
 	byteArray, err := json.Marshal(scenario)
 	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
 
 	msg := kafka.Message{
-		Key:   []byte(scenario.Name),
+		Key:   []byte(scenario.PrepID),
 		Value: byteArray,
 	}
 
@@ -57,15 +57,23 @@ func (service *kafkaServiceImpl) PublishPreparedScenario(scenario model.Scenario
 }
 
 func (service *kafkaServiceImpl) PublishGeneralMessage(m model.GeneralMessage) {
-	slog.Info("Publishing general message", "type", m.Type)
+	slog.Info("Publishing general message", "type", m.Type, "prepId", m.PrepID)
 
 	byteArray, err := json.Marshal(m)
 	exception.PanicLogging(err, "Unable to marshal general message to JSON")
 
 	msg := kafka.Message{
-		Key:   []byte(m.Type),
+		Key:   []byte(messageKey(m.PrepID, m.Type)),
 		Value: byteArray,
 	}
 
 	service.KafkaRepository.WriteGeneralMessage(msg)
+}
+
+func messageKey(prepID string, fallback string) string {
+	if prepID != "" {
+		return prepID
+	}
+
+	return fallback
 }

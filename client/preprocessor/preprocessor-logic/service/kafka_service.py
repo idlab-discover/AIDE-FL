@@ -17,7 +17,8 @@ class KafkaService:
         while True:
             msg = self.preprocess_consumer.poll()
             if msg:
-                self.logger.info(f"Received preprocess scenario: {msg.key().decode()}")
+                key = msg.key().decode() if msg.key() is not None else "<nil>"
+                self.logger.info(f"Received preprocess scenario: {key}")
                 
                 scenario_json = msg.value().decode()
                 scenario_dict = json.loads(scenario_json)
@@ -35,7 +36,8 @@ class KafkaService:
                     self.preprocess_consumer.commit(msg)
                      
     def produce_preprocessed_scenario(self, scenario: dict):        
-        self.preprocessed_producer.produce(scenario['name'], json.dumps(scenario))
+        self.preprocessed_producer.produce(scenario['prep_id'], json.dumps(scenario))
         
     def produce_general_message(self, general_message: dict):
-        self.general_message_producer.produce(general_message['type'], json.dumps(general_message))
+        key = general_message.get('prep_id', general_message['type'])
+        self.general_message_producer.produce(key, json.dumps(general_message))

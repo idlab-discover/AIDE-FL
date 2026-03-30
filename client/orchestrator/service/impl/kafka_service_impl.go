@@ -44,13 +44,13 @@ func NewKafkaServiceImpl(
 }
 
 func (service *kafkaServiceImpl) PublishPrepareScenario(scenario model.Scenario) {
-	slog.Info("Publishing prepare", "scenario", scenario.Name)
+	slog.Info("Publishing prepare", "scenario", scenario.Name, "prepId", scenario.PrepID)
 
 	byteArray, err := json.Marshal(scenario)
 	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
 
 	msg := kafka.Message{
-		Key:   []byte(scenario.Name),
+		Key:   []byte(scenario.PrepID),
 		Value: byteArray,
 	}
 
@@ -58,13 +58,13 @@ func (service *kafkaServiceImpl) PublishPrepareScenario(scenario model.Scenario)
 }
 
 func (service *kafkaServiceImpl) PublishPreprocessScenario(scenario model.Scenario) {
-	slog.Info("Publishing preprocess", "scenario", scenario.Name)
+	slog.Info("Publishing preprocess", "scenario", scenario.Name, "prepId", scenario.PrepID)
 
 	byteArray, err := json.Marshal(scenario)
 	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
 
 	msg := kafka.Message{
-		Key:   []byte(scenario.Name),
+		Key:   []byte(scenario.PrepID),
 		Value: byteArray,
 	}
 
@@ -72,13 +72,13 @@ func (service *kafkaServiceImpl) PublishPreprocessScenario(scenario model.Scenar
 }
 
 func (service *kafkaServiceImpl) PublishTrainScenario(scenario model.Scenario) {
-	slog.Info("Publishing train", "scenario", scenario.Name)
+	slog.Info("Publishing train", "scenario", scenario.Name, "prepId", scenario.PrepID)
 
 	byteArray, err := json.Marshal(scenario)
 	exception.PanicLogging(err, "Unable to marshal scenario to JSON")
 
 	msg := kafka.Message{
-		Key:   []byte(scenario.Name),
+		Key:   []byte(scenario.PrepID),
 		Value: byteArray,
 	}
 

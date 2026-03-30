@@ -16,7 +16,8 @@ class KafkaConsumerRepository:
     
     
     def commit(self, msg):
-        self.logger.info(f"Committing msg {msg.key().decode()}")
+        key = msg.key().decode() if msg.key() is not None else "<nil>"
+        self.logger.info(f"Committing msg {key}")
         self.consumer.commit(msg)
     
     
