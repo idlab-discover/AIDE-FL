@@ -6,6 +6,8 @@ import math
 from configuration.logger import Logger
 
 class PreprocessorService:
+    split_tolerance = 1e-6
+
     def __init__(self):
         self.logger = Logger.get_logger("PreprocessorService")
 
@@ -63,12 +65,26 @@ class PreprocessorService:
             raise ValueError(f"Split values must stay within [0, 1], got {splits}")
 
         split_sum = train + eval + test
-        if not math.isclose(split_sum, 1.0, rel_tol=0.0, abs_tol=1e-9):
+        if not math.isclose(split_sum, 1.0, rel_tol=0.0, abs_tol=self.split_tolerance):
             raise ValueError(f"Sum of train, validation, and test splits should be 1.0, not {split_sum}")
-        
-        df_train, df_temp = train_test_split(df, test_size=(1 - train), shuffle=False)
-        eval_ratio = eval / (eval + test)
-        df_eval, df_test = train_test_split(df_temp, test_size=(1 - eval_ratio), shuffle=False)
+
+        if train <= 0:
+            raise ValueError("Train split must be greater than 0")
+        if eval == 0 and test == 0:
+            raise ValueError("At least one of eval or test must be greater than 0")
+
+        remaining_ratio = eval + test
+        df_train, df_temp = train_test_split(df, test_size=remaining_ratio, shuffle=False)
+
+        if eval == 0:
+            df_eval = df_temp.iloc[0:0].copy()
+            df_test = df_temp
+        elif test == 0:
+            df_eval = df_temp
+            df_test = df_temp.iloc[0:0].copy()
+        else:
+            eval_ratio = eval / remaining_ratio
+            df_eval, df_test = train_test_split(df_temp, test_size=(1 - eval_ratio), shuffle=False)
 
         self.logger.info(f"Split dataset: train={len(df_train)}, eval={len(df_eval)}, test={len(df_test)}")
         return df_train, df_eval, df_test
