@@ -10,7 +10,8 @@ type Scenario struct {
 	Preprocessing  Preprocessing          `json:"preprocessing" validate:"required"`
 	Hyper          Hyper                  `json:"hyper" validate:"required"`
 	Strategy       Strategy               `json:"strategy" validate:"required"`
-	Model          map[string]interface{} `json:"model" validate:"required"`
+	ModelFile      string                 `json:"model_file,omitempty"`
+	Model          map[string]interface{} `json:"model,omitempty"`
 }
 
 type Preprocessing struct {

@@ -63,6 +63,7 @@ A scenario follows a certain JSON template:
     "fraction_evaluate": float,
     "min_available_clients": int
   },
+  "model_file": "string",
   "model": dict
 }
 ```
@@ -83,7 +84,15 @@ A scenario follows a certain JSON template:
 - `strategy.fraction_fit`: Percentage of available clients that are required for fitting.
 - `strategy.fraction_evaluate`: Percentage of available clients that are required for evaluation.
 - `strategy.min_available_clients`: Minimum amount of clients that need to be available/connected for a training sessions.
-- `model`: Copy paste this from a Keras Model `model.to_json()`. The example in the scenario above is the result from running the `model.py` file in the repo root.
+- `model_file`: Preferred authored format. Path to a JSON file containing the arbitrary Keras architecture agreed upon by the participants.
+- `model`: Backward-compatible inline architecture payload. This is still accepted during the transition period and is what runtime components currently consume after scenario rendering.
+
+To submit an authored scenario containing `model_file`, render it first so the payload includes `model`:
+
+```bash
+python render_scenario.py examples/nids.json | \
+  curl -X POST -H "Content-Type: application/json" --data @- http://[server-address]/start
+```
 
 ## Usage
 
@@ -94,8 +103,9 @@ Interacting with the framework happens fully through the central server (`http:/
 - POST `/start`: Start a training run with a scenario as body. The example scenario above can be used to try it out. The response of a successfull request will include that run's `run-id` which can be used to get its status.
 
   ```bash
-  # Here, a scenario is placed in scenario.json
-  curl -X POST -H "Content-Type: application/json" -d @scenario.json http://[server-address]/start
+  # Here, scenario.json may use model_file in authored form
+  python render_scenario.py scenario.json | \
+    curl -X POST -H "Content-Type: application/json" --data @- http://[server-address]/start
   ```
 
 - GET `/status?runId=`: Get the status of a training run. If no `runId` is given, all runs are requested. Set `runId` to request details of a specific run.
@@ -132,7 +142,7 @@ This is possible with the two Jupyter notebooks contained in the `manual-testing
 
 ### Examples
 
-The `examples` directory contains Python scripts, used to generate datasets, and corresponding scenarios. Each script generates three parquet files: Parts 1 and 2, each containing 3/7 of the original set, are to be uploaded to two separate clients, number 3, containing 1/7 of the original set, needs to be uploaded to the server’s datastore to serve as hold-out dataset. The scenarios need to be completed with the correct client IDs under the datasets key. The directory also contains a scenario for use of a NIDS dataset, which retrieves its datasets directly from Kaggle.
+The `examples` directory contains Python scripts, used to generate datasets, corresponding authored scenarios, and separate model JSON files. Each script generates three parquet files: Parts 1 and 2, each containing 3/7 of the original set, are to be uploaded to two separate clients, number 3, containing 1/7 of the original set, needs to be uploaded to the server’s datastore to serve as hold-out dataset. The scenarios need to be completed with the correct client IDs under the datasets key. The directory also contains a scenario for use of a NIDS dataset, which retrieves its datasets directly from Kaggle.
 
 ## Server Services
 

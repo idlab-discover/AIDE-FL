@@ -89,7 +89,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-required_commands=(kubectl jq curl mktemp)
+required_commands=(kubectl jq curl mktemp python)
 for cmd in "${required_commands[@]}"; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Missing required command: $cmd" >&2
@@ -124,12 +124,16 @@ if [[ "$SKIP_HEALTHCHECK" -eq 0 ]]; then
 fi
 
 scenario_tmp="$(mktemp /tmp/aide-fl-demo-scenario.XXXXXX.json)"
+rendered_scenario_tmp="$(mktemp /tmp/aide-fl-rendered-scenario.XXXXXX.json)"
 cleanup() {
   if [[ "$KEEP_SCENARIO" -eq 0 ]]; then
     rm -f "$scenario_tmp"
+    rm -f "$rendered_scenario_tmp"
   fi
 }
 trap cleanup EXIT
+
+python render_scenario.py "$SCENARIO_PATH" -o "$rendered_scenario_tmp"
 
 clients_json_array="$(printf '%s\n' "${connected_client_ids[@]}" | jq -R . | jq -s .)"
 
@@ -150,7 +154,7 @@ jq \
     else
       .
     end
-  ' "$SCENARIO_PATH" >"$scenario_tmp"
+  ' "$rendered_scenario_tmp" >"$scenario_tmp"
 
 echo "Demo target"
 echo "  Server URL:   $SERVER_URL"

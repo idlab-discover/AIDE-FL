@@ -8,5 +8,6 @@ type Scenario struct {
 	Preprocessing map[string]interface{} `json:"preprocessing"`
 	Hyper         map[string]interface{} `json:"hyper"`
 	Strategy      map[string]interface{} `json:"strategy"`
+	ModelFile     string                 `json:"model_file,omitempty"`
 	Model         map[string]interface{} `json:"model"`
 }

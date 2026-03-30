@@ -59,6 +59,11 @@ func datasetsValidation(sl validator.StructLevel) {
 	if len(scenario.Datasets) > 0 && len(scenario.Datasets) < scenario.Strategy.MinAvailableClients {
 		sl.ReportError(scenario.Datasets, "Datasets", "datasets", "min_available_clients", fmt.Sprintf("need at least %d datasets, got %d", scenario.Strategy.MinAvailableClients, len(scenario.Datasets)))
 	}
+
+	if len(scenario.Model) == 0 && scenario.ModelFile == "" {
+		sl.ReportError(scenario.Model, "Model", "model", "required_if_missing_model_file", "")
+		sl.ReportError(scenario.ModelFile, "ModelFile", "model_file", "required_if_missing_model", "")
+	}
 }
 
 func (service *serverLogicServiceImpl) DecodeScenario(r io.ReadCloser) (*model.Scenario, error) {
@@ -72,7 +77,30 @@ func (service *serverLogicServiceImpl) DecodeScenario(r io.ReadCloser) (*model.S
 		return nil, fmt.Errorf("unable to decode JSON to scenario: %w", err)
 	}
 
+	if err := service.resolveScenarioModel(&scenario); err != nil {
+		return nil, err
+	}
+
 	return &scenario, nil
+}
+
+func (service *serverLogicServiceImpl) resolveScenarioModel(scenario *model.Scenario) error {
+	if len(scenario.Model) != 0 || scenario.ModelFile == "" {
+		return nil
+	}
+
+	modelBytes, err := os.ReadFile(scenario.ModelFile)
+	if err != nil {
+		return fmt.Errorf("unable to read model_file %q: %w", scenario.ModelFile, err)
+	}
+
+	var modelData map[string]interface{}
+	if err := json.Unmarshal(modelBytes, &modelData); err != nil {
+		return fmt.Errorf("unable to decode model_file %q: %w", scenario.ModelFile, err)
+	}
+
+	scenario.Model = modelData
+	return nil
 }
 
 func (service *serverLogicServiceImpl) ValidateScenario(scenario *model.Scenario) error {
