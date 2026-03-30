@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/exception"
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/model"
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/service"
 )
@@ -28,14 +27,14 @@ func (controller DatastoreController) StartConsuming(ctx context.Context) {
 	controller.KafkaService.ConsumePrepareScenario(ctx, controller.Prepare)
 }
 
-func (controller DatastoreController) Prepare(scenario model.Scenario) {
+func (controller DatastoreController) Prepare(scenario model.Scenario) error {
 	slog.Info("Preparing", "scenario", scenario.Name)
 
 	scenario, err := controller.MinioService.Create(scenario)
 	if err != nil {
-		exception.ErrorLogging(err, "Unable to prepare scenario")
-		return
+		return err
 	}
 
 	controller.KafkaService.PublishPreparedScenario(scenario)
+	return nil
 }

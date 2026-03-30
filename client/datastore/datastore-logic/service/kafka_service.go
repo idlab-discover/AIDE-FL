@@ -7,7 +7,7 @@ import (
 )
 
 type KafkaService interface {
-	ConsumePrepareScenario(ctx context.Context, handler func(model.Scenario))
+	ConsumePrepareScenario(ctx context.Context, handler func(model.Scenario) error)
 	PublishPreparedScenario(scenario model.Scenario)
 	PublishGeneralMessage(message model.GeneralMessage)
 }

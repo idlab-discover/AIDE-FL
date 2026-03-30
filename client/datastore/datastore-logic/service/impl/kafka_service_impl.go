@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 
 	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/exception"
@@ -20,26 +21,50 @@ func NewKafkaServiceImpl(kafkaRepo *repository.KafkaRepository) service.KafkaSer
 	return &kafkaServiceImpl{KafkaRepository: *kafkaRepo}
 }
 
-func (service *kafkaServiceImpl) ConsumePrepareScenario(ctx context.Context, handler func(model.Scenario)) {
+func (service *kafkaServiceImpl) ConsumePrepareScenario(ctx context.Context, handler func(model.Scenario) error) {
 	slog.Info("Consuming prepare scenario messages")
 
 	for {
 		m := service.KafkaRepository.ReadPrepareScenario(ctx)
-
-		var scenario model.Scenario
-		err := json.Unmarshal(m.Value, &scenario)
-		exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
-
-		exception.SetCommitter(service.KafkaRepository.CommitPrepareScenario, ctx, m) // So that Kafka message may be committed on error
-		exception.SetPrepID(scenario.PrepID)
-		func() {
-			defer exception.ClearPrepID()
-			defer exception.UnsetCommitter()
-			handler(scenario)
-		}()
-
-		service.KafkaRepository.CommitPrepareScenario(ctx, m)
+		service.handlePrepareScenario(ctx, m, handler)
 	}
+}
+
+func (service *kafkaServiceImpl) handlePrepareScenario(ctx context.Context, m kafka.Message, handler func(model.Scenario) error) {
+	var scenario model.Scenario
+	err := json.Unmarshal(m.Value, &scenario)
+	exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
+
+	exception.SetPrepID(scenario.PrepID)
+	defer exception.ClearPrepID()
+
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(exception.LoggedError); !ok {
+				service.PublishGeneralMessage(model.GeneralMessage{
+					PrepID:  scenario.PrepID,
+					Type:    "ERROR",
+					Origin:  "datastore",
+					Message: fmt.Sprintf("panic while preparing scenario: %v", r),
+				})
+			}
+
+			service.KafkaRepository.CommitPrepareScenario(ctx, m)
+		}
+	}()
+
+	if err := handler(scenario); err != nil {
+		service.PublishGeneralMessage(model.GeneralMessage{
+			PrepID:  scenario.PrepID,
+			Type:    "ERROR",
+			Origin:  "datastore",
+			Message: fmt.Sprintf("unable to prepare scenario: %v", err),
+		})
+		service.KafkaRepository.CommitPrepareScenario(ctx, m)
+		return
+	}
+
+	service.KafkaRepository.CommitPrepareScenario(ctx, m)
 }
 
 func (service *kafkaServiceImpl) PublishPreparedScenario(scenario model.Scenario) {
