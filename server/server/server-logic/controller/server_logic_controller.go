@@ -29,6 +29,10 @@ type ServerLogicController struct {
 	latestTrainingRunIdMutex *sync.Mutex
 }
 
+type generalMessageReader interface {
+	ReadMessage() (messageType int, p []byte, err error)
+}
+
 type trainingSession struct {
 	mu                sync.Mutex
 	doneCond          *sync.Cond
@@ -285,10 +289,13 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 }
 
 // Given a client connection, listen for incoming general messages
-func (controller *ServerLogicController) listenForGeneralMessages(conn *websocket.Conn, clientId string) {
+func (controller *ServerLogicController) listenForGeneralMessages(conn generalMessageReader, clientId string) {
 	for {
 		_, msg, err := conn.ReadMessage()
-		exception.PanicLogging(err, "Unable to read message from", "client", clientId)
+		if err != nil {
+			controller.logClientReadError(clientId, err)
+			return
+		}
 
 		var generalMessage model.GeneralMessage
 		err = json.Unmarshal(msg, &generalMessage)
@@ -326,6 +333,15 @@ func (controller *ServerLogicController) listenForGeneralMessages(conn *websocke
 			session.reportError(&generalMessage)
 		}
 	}
+}
+
+func (controller *ServerLogicController) logClientReadError(clientID string, err error) {
+	if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+		slog.Info("Client closed WebSocket connection", "client", clientID, "error", err)
+		return
+	}
+
+	slog.Warn("Unable to read message from client", "client", clientID, "error", err)
 }
 
 func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Request) {

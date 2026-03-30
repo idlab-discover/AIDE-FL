@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -56,6 +57,14 @@ func (f *fakeMinioService) UploadArtifacts(string)                    {}
 type fakeConfig struct{}
 
 func (fakeConfig) Get(string) string { return "" }
+
+type fakeGeneralMessageReader struct {
+	readMessageFn func() (int, []byte, error)
+}
+
+func (f *fakeGeneralMessageReader) ReadMessage() (int, []byte, error) {
+	return f.readMessageFn()
+}
 
 func newTestController(t *testing.T, server service.ServerLogicService, minio service.MinioService) *ServerLogicController {
 	t.Helper()
@@ -150,4 +159,15 @@ func TestTrainingSessionHandlesDisconnectAfterReconnect(t *testing.T) {
 	if session.errorMessage.Origin != "server" {
 		t.Fatalf("unexpected error origin: %q", session.errorMessage.Origin)
 	}
+}
+
+func TestListenForGeneralMessagesReturnsOnReadError(t *testing.T) {
+	controller := newTestController(t, &fakeServerLogicService{}, &fakeMinioService{})
+	reader := &fakeGeneralMessageReader{
+		readMessageFn: func() (int, []byte, error) {
+			return 0, nil, errors.New("read failed")
+		},
+	}
+
+	controller.listenForGeneralMessages(reader, "client-a")
 }
