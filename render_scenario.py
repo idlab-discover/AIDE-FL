@@ -17,6 +17,7 @@ def render_scenario(path: Path) -> dict:
     model_file = scenario.get("model_file")
 
     if model:
+        scenario.pop("model_file", None)
         return scenario
 
     if not model_file:
@@ -27,6 +28,7 @@ def render_scenario(path: Path) -> dict:
         model_path = path.parent / model_path
 
     scenario["model"] = load_json(model_path)
+    scenario.pop("model_file", None)
     return scenario
 
 

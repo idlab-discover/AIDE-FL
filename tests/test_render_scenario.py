@@ -38,7 +38,7 @@ class RenderScenarioTest(unittest.TestCase):
 
             rendered = render_scenario(scenario_path)
 
-            self.assertEqual(rendered["model_file"], "models/demo-model.json")
+            self.assertNotIn("model_file", rendered)
             self.assertEqual(rendered["model"]["class_name"], "Sequential")
 
 

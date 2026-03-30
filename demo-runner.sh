@@ -209,7 +209,7 @@ while true; do
   printf '[%4ss] status=%s elapsed=%s created=%s running=%s finished=%s\n' \
     "$elapsed" "$status" "${runtime_elapsed:-}" "${created_at:-}" "${running_at:-}" "${finished_at:-}"
 
-  if [[ -n "$finished_at" && "$finished_at" != "null" ]]; then
+  if [[ -n "$finished_at" && "$finished_at" != "null" && "$finished_at" != "N/A" ]]; then
     echo
     echo "Run finished"
     echo "$status_response" | jq .
