@@ -17,23 +17,29 @@ class KafkaService:
         while True:
             msg = self.preprocess_consumer.poll()
             if msg:
-                key = msg.key().decode() if msg.key() is not None else "<nil>"
-                self.logger.info(f"Received preprocess scenario: {key}")
-                
-                scenario_json = msg.value().decode()
-                scenario_dict = json.loads(scenario_json)
-                Messenger.set_prep_id(scenario_dict.get("prep_id"))
-                
-                try:
-                    handler(scenario_dict)
-                except Exception as e:
-                    error_msg = f"Failure in handler: {str(e)}"
-                    self.logger.error(error_msg)
-                    send_error(error_msg)
-                    continue
-                finally:
-                    Messenger.clear_prep_id()
-                    self.preprocess_consumer.commit(msg)
+                self._process_message(msg, handler)
+
+    def _process_message(self, msg, handler):
+        key = msg.key().decode() if msg.key() is not None else "<nil>"
+        self.logger.info(f"Received preprocess scenario: {key}")
+
+        should_commit = False
+
+        try:
+            scenario_json = msg.value().decode()
+            scenario_dict = json.loads(scenario_json)
+            Messenger.set_prep_id(scenario_dict.get("prep_id"))
+            handler(scenario_dict)
+            should_commit = True
+        except Exception as e:
+            error_msg = f"Failure in handler: {str(e)}"
+            self.logger.error(error_msg)
+            send_error(error_msg)
+            should_commit = True
+        finally:
+            Messenger.clear_prep_id()
+            if should_commit:
+                self.preprocess_consumer.commit(msg)
                      
     def produce_preprocessed_scenario(self, scenario: dict):        
         self.preprocessed_producer.produce(scenario['prep_id'], json.dumps(scenario))
