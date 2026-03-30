@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/exception"
@@ -20,6 +21,8 @@ type OrchestratorController struct {
 	service.KafkaService
 
 	cancelScenarioFunc context.CancelFunc // This function can be called to stop scenario flow
+	activePrepID       string
+	scenarioMu         sync.Mutex
 }
 
 func NewOrchestratorController(orchestratorService *service.OrchestratorService, kafkaService *service.KafkaService) *OrchestratorController {
@@ -86,10 +89,8 @@ func (controller *OrchestratorController) consumeGeneralMessages(ctx context.Con
 			return
 		}
 
-		if m.Type == "ERROR" && controller.cancelScenarioFunc != nil {
-			slog.Warn("Cancelling scenario flow due to ERROR")
-			controller.cancelScenarioFunc()
-			controller.cancelScenarioFunc = nil
+		if m.Type == "ERROR" {
+			controller.handleErrorMessage(m)
 		}
 
 		byteArray, err := json.Marshal(m)
@@ -105,6 +106,35 @@ func (controller *OrchestratorController) consumeGeneralMessages(ctx context.Con
 			slog.Error("Unable to send general message to server", "err", err)
 		}
 	}
+}
+
+func (controller *OrchestratorController) handleErrorMessage(message model.GeneralMessage) {
+	controller.scenarioMu.Lock()
+	defer controller.scenarioMu.Unlock()
+
+	if controller.cancelScenarioFunc == nil {
+		return
+	}
+
+	if message.PrepID == "" {
+		slog.Warn("Ignoring ERROR message without prep id", "origin", message.Origin)
+		return
+	}
+
+	if message.PrepID != controller.activePrepID {
+		slog.Warn(
+			"Ignoring ERROR message for stale preparation",
+			"origin", message.Origin,
+			"prepId", message.PrepID,
+			"activePrepId", controller.activePrepID,
+		)
+		return
+	}
+
+	slog.Warn("Cancelling scenario flow due to ERROR", "prepId", message.PrepID, "origin", message.Origin)
+	controller.cancelScenarioFunc()
+	controller.cancelScenarioFunc = nil
+	controller.activePrepID = ""
 }
 
 func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) error {
@@ -125,11 +155,12 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 		}
 
 		// Create context + cancel func per scenario
-		handleScenarioCtx, cancelScenarioFlow := context.WithCancel(context.Background())
-		controller.cancelScenarioFunc = cancelScenarioFlow
 		scenarioMessage.Scenario.PrepID = scenarioMessage.PrepId
+		handleScenarioCtx, cancelScenarioFlow := context.WithCancel(context.Background())
+		controller.setActiveScenario(scenarioMessage.PrepId, cancelScenarioFlow)
 
 		controller.handleScenarioFlow(scenarioMessage.Scenario, handleScenarioCtx)
+		controller.clearActiveScenario(scenarioMessage.PrepId)
 
 		select {
 		case <-handleScenarioCtx.Done():
@@ -152,6 +183,26 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 			}
 		}
 	}
+}
+
+func (controller *OrchestratorController) setActiveScenario(prepID string, cancel context.CancelFunc) {
+	controller.scenarioMu.Lock()
+	defer controller.scenarioMu.Unlock()
+
+	controller.activePrepID = prepID
+	controller.cancelScenarioFunc = cancel
+}
+
+func (controller *OrchestratorController) clearActiveScenario(prepID string) {
+	controller.scenarioMu.Lock()
+	defer controller.scenarioMu.Unlock()
+
+	if controller.activePrepID != prepID {
+		return
+	}
+
+	controller.activePrepID = ""
+	controller.cancelScenarioFunc = nil
 }
 
 func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scenario, ctx context.Context) {
