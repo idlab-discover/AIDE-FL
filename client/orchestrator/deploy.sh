@@ -4,11 +4,14 @@ set -e
 
 DIR=$(dirname "$0")
 IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
+IMAGE_TAG="${IMAGE_TAG:-}"
 
-if [ "$1" == "prod" ]; then
+if [[ -z "$IMAGE_TAG" && "$1" == "prod" ]]; then
     TAG="latest"
-else
+elif [[ -z "$IMAGE_TAG" ]]; then
     TAG="dev"
+else
+    TAG="$IMAGE_TAG"
 fi
 
 echo "Deploying environment with tag: $TAG"
@@ -25,3 +28,5 @@ if [ "$1" == "prod" ]; then
 else
     kubectl apply -f ${DIR}/orchestrator-daemonset-dev.yaml
 fi
+
+${DIR}/../../scripts/set-custom-images.sh --component orchestrator --image-repo "${IMAGE_REPO}" --image-tag "${TAG}"

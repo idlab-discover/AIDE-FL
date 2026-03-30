@@ -7,15 +7,19 @@ DIR=$(dirname "$0")
 DEFAULT_KUBECONFIG="${HOME}/.kube/aide"
 KUBECONFIG_PATH="${KUBECONFIG_PATH:-${KUBECONFIG:-$DEFAULT_KUBECONFIG}}"
 WANDB_KEY_VALUE="${WANDB_API_KEY:-}"
+IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
+IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 usage() {
   cat <<EOF
-Usage: $0 [--kubeconfig PATH] [--wandb-api-key KEY]
+Usage: $0 [--kubeconfig PATH] [--wandb-api-key KEY] [--image-repo REPO] [--image-tag TAG]
 
 Options:
   --kubeconfig PATH   Path to kubeconfig file. Defaults to \$KUBECONFIG_PATH,
                       then \$KUBECONFIG, then ${DEFAULT_KUBECONFIG}.
   --wandb-api-key KEY Weights & Biases API key. Defaults to \$WANDB_API_KEY.
+  --image-repo REPO   Custom image repository. Defaults to \$IMAGE_REPO or ghcr.io/str-gen.
+  --image-tag TAG     Custom image tag to deploy. Defaults to \$IMAGE_TAG or latest.
 EOF
 }
 
@@ -27,6 +31,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --wandb-api-key)
       WANDB_KEY_VALUE="$2"
+      shift 2
+      ;;
+    --image-repo)
+      IMAGE_REPO="$2"
+      shift 2
+      ;;
+    --image-tag)
+      IMAGE_TAG="$2"
       shift 2
       ;;
     -h|--help)
@@ -263,3 +275,10 @@ echo "Creating trainer daemonset..."
 kubectl apply -f ${DIR}/client/trainer/trainer-daemonset.yaml
 
 echo "Done"
+
+echo "Patching custom images to ${IMAGE_REPO}:$IMAGE_TAG ..."
+"${DIR}/scripts/set-custom-images.sh" \
+  --namespace aide-fl \
+  --image-repo "$IMAGE_REPO" \
+  --image-tag "$IMAGE_TAG" \
+  --component all

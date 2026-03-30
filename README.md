@@ -27,6 +27,26 @@ The scripts guides you through the following steps:
 
 The script can be reused for a full redeployment to apply updated containers.
 
+If you want to deploy a specific published image set instead of whatever `:latest` currently points to, pass an explicit image tag:
+
+```sh
+./deploy.sh --image-tag sha-<git-sha>
+```
+
+The deploy script patches the custom AIDE-FL images after applying the manifests, so the cluster can be pinned to a reproducible image set without editing the YAML files.
+
+## Image Publishing
+
+The repository now contains a GitHub Actions workflow at [`.github/workflows/publish-images.yml`](/home/strgenix/postdoc/projects/AIDE-FL/.github/workflows/publish-images.yml) which publishes all custom images to GHCR.
+
+Published image tags include:
+
+- `sha-<git-sha>` for immutable deployment/testing
+- branch tags for convenience
+- `latest` on the default branch
+
+For reliable cluster testing, prefer immutable `sha-*` tags over `latest`.
+
 ## Scenarios
 
 Scenarios are the driving factor behind this framework. They include the required dataset name, preprocessing steps, hyperparameters, and model architecture. It is sent from the central server to each client which prepare themselves for training. Once they are all done preparing, the server will start the training process.

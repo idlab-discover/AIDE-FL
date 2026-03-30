@@ -1,0 +1,88 @@
+name: Publish Images
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: orchestrator
+            context: client/orchestrator
+            dockerfile: client/orchestrator/Dockerfile
+          - image: datastore-logic
+            context: client/datastore/datastore-logic
+            dockerfile: client/datastore/datastore-logic/Dockerfile
+          - image: preprocessor-logic
+            context: client/preprocessor/preprocessor-logic
+            dockerfile: client/preprocessor/preprocessor-logic/Dockerfile
+          - image: trainer-logic
+            context: client/trainer/trainer-logic
+            dockerfile: client/trainer/trainer-logic/Dockerfile
+          - image: flower-clientapp
+            context: flower
+            dockerfile: flower/clientapp.Dockerfile
+          - image: flower-serverapp
+            context: flower
+            dockerfile: flower/serverapp.Dockerfile
+          - image: server-logic
+            context: server/server/server-logic
+            dockerfile: server/server/server-logic/Dockerfile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compute image name
+        id: image
+        env:
+          OWNER: ${{ github.repository_owner }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          owner_lc="$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "name=ghcr.io/${owner_lc}/${IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=sha,format=short,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
