@@ -23,15 +23,25 @@ type ServerLogicController struct {
 	upgrader                 websocket.Upgrader
 	clients                  map[string]*model.Client
 	clientsMutex             *sync.Mutex
-	isTraining               bool
-	isTrainingMutex          *sync.Mutex
+	activeSession            *trainingSession
+	activeSessionMutex       *sync.Mutex
 	latestTrainingRunId      string
 	latestTrainingRunIdMutex *sync.Mutex
-	doneCond                 *sync.Cond
-	trainingClients          map[string]*model.Client
-	completedClients         map[string]struct{}
-	prepID                   uuid.UUID
-	errorMessage             *model.GeneralMessage
+}
+
+type trainingSession struct {
+	mu               sync.Mutex
+	doneCond         *sync.Cond
+	prepID           uuid.UUID
+	trainingClients  map[string]*model.Client
+	completedClients map[string]struct{}
+	errorMessage     *model.GeneralMessage
+}
+
+func newTrainingSession() *trainingSession {
+	session := &trainingSession{}
+	session.doneCond = sync.NewCond(&session.mu)
+	return session
 }
 
 func NewServerLogicController(serverLogicService *service.ServerLogicService, minioService *service.MinioService, config configuration.Config) *ServerLogicController {
@@ -44,12 +54,8 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService, mi
 		},
 		clients:                  make(map[string]*model.Client),
 		clientsMutex:             &sync.Mutex{},
-		isTraining:               false,
-		isTrainingMutex:          &sync.Mutex{},
+		activeSessionMutex:       &sync.Mutex{},
 		latestTrainingRunIdMutex: &sync.Mutex{},
-		doneCond:                 sync.NewCond(&sync.Mutex{}),
-		trainingClients:          make(map[string]*model.Client),
-		completedClients:         make(map[string]struct{}),
 	}
 
 	this.MinioService.EnsureBucketExists(this.Config.Get("MINIO_MODELS_BUCKET"))
@@ -60,29 +66,33 @@ func NewServerLogicController(serverLogicService *service.ServerLogicService, mi
 	return this
 }
 
-func (controller *ServerLogicController) getIsTraining() bool {
-	controller.isTrainingMutex.Lock()
-	isTraining := controller.isTraining
-	controller.isTrainingMutex.Unlock()
-	return isTraining
-}
+func (controller *ServerLogicController) reserveTrainingSession() (*trainingSession, bool) {
+	controller.activeSessionMutex.Lock()
+	defer controller.activeSessionMutex.Unlock()
 
-func (controller *ServerLogicController) setIsTraining(isTraining bool) {
-	controller.isTrainingMutex.Lock()
-	controller.isTraining = isTraining
-	controller.isTrainingMutex.Unlock()
-}
-
-func (controller *ServerLogicController) tryStartTraining() bool {
-	controller.isTrainingMutex.Lock()
-	defer controller.isTrainingMutex.Unlock()
-
-	if controller.isTraining {
-		return false
+	if controller.activeSession != nil {
+		return nil, false
 	}
 
-	controller.isTraining = true
-	return true
+	session := newTrainingSession()
+	controller.activeSession = session
+	return session, true
+}
+
+func (controller *ServerLogicController) currentTrainingSession() *trainingSession {
+	controller.activeSessionMutex.Lock()
+	defer controller.activeSessionMutex.Unlock()
+
+	return controller.activeSession
+}
+
+func (controller *ServerLogicController) finishTrainingSession(session *trainingSession) {
+	controller.activeSessionMutex.Lock()
+	defer controller.activeSessionMutex.Unlock()
+
+	if controller.activeSession == session {
+		controller.activeSession = nil
+	}
 }
 
 func (controller *ServerLogicController) getLatestTrainingRunId() string {
@@ -140,87 +150,83 @@ func (controller *ServerLogicController) unregisterClient(client *model.Client) 
 	return true
 }
 
-func (controller *ServerLogicController) resetTrainingState(clients map[string]*model.Client) uuid.UUID {
-	controller.doneCond.L.Lock()
-	defer controller.doneCond.L.Unlock()
+func (session *trainingSession) reset(clients map[string]*model.Client) uuid.UUID {
+	session.mu.Lock()
+	defer session.mu.Unlock()
 
-	controller.trainingClients = make(map[string]*model.Client, len(clients))
+	session.trainingClients = make(map[string]*model.Client, len(clients))
 	for id, client := range clients {
-		controller.trainingClients[id] = client
+		session.trainingClients[id] = client
 	}
 
-	controller.completedClients = make(map[string]struct{}, len(clients))
-	controller.errorMessage = nil
-	controller.prepID = uuid.New()
+	session.completedClients = make(map[string]struct{}, len(clients))
+	session.errorMessage = nil
+	session.prepID = uuid.New()
 
-	return controller.prepID
+	return session.prepID
 }
 
-func (controller *ServerLogicController) currentPrepID() string {
-	controller.doneCond.L.Lock()
-	defer controller.doneCond.L.Unlock()
+func (session *trainingSession) trackClientDone(clientID string, prepID string) bool {
+	session.mu.Lock()
+	defer session.mu.Unlock()
 
-	return controller.prepID.String()
-}
-
-func (controller *ServerLogicController) trackClientDone(clientID string, prepID string) bool {
-	controller.doneCond.L.Lock()
-	defer controller.doneCond.L.Unlock()
-
-	if prepID != controller.prepID.String() {
+	if prepID != session.prepID.String() {
 		return false
 	}
 
-	if _, ok := controller.trainingClients[clientID]; !ok {
+	if _, ok := session.trainingClients[clientID]; !ok {
 		return false
 	}
 
-	if _, ok := controller.completedClients[clientID]; ok {
+	if _, ok := session.completedClients[clientID]; ok {
 		return false
 	}
 
-	controller.completedClients[clientID] = struct{}{}
-	slog.Info("Progress:", "done", len(controller.completedClients), "total", len(controller.trainingClients))
+	session.completedClients[clientID] = struct{}{}
+	slog.Info("Progress:", "done", len(session.completedClients), "total", len(session.trainingClients))
 
-	if len(controller.completedClients) >= len(controller.trainingClients) {
-		controller.doneCond.Broadcast()
+	if len(session.completedClients) >= len(session.trainingClients) {
+		session.doneCond.Broadcast()
 	}
 
 	return true
 }
 
-func (controller *ServerLogicController) reportTrainingError(message *model.GeneralMessage) {
-	controller.doneCond.L.Lock()
-	defer controller.doneCond.L.Unlock()
+func (session *trainingSession) reportError(message *model.GeneralMessage) {
+	session.mu.Lock()
+	defer session.mu.Unlock()
 
-	if !controller.getIsTraining() {
-		return
-	}
-
-	controller.errorMessage = message
-	controller.doneCond.Broadcast()
+	session.errorMessage = message
+	session.doneCond.Broadcast()
 }
 
-func (controller *ServerLogicController) handleClientDisconnect(client *model.Client) {
-	controller.doneCond.L.Lock()
-	defer controller.doneCond.L.Unlock()
+func (session *trainingSession) handleClientDisconnect(client *model.Client) {
+	session.mu.Lock()
+	defer session.mu.Unlock()
 
-	if !controller.getIsTraining() {
-		return
-	}
-
-	trainingClient, ok := controller.trainingClients[client.Id]
+	trainingClient, ok := session.trainingClients[client.Id]
 	if !ok || trainingClient != client {
 		return
 	}
 
 	slog.Info("Aborting training if in preparation phase.")
-	controller.errorMessage = &model.GeneralMessage{
+	session.errorMessage = &model.GeneralMessage{
 		Type:    "ERROR",
 		Origin:  "server",
 		Message: "Client '" + client.Id + "' disconnected while preparing.",
 	}
-	controller.doneCond.Broadcast()
+	session.doneCond.Broadcast()
+}
+
+func (session *trainingSession) waitForPreparation() *model.GeneralMessage {
+	session.mu.Lock()
+	defer session.mu.Unlock()
+
+	for len(session.completedClients) < len(session.trainingClients) && session.errorMessage == nil {
+		session.doneCond.Wait()
+	}
+
+	return session.errorMessage
 }
 
 func (controller *ServerLogicController) Route() {
@@ -270,7 +276,10 @@ func (controller *ServerLogicController) handleWS(w http.ResponseWriter, r *http
 		}
 
 		slog.Info("Client disconnected:", "ID", clientId, "address", clientAddress)
-		controller.handleClientDisconnect(client)
+		session := controller.currentTrainingSession()
+		if session != nil {
+			session.handleClientDisconnect(client)
+		}
 	}()
 
 	controller.listenForGeneralMessages(conn, clientId)
@@ -292,7 +301,8 @@ func (controller *ServerLogicController) listenForGeneralMessages(conn *websocke
 		// Handle DONE message
 		if generalMessage.Type == "INFO" && generalMessage.Origin == "orchestrator" && strings.HasPrefix(generalMessage.Message, "DONE:") {
 			prepID := strings.TrimPrefix(generalMessage.Message, "DONE:")
-			if !controller.trackClientDone(clientId, prepID) {
+			session := controller.currentTrainingSession()
+			if session == nil || !session.trackClientDone(clientId, prepID) {
 				slog.Info("Ignoring DONE message", "client", clientId, "prepId", prepID)
 				continue
 			}
@@ -303,7 +313,10 @@ func (controller *ServerLogicController) listenForGeneralMessages(conn *websocke
 		// Handle ERROR message
 		if generalMessage.Type == "ERROR" {
 			slog.Error("ERROR received from", "clientId", clientId)
-			controller.reportTrainingError(&generalMessage)
+			session := controller.currentTrainingSession()
+			if session != nil {
+				session.reportError(&generalMessage)
+			}
 		}
 	}
 }
@@ -313,7 +326,8 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	releaseTraining := false
 
 	// Abort if there is an ongoing training run / client preparations
-	if !controller.tryStartTraining() {
+	session, ok := controller.reserveTrainingSession()
+	if !ok {
 		slog.Error("Aborting training due to already ongoing training run")
 
 		// Get Flower details about current run to include in response
@@ -364,7 +378,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	releaseTraining = true
 	defer func() {
 		if releaseTraining {
-			controller.setIsTraining(false)
+			controller.finishTrainingSession(session)
 		}
 	}()
 
@@ -454,7 +468,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	}
 
 	// Set new preparation ID and reset run state.
-	prepID := controller.resetTrainingState(clients)
+	prepID := session.reset(clients)
 
 	// Set config for Flower serverapp
 	controller.ServerLogicService.SetFlowerConfig(scenario)
@@ -464,13 +478,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	controller.ServerLogicService.StartClients(scenario, prepID, clients)
 
 	// Wait until all expected clients report DONE or an ERROR message is received.
-	var errorMessage *model.GeneralMessage
-	controller.doneCond.L.Lock()
-	for len(controller.completedClients) < len(controller.trainingClients) && controller.errorMessage == nil {
-		controller.doneCond.Wait()
-	}
-	errorMessage = controller.errorMessage
-	controller.doneCond.L.Unlock()
+	errorMessage := session.waitForPreparation()
 
 	// Abort on error
 	if errorMessage != nil {
@@ -502,8 +510,6 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write(jsonData)
-
-		controller.setIsTraining(false)
 		return
 	}
 
@@ -532,7 +538,7 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		controller.ServerLogicService.RemoveArtifacts()
 
 		// Free to start another training run
-		controller.setIsTraining(false)
+		controller.finishTrainingSession(session)
 	}()
 }
 

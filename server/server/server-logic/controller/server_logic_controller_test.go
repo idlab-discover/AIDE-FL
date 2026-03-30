@@ -1,0 +1,135 @@
+package controller
+
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"sync"
+	"testing"
+
+	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/model"
+	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
+	"github.com/google/uuid"
+)
+
+type fakeServerLogicService struct {
+	decodeScenarioFn    func(io.ReadCloser) (*model.Scenario, error)
+	validateScenarioFn  func(*model.Scenario) error
+	startTrainingFn     func() (string, error)
+	getTrainingStatusFn func(string) (string, error)
+}
+
+func (f *fakeServerLogicService) DecodeScenario(r io.ReadCloser) (*model.Scenario, error) {
+	return f.decodeScenarioFn(r)
+}
+
+func (f *fakeServerLogicService) ValidateScenario(scenario *model.Scenario) error {
+	return f.validateScenarioFn(scenario)
+}
+
+func (f *fakeServerLogicService) StartClients(_ *model.Scenario, _ uuid.UUID, _ map[string]*model.Client) {
+}
+
+func (f *fakeServerLogicService) SetFlowerConfig(_ *model.Scenario) {}
+
+func (f *fakeServerLogicService) StartTraining() (string, error) {
+	return f.startTrainingFn()
+}
+
+func (f *fakeServerLogicService) GetTrainingStatus(runID string) (string, error) {
+	return f.getTrainingStatusFn(runID)
+}
+
+func (f *fakeServerLogicService) WatchForEndOfTraining(_ func(string), _ string) {}
+
+func (f *fakeServerLogicService) RemoveArtifacts() {}
+
+type fakeMinioService struct{}
+
+func (f *fakeMinioService) EnsureBucketExists(string)                 {}
+func (f *fakeMinioService) CreateDataset(string) error                { return nil }
+func (f *fakeMinioService) CreateAndShareHoldOutDataset(string) error { return nil }
+func (f *fakeMinioService) UploadArtifacts(string)                    {}
+
+type fakeConfig struct{}
+
+func (fakeConfig) Get(string) string { return "" }
+
+func newTestController(t *testing.T, server service.ServerLogicService, minio service.MinioService) *ServerLogicController {
+	t.Helper()
+
+	return &ServerLogicController{
+		ServerLogicService:       server,
+		MinioService:             minio,
+		Config:                   fakeConfig{},
+		clients:                  make(map[string]*model.Client),
+		clientsMutex:             &sync.Mutex{},
+		activeSessionMutex:       &sync.Mutex{},
+		latestTrainingRunIdMutex: &sync.Mutex{},
+	}
+}
+
+func TestStartRejectsConcurrentTraining(t *testing.T) {
+	server := &fakeServerLogicService{
+		decodeScenarioFn: func(r io.ReadCloser) (*model.Scenario, error) {
+			t.Fatal("DecodeScenario should not be called when training is already active")
+			return nil, nil
+		},
+		validateScenarioFn: func(*model.Scenario) error { return nil },
+		startTrainingFn:    func() (string, error) { return "", nil },
+		getTrainingStatusFn: func(string) (string, error) {
+			return `{"success":true,"runs":[{"run-id":"run-123","status":"running"}]}`, nil
+		},
+	}
+	minio := &fakeMinioService{}
+	controller := newTestController(t, server, minio)
+	controller.activeSession = newTrainingSession()
+	controller.setLatestTrainingRunId("run-123")
+
+	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewBufferString(`{}`))
+	rec := httptest.NewRecorder()
+
+	controller.start(rec, req)
+
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected status %d, got %d", http.StatusTooManyRequests, rec.Code)
+	}
+
+	var response model.GeneralResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("unable to decode response: %v", err)
+	}
+	if response.Message != "Aborting training due to already ongoing training run" {
+		t.Fatalf("unexpected message: %q", response.Message)
+	}
+}
+
+func TestStartReleasesTrainingSessionOnInvalidRequest(t *testing.T) {
+	server := &fakeServerLogicService{
+		decodeScenarioFn: func(io.ReadCloser) (*model.Scenario, error) {
+			return nil, io.ErrUnexpectedEOF
+		},
+		validateScenarioFn: func(*model.Scenario) error {
+			t.Fatal("ValidateScenario should not be called when decoding fails")
+			return nil
+		},
+		startTrainingFn:     func() (string, error) { return "", nil },
+		getTrainingStatusFn: func(string) (string, error) { return "", nil },
+	}
+	minio := &fakeMinioService{}
+	controller := newTestController(t, server, minio)
+
+	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewBufferString(`{`))
+	rec := httptest.NewRecorder()
+
+	controller.start(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+	if controller.currentTrainingSession() != nil {
+		t.Fatal("expected training session to be released after invalid request")
+	}
+}
