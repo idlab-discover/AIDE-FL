@@ -31,8 +31,12 @@ func (service *kafkaServiceImpl) ConsumePrepareScenario(ctx context.Context, han
 		exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
 		exception.SetCommitter(service.KafkaRepository.CommitPrepareScenario, ctx, m) // So that Kafka message may be committed on error
-		handler(scenario)
-		exception.UnsetCommitter()
+		exception.SetPrepID(scenario.PrepID)
+		func() {
+			defer exception.ClearPrepID()
+			defer exception.UnsetCommitter()
+			handler(scenario)
+		}()
 
 		service.KafkaRepository.CommitPrepareScenario(ctx, m)
 	}

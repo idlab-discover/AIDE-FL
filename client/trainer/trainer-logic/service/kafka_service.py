@@ -2,7 +2,7 @@ import json
 from repository.kafka_repository import KafkaConsumerRepository, KafkaProducerRepository
 
 from configuration.logger import Logger
-from configuration.messenger import send_error
+from configuration.messenger import Messenger, send_error
 
 class KafkaService:
     def __init__(self, train_consumer_repo: KafkaConsumerRepository, trained_producer_repo: KafkaProducerRepository, general_message_producer_repo: KafkaProducerRepository):
@@ -19,6 +19,7 @@ class KafkaService:
                 
                 scenario_json = msg.value().decode()
                 scenario_dict = json.loads(scenario_json)
+                Messenger.set_prep_id(scenario_dict.get("prep_id"))
                 
                 try:
                     handler(scenario_dict)
@@ -28,6 +29,7 @@ class KafkaService:
                     send_error(error_msg)
                     continue
                 finally:
+                    Messenger.clear_prep_id()
                     self.train_consumer.commit(msg)
                 
     def produce_trained_scenario(self, scenario: dict):        

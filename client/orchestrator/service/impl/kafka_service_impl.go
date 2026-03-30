@@ -85,16 +85,16 @@ func (service *kafkaServiceImpl) PublishTrainScenario(scenario model.Scenario) {
 	service.trainWriterRepo.Write(msg)
 }
 
-func (service *kafkaServiceImpl) ConsumePreparedScenario(ctx context.Context, expectedScenarioName string) (model.Scenario, error) {
-	return service.consumeScenario(ctx, service.preparedReaderRepo, "prepared", expectedScenarioName)
+func (service *kafkaServiceImpl) ConsumePreparedScenario(ctx context.Context, expectedPrepID string) (model.Scenario, error) {
+	return service.consumeScenario(ctx, service.preparedReaderRepo, "prepared", expectedPrepID)
 }
 
-func (service *kafkaServiceImpl) ConsumePreprocessedScenario(ctx context.Context, expectedScenarioName string) (model.Scenario, error) {
-	return service.consumeScenario(ctx, service.preprocessedReaderRepo, "preprocessed", expectedScenarioName)
+func (service *kafkaServiceImpl) ConsumePreprocessedScenario(ctx context.Context, expectedPrepID string) (model.Scenario, error) {
+	return service.consumeScenario(ctx, service.preprocessedReaderRepo, "preprocessed", expectedPrepID)
 }
 
-func (service *kafkaServiceImpl) ConsumeTrainedScenario(ctx context.Context, expectedScenarioName string) (model.Scenario, error) {
-	return service.consumeScenario(ctx, service.trainedReaderRepo, "trained", expectedScenarioName)
+func (service *kafkaServiceImpl) ConsumeTrainedScenario(ctx context.Context, expectedPrepID string) (model.Scenario, error) {
+	return service.consumeScenario(ctx, service.trainedReaderRepo, "trained", expectedPrepID)
 }
 
 func (service *kafkaServiceImpl) ConsumeGeneralMessage(ctx context.Context) (model.GeneralMessage, error) {
@@ -116,8 +116,8 @@ func (service *kafkaServiceImpl) ConsumeGeneralMessage(ctx context.Context) (mod
 	return message, err
 }
 
-func (service *kafkaServiceImpl) consumeScenario(ctx context.Context, reader repository.KafkaReaderRepository, stage string, expectedScenarioName string) (model.Scenario, error) {
-	slog.Info(fmt.Sprintf("Consuming %s scenario messages", stage), "expected", expectedScenarioName)
+func (service *kafkaServiceImpl) consumeScenario(ctx context.Context, reader repository.KafkaReaderRepository, stage string, expectedPrepID string) (model.Scenario, error) {
+	slog.Info(fmt.Sprintf("Consuming %s scenario messages", stage), "expectedPrepID", expectedPrepID)
 
 	for {
 		m, err := reader.Read(ctx)
@@ -129,11 +129,12 @@ func (service *kafkaServiceImpl) consumeScenario(ctx context.Context, reader rep
 		err = json.Unmarshal(m.Value, &scenario)
 		exception.PanicLogging(err, "Unable to unmarshal JSON to scenario")
 
-		if scenario.Name != expectedScenarioName {
+		if scenario.PrepID != expectedPrepID {
 			slog.Warn(
 				fmt.Sprintf("Discarding stale %s scenario", stage),
-				"expected", expectedScenarioName,
-				"received", scenario.Name,
+				"expectedPrepID", expectedPrepID,
+				"receivedPrepID", scenario.PrepID,
+				"receivedScenario", scenario.Name,
 			)
 			reader.Commit(ctx, m)
 			continue

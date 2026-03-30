@@ -16,6 +16,7 @@ var (
 	commitFunction    func(ctx context.Context, m kafka.Message)
 	commitFunctionCtx context.Context
 	commitFunctionMsg kafka.Message
+	currentPrepID     string
 )
 
 func RegisterKafkaService(service *service.KafkaService) {
@@ -32,11 +33,20 @@ func UnsetCommitter() {
 	commitFunction = nil
 }
 
+func SetPrepID(prepID string) {
+	currentPrepID = prepID
+}
+
+func ClearPrepID() {
+	currentPrepID = ""
+}
+
 func PanicLogging(err error, msg string, args ...any) {
 	if err != nil {
 		slog.Error(msg, append(args, "error", err)...)
 
 		m := model.GeneralMessage{
+			PrepID:  currentPrepID,
 			Type:    "ERROR",
 			Origin:  "datastore",
 			Message: formatMessage(msg, append(args, "error", err)...),
@@ -57,6 +67,7 @@ func ErrorLogging(err error, msg string, args ...any) {
 		slog.Error(msg, append(args, "error", err)...)
 
 		m := model.GeneralMessage{
+			PrepID:  currentPrepID,
 			Type:    "ERROR",
 			Origin:  "datastore",
 			Message: formatMessage(msg, append(args, "error", err)...),

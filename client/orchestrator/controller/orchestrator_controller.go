@@ -127,6 +127,7 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 		// Create context + cancel func per scenario
 		handleScenarioCtx, cancelScenarioFlow := context.WithCancel(context.Background())
 		controller.cancelScenarioFunc = cancelScenarioFlow
+		scenarioMessage.Scenario.PrepID = scenarioMessage.PrepId
 
 		controller.handleScenarioFlow(scenarioMessage.Scenario, handleScenarioCtx)
 
@@ -137,6 +138,7 @@ func (controller *OrchestratorController) listenForScenarios(c *websocket.Conn) 
 
 			slog.Info("Sending DONE to server")
 			m := model.GeneralMessage{
+				PrepID:  scenarioMessage.PrepId,
 				Type:    "INFO",
 				Origin:  "orchestrator",
 				Message: "DONE:" + scenarioMessage.PrepId,
@@ -161,7 +163,7 @@ func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scen
 
 		// Receive scenario with status from datastore-logic
 		var err error
-		scenario, err = controller.KafkaService.ConsumePreparedScenario(ctx, scenario.Name)
+		scenario, err = controller.KafkaService.ConsumePreparedScenario(ctx, scenario.PrepID)
 		if err != nil {
 			slog.Error("Unable to consume prepared scenario. Cancelling scenario flow.", "error", err)
 			return
@@ -174,7 +176,7 @@ func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scen
 	controller.KafkaService.PublishPreprocessScenario(scenario)
 
 	// Receive scenario from preprocessor
-	scenario, err := controller.KafkaService.ConsumePreprocessedScenario(ctx, scenario.Name)
+	scenario, err := controller.KafkaService.ConsumePreprocessedScenario(ctx, scenario.PrepID)
 	if err != nil {
 		slog.Error("Unable to consume preprocessed scenario. Cancelling scenario flow.", "error", err)
 		return
@@ -184,7 +186,7 @@ func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scen
 	controller.KafkaService.PublishTrainScenario(scenario)
 
 	// Receive scenario from trainer when trained
-	scenario, err = controller.KafkaService.ConsumeTrainedScenario(ctx, scenario.Name)
+	scenario, err = controller.KafkaService.ConsumeTrainedScenario(ctx, scenario.PrepID)
 	if err != nil {
 		slog.Error("Unable to consume trained scenario. Cancelling scenario flow.", "error", err)
 		return

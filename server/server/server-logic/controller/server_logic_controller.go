@@ -311,11 +311,19 @@ func (controller *ServerLogicController) listenForGeneralMessages(conn *websocke
 
 		// Handle ERROR message
 		if generalMessage.Type == "ERROR" {
-			slog.Error("ERROR received from", "clientId", clientId)
 			session := controller.currentTrainingSession()
-			if session != nil {
-				session.reportError(&generalMessage)
+			if session == nil {
+				continue
 			}
+
+			expectedPrepID := session.prepID.String()
+			if generalMessage.PrepID != "" && generalMessage.PrepID != expectedPrepID {
+				slog.Warn("Ignoring ERROR message for stale preparation", "clientId", clientId, "prepId", generalMessage.PrepID, "expectedPrepId", expectedPrepID)
+				continue
+			}
+
+			slog.Error("ERROR received from", "clientId", clientId, "prepId", generalMessage.PrepID)
+			session.reportError(&generalMessage)
 		}
 	}
 }

@@ -11,6 +11,7 @@ class Messenger:
     _instance: Optional['Messenger'] = None
     _message_sender: Optional[Callable] = None
     _origin: str = "preprocessor"
+    _prep_id: Optional[str] = None
     
     def __new__(cls):
         if cls._instance is None:
@@ -29,6 +30,14 @@ class Messenger:
         if cls._instance is None or cls._instance._message_sender is None:
             raise RuntimeError("Messenger is not initialised")
         return cls._instance
+
+    @classmethod
+    def set_prep_id(cls, prep_id: Optional[str]):
+        cls.get_messenger()._prep_id = prep_id
+
+    @classmethod
+    def clear_prep_id(cls):
+        cls.get_messenger()._prep_id = None
     
     def _send_message(self, message_type: MessageType, message: str):
         """Internal method to send message via the callback"""
@@ -40,6 +49,9 @@ class Messenger:
             "origin": self._origin,
             "message": message
         }
+
+        if self._prep_id:
+            general_message["prep_id"] = self._prep_id
         
         self._message_sender(general_message)
     

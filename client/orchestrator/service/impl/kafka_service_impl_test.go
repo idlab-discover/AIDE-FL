@@ -50,19 +50,22 @@ func TestConsumePreparedScenarioSkipsStaleMessages(t *testing.T) {
 	service := kafkaServiceImpl{
 		preparedReaderRepo: &stubReaderRepo{
 			messages: []kafka.Message{
-				mustScenarioMessage(t, "stale-run"),
-				mustScenarioMessage(t, "expected-run"),
+				mustScenarioMessage(t, "stale-prep", "stale-run"),
+				mustScenarioMessage(t, "expected-prep", "expected-run"),
 			},
 		},
 	}
 
-	scenario, err := service.ConsumePreparedScenario(context.Background(), "expected-run")
+	scenario, err := service.ConsumePreparedScenario(context.Background(), "expected-prep")
 	if err != nil {
 		t.Fatalf("ConsumePreparedScenario returned error: %v", err)
 	}
 
 	if scenario.Name != "expected-run" {
 		t.Fatalf("ConsumePreparedScenario returned scenario %q, want %q", scenario.Name, "expected-run")
+	}
+	if scenario.PrepID != "expected-prep" {
+		t.Fatalf("ConsumePreparedScenario returned prep id %q, want %q", scenario.PrepID, "expected-prep")
 	}
 
 	reader := service.preparedReaderRepo.(*stubReaderRepo)
@@ -81,16 +84,16 @@ func TestConsumePreparedScenarioHonorsContextCancellation(t *testing.T) {
 		preparedReaderRepo: &stubReaderRepo{},
 	}
 
-	_, err := service.ConsumePreparedScenario(ctx, "expected-run")
+	_, err := service.ConsumePreparedScenario(ctx, "expected-prep")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("ConsumePreparedScenario error = %v, want %v", err, context.Canceled)
 	}
 }
 
-func mustScenarioMessage(t *testing.T, name string) kafka.Message {
+func mustScenarioMessage(t *testing.T, prepID string, name string) kafka.Message {
 	t.Helper()
 
-	scenario := model.Scenario{Name: name}
+	scenario := model.Scenario{PrepID: prepID, Name: name}
 	payload, err := json.Marshal(scenario)
 	if err != nil {
 		t.Fatalf("json.Marshal(%q): %v", name, err)

@@ -1,6 +1,7 @@
 package model
 
 type Scenario struct {
+	PrepID        string                 `json:"prep_id,omitempty"`
 	Name          string                 `json:"name"`
 	Dataset       string                 `json:"dataset"`
 	LabelColumn   string                 `json:"label_column"`
