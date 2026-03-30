@@ -514,7 +514,8 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 		jsonData, _ := json.Marshal(response)
 
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Retry-After", "5")
+		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write(jsonData)
 		return
 	}

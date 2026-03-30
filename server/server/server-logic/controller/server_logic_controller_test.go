@@ -18,6 +18,7 @@ import (
 type fakeServerLogicService struct {
 	decodeScenarioFn    func(io.ReadCloser) (*model.Scenario, error)
 	validateScenarioFn  func(*model.Scenario) error
+	startClientsFn      func(*model.Scenario, uuid.UUID, map[string]*model.Client)
 	startTrainingFn     func() (string, error)
 	getTrainingStatusFn func(string) (string, error)
 }
@@ -30,7 +31,10 @@ func (f *fakeServerLogicService) ValidateScenario(scenario *model.Scenario) erro
 	return f.validateScenarioFn(scenario)
 }
 
-func (f *fakeServerLogicService) StartClients(_ *model.Scenario, _ uuid.UUID, _ map[string]*model.Client) {
+func (f *fakeServerLogicService) StartClients(scenario *model.Scenario, prepID uuid.UUID, clients map[string]*model.Client) {
+	if f.startClientsFn != nil {
+		f.startClientsFn(scenario, prepID, clients)
+	}
 }
 
 func (f *fakeServerLogicService) SetFlowerConfig(_ *model.Scenario) {}
@@ -170,4 +174,52 @@ func TestListenForGeneralMessagesReturnsOnReadError(t *testing.T) {
 	}
 
 	controller.listenForGeneralMessages(reader, "client-a")
+}
+
+func TestStartReturnsRetryableErrorWhenPreparationAborts(t *testing.T) {
+	var controller *ServerLogicController
+
+	server := &fakeServerLogicService{
+		decodeScenarioFn: func(io.ReadCloser) (*model.Scenario, error) {
+			return &model.Scenario{
+				Name: "scenario-a",
+				Strategy: model.Strategy{
+					MinAvailableClients: 1,
+				},
+			}, nil
+		},
+		validateScenarioFn: func(*model.Scenario) error { return nil },
+		startClientsFn: func(_ *model.Scenario, _ uuid.UUID, _ map[string]*model.Client) {
+			controller.currentTrainingSession().reportError(&model.GeneralMessage{
+				Type:    "ERROR",
+				Origin:  "server",
+				Message: "client disconnected while preparing",
+			})
+		},
+		startTrainingFn:     func() (string, error) { return "", nil },
+		getTrainingStatusFn: func(string) (string, error) { return "", nil },
+	}
+
+	controller = newTestController(t, server, &fakeMinioService{})
+	controller.clients["client-a"] = &model.Client{Id: "client-a"}
+
+	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewBufferString(`{}`))
+	rec := httptest.NewRecorder()
+
+	controller.start(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, rec.Code)
+	}
+	if rec.Header().Get("Retry-After") != "5" {
+		t.Fatalf("expected Retry-After header 5, got %q", rec.Header().Get("Retry-After"))
+	}
+
+	var response model.GeneralResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("unable to decode response: %v", err)
+	}
+	if response.Message != "Training run aborted due to client error" {
+		t.Fatalf("unexpected message: %q", response.Message)
+	}
 }
