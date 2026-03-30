@@ -161,7 +161,7 @@ func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scen
 
 		// Receive scenario with status from datastore-logic
 		var err error
-		scenario, err = controller.KafkaService.ConsumePreparedScenario(ctx)
+		scenario, err = controller.KafkaService.ConsumePreparedScenario(ctx, scenario.Name)
 		if err != nil {
 			slog.Error("Unable to consume prepared scenario. Cancelling scenario flow.", "error", err)
 			return
@@ -174,7 +174,7 @@ func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scen
 	controller.KafkaService.PublishPreprocessScenario(scenario)
 
 	// Receive scenario from preprocessor
-	scenario, err := controller.KafkaService.ConsumePreprocessedScenario(ctx)
+	scenario, err := controller.KafkaService.ConsumePreprocessedScenario(ctx, scenario.Name)
 	if err != nil {
 		slog.Error("Unable to consume preprocessed scenario. Cancelling scenario flow.", "error", err)
 		return
@@ -184,7 +184,7 @@ func (controller *OrchestratorController) handleScenarioFlow(scenario model.Scen
 	controller.KafkaService.PublishTrainScenario(scenario)
 
 	// Receive scenario from trainer when trained
-	scenario, err = controller.KafkaService.ConsumeTrainedScenario(ctx)
+	scenario, err = controller.KafkaService.ConsumeTrainedScenario(ctx, scenario.Name)
 	if err != nil {
 		slog.Error("Unable to consume trained scenario. Cancelling scenario flow.", "error", err)
 		return
