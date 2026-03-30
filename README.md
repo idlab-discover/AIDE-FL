@@ -47,6 +47,8 @@ Published image tags include:
 
 For reliable cluster testing, prefer immutable `sha-*` tags over `latest`.
 
+The workflow publishes with `GITHUB_TOKEN` by default. If an existing GHCR package does not grant that token write access, add repository secrets `GHCR_PAT` and optionally `GHCR_USERNAME` to authenticate the publish step with a classic personal access token carrying `write:packages`. The token is only used for the registry login step and is not passed into Docker builds.
+
 ## Scenarios
 
 Scenarios are the driving factor behind this framework. They include the required dataset name, preprocessing steps, hyperparameters, and model architecture. It is sent from the central server to each client which prepare themselves for training. Once they are all done preparing, the server will start the training process.
