@@ -30,12 +30,12 @@ type ServerLogicController struct {
 }
 
 type trainingSession struct {
-	mu               sync.Mutex
-	doneCond         *sync.Cond
-	prepID           uuid.UUID
-	trainingClients  map[string]*model.Client
-	completedClients map[string]struct{}
-	errorMessage     *model.GeneralMessage
+	mu                sync.Mutex
+	doneCond          *sync.Cond
+	prepID            uuid.UUID
+	trainingClientIDs map[string]struct{}
+	completedClients  map[string]struct{}
+	errorMessage      *model.GeneralMessage
 }
 
 func newTrainingSession() *trainingSession {
@@ -154,9 +154,9 @@ func (session *trainingSession) reset(clients map[string]*model.Client) uuid.UUI
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
-	session.trainingClients = make(map[string]*model.Client, len(clients))
-	for id, client := range clients {
-		session.trainingClients[id] = client
+	session.trainingClientIDs = make(map[string]struct{}, len(clients))
+	for id := range clients {
+		session.trainingClientIDs[id] = struct{}{}
 	}
 
 	session.completedClients = make(map[string]struct{}, len(clients))
@@ -174,7 +174,7 @@ func (session *trainingSession) trackClientDone(clientID string, prepID string) 
 		return false
 	}
 
-	if _, ok := session.trainingClients[clientID]; !ok {
+	if _, ok := session.trainingClientIDs[clientID]; !ok {
 		return false
 	}
 
@@ -183,9 +183,9 @@ func (session *trainingSession) trackClientDone(clientID string, prepID string) 
 	}
 
 	session.completedClients[clientID] = struct{}{}
-	slog.Info("Progress:", "done", len(session.completedClients), "total", len(session.trainingClients))
+	slog.Info("Progress:", "done", len(session.completedClients), "total", len(session.trainingClientIDs))
 
-	if len(session.completedClients) >= len(session.trainingClients) {
+	if len(session.completedClients) >= len(session.trainingClientIDs) {
 		session.doneCond.Broadcast()
 	}
 
@@ -204,8 +204,7 @@ func (session *trainingSession) handleClientDisconnect(client *model.Client) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
-	trainingClient, ok := session.trainingClients[client.Id]
-	if !ok || trainingClient != client {
+	if _, ok := session.trainingClientIDs[client.Id]; !ok {
 		return
 	}
 
@@ -222,7 +221,7 @@ func (session *trainingSession) waitForPreparation() *model.GeneralMessage {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
-	for len(session.completedClients) < len(session.trainingClients) && session.errorMessage == nil {
+	for len(session.completedClients) < len(session.trainingClientIDs) && session.errorMessage == nil {
 		session.doneCond.Wait()
 	}
 

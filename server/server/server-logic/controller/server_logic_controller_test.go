@@ -133,3 +133,21 @@ func TestStartReleasesTrainingSessionOnInvalidRequest(t *testing.T) {
 		t.Fatal("expected training session to be released after invalid request")
 	}
 }
+
+func TestTrainingSessionHandlesDisconnectAfterReconnect(t *testing.T) {
+	session := newTrainingSession()
+	oldClient := &model.Client{Id: "client-a", Address: "old"}
+	newClient := &model.Client{Id: "client-a", Address: "new"}
+
+	session.reset(map[string]*model.Client{
+		oldClient.Id: oldClient,
+	})
+	session.handleClientDisconnect(newClient)
+
+	if session.errorMessage == nil {
+		t.Fatal("expected active client disconnect to abort preparation after reconnect")
+	}
+	if session.errorMessage.Origin != "server" {
+		t.Fatalf("unexpected error origin: %q", session.errorMessage.Origin)
+	}
+}
