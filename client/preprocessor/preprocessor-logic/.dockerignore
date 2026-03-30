@@ -1,3 +1,10 @@
 # Python
 .venv
 **/__pycache__
+*.pyc
+.pytest_cache
+
+# Tests and local files
+tests
+.env
+.gitignore

@@ -1,8 +1,13 @@
 # Python
 .venv
 **/__pycache__
+*.pyc
+.pytest_cache
 
 # Unnecessary
 deploy.sh
 trainer-daemonset.yaml
 Dockerfile
+tests
+.env
+.gitignore
