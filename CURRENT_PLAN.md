@@ -11,7 +11,8 @@ The platform baseline remains strong enough to support a deeper Flower refactor.
 - `server-deployment` uses `Recreate`, which matches its `hostNetwork` port constraints.
 - `server-logic` handles client disconnect during preparation without panicking.
 - `orchestrator` now reconnects automatically after server replacement.
-- Flower has been lifted in-repo to `1.27.x`, but the live path still needs one final compatibility pass and end-to-end validation.
+- Flower has been lifted in-repo to `1.27.x` and validated live on the cluster with `examples/nids-demo-live.json`.
+- The `flower-serverapp` live rollout currently uses an overlay image tag because GHCR stalled on the full rebuilt manifest publish, but the deployed runtime code is current.
 
 ## Primary Objective
 
@@ -87,7 +88,7 @@ The intended end state is:
 
 Goal:
 
-- reach a clean live-cluster baseline on Flower `1.27.x`
+- completed: reached a clean live-cluster baseline on Flower `1.27.x`
 
 Tasks:
 
@@ -103,11 +104,17 @@ Exit criteria:
 - `/start` works
 - `examples/nids-demo-live.json` completes successfully against Flower `1.27.x`
 
+Status:
+
+- completed
+- live validation passed on March 31, 2026
+- remaining cleanup is publication hygiene for `flower-serverapp`, not runtime compatibility
+
 ### 2. Move off legacy Flower patterns
 
 Goal:
 
-- align AIDE-FL with the modern Flower app model instead of continuing to build around older `NumPyClient` assumptions
+- completed: align AIDE-FL with the modern Flower app model instead of continuing to build around older `NumPyClient` assumptions
 
 Tasks:
 
@@ -128,6 +135,13 @@ Exit criteria:
 - no critical control path depends on pre-`1.27` CLI output shape
 - the app structure matches Flower `1.27.x` concepts closely enough to add new frameworks cleanly
 - the core server/client interface can be described in Flower Message API terms rather than TensorFlow-specific helper behavior
+
+Status:
+
+- completed
+- `client_app.py` now uses `ClientApp.train` / `ClientApp.evaluate` with `Message` / `RecordDict`
+- `server_app.py` now uses `ServerApp.main` with `serverapp.strategy.FedAvg.start(...)`
+- server status parsing was updated to tolerate Flower `1.27.x` numeric `elapsed` values
 
 ### 3. Introduce a framework-aware scenario schema
 
@@ -309,4 +323,4 @@ These concerns should attach to clean seams:
 
 ## Immediate Next Step
 
-The immediate next step is to finish the Flower `1.27.x` live validation and then begin the scenario-schema and framework-adapter design from a stable upgraded baseline.
+The immediate next step is to begin the scenario-schema and framework-adapter design from the now-stable Flower `1.27.x` baseline, starting with item 3.
