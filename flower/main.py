@@ -1,14 +1,60 @@
-import threading
-import subprocess
-import os
-import sys
 import json
+import os
+import subprocess
+import sys
+import threading
 
 from flask import Flask, jsonify, request
 import wandb
 
 
 flask_app = None
+
+
+def run_flower_command(command: list[str]) -> tuple[dict, int]:
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        cwd=os.getcwd(),
+    )
+
+    stdout = result.stdout.strip()
+    stderr = result.stderr.strip()
+
+    if not stdout:
+        payload = {
+            "success": False,
+            "runs": [],
+            "error-message": stderr or f"command failed with exit code {result.returncode}",
+        }
+        return payload, 503
+
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        payload = {
+            "success": False,
+            "runs": [],
+            "error-message": stderr or stdout,
+        }
+        return payload, 503
+
+    payload.setdefault("runs", [])
+
+    if "run-id" in payload:
+        payload["run-id"] = str(payload["run-id"])
+
+    for run in payload.get("runs", []):
+        if "run-id" in run:
+            run["run-id"] = str(run["run-id"])
+
+    if result.returncode != 0 or payload.get("success") is False:
+        if stderr and "error-message" not in payload:
+            payload["error-message"] = stderr
+        return payload, 503
+
+    return payload, 200
 
 def setup_flask():
     flask_app = Flask(__name__)
@@ -43,60 +89,21 @@ def setup_flask():
 
 def start_training() -> str:
     """Start the federated learning training process"""
-    try:
-        print("Starting Flower federated learning training...")
-        
-        # Use subprocess to run flwr run command
-        result = subprocess.run(
-            ["flwr", "run", ".", "--format", "json"],
-            capture_output=True,
-            text=True,
-            cwd=os.getcwd()  # Ensure we're in the right directory
-        )
-        
-        dict_output = json.loads(result.stdout)
-        
-        dict_output["run-id"] = str(dict_output["run-id"])
-            
-        output = json.dumps(dict_output)
-        
-        return output
-
-    except Exception as e:
-        print(f"Training failed with exception: {str(e)}")
+    print("Starting Flower federated learning training...")
+    payload, status_code = run_flower_command(["flwr", "run", ".", "--format", "json"])
+    return jsonify(payload), status_code
         
         
 def training_status(run_id: str) -> str:
     """Get training status from Flower"""
-    try:
-        print("Running command to get training run status...")
-        
-        if run_id:
-            result = subprocess.run(
-                ["flwr", "ls", "--run-id", run_id, "--format", "json"],
-                capture_output=True,
-                text=True,
-                cwd=os.getcwd()
-            )
-        else:
-            result = subprocess.run(
-                ["flwr", "ls", "--format", "json"],
-                capture_output=True,
-                text=True,
-                cwd=os.getcwd()
-            )
-            
-        dict_output = json.loads(result.stdout)
-        
-        for run in dict_output["runs"]:
-            run["run-id"] = str(run["run-id"])
-            
-        output = json.dumps(dict_output)
-        
-        return output
-    
-    except Exception as e:
-        print(f"Getting training status failed with exception: {str(e)}")
+    print("Running command to get training run status...")
+
+    command = ["flwr", "ls", "--format", "json"]
+    if run_id:
+        command = ["flwr", "ls", "--run-id", run_id, "--format", "json"]
+
+    payload, status_code = run_flower_command(command)
+    return jsonify(payload), status_code
         
 
 def main():

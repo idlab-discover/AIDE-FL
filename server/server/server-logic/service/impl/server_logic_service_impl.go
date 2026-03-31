@@ -194,6 +194,10 @@ func (service *serverLogicServiceImpl) StartTraining() (string, error) {
 	}
 
 	bodyString := string(bodyBytes)
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("flower serverapp returned %s: %s", resp.Status, bodyString)
+	}
+
 	return bodyString, nil
 }
 
@@ -211,6 +215,10 @@ func (service *serverLogicServiceImpl) GetTrainingStatus(runId string) (string, 
 	}
 
 	bodyString := string(bodyBytes)
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("flower serverapp returned %s: %s", resp.Status, bodyString)
+	}
+
 	return bodyString, nil
 }
 

@@ -5,9 +5,9 @@ WORKDIR /app
 COPY serverapp-requirements.txt .
 RUN python -m pip install -U --no-cache-dir -r serverapp-requirements.txt
 
-COPY main.py .
-COPY pyproject.toml .
-COPY flower ./flower
+COPY --chown=49999:49999 main.py .
+COPY --chown=49999:49999 pyproject.toml .
+COPY --chown=49999:49999 flower ./flower
 
 ENTRYPOINT ["python", "main.py"]
 
