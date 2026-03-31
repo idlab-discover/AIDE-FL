@@ -2,48 +2,35 @@
 
 ## Baseline Status
 
-The baseline is now in good shape.
+The platform baseline is now in a solid state.
 
 - The cluster is reachable through `~/.kube/aide`.
 - Custom images can be published to GHCR and deployed by immutable SHA tag.
-- The stack has been run successfully on updated images on March 30, 2026.
-- `examples/nids-demo-live.json` completed successfully on the updated cluster.
-- Induced-failure retry behavior has been tested on-cluster:
-  - a client-side preparation disruption aborted the first run
-  - the retry completed successfully
-  - stale Kafka backlog was ignored by `prep_id`
-- `server-deployment` now uses `Recreate`, which matches its `hostNetwork` port constraints.
-- `server-logic` now handles client disconnect during preparation without panicking.
-- `/start` now returns a retryable response for preparation aborts instead of a generic `500`.
+- The stack has been run successfully on updated images on March 30 and March 31, 2026.
+- `examples/nids-demo-live.json` completes successfully on the live cluster.
+- Preparation abort and retry behavior has been validated on-cluster.
+- Stale Kafka backlog is filtered by `prep_id`.
+- `server-deployment` uses `Recreate`, which matches its `hostNetwork` port constraints.
+- `server-logic` handles client disconnect during preparation without panicking.
+- `/start` returns a retryable response for preparation aborts instead of a generic `500`.
+- `orchestrator` now reconnects automatically after server replacement without requiring a daemonset restart.
 
-## Residual Checklist
+## Next Focus
 
-### 1. Orchestrator Reconnect Fallback
+The next phase is product and architecture work rather than baseline recovery.
 
-- After replacing the server pod, verify whether `orchestrator` reconnects automatically.
-- If it does not, keep the operational fallback:
-  - restart `orchestrator-daemonset`
-  - verify `/clients` returns both clients again
+- Rework scenario model definition so Keras architectures remain highly flexible while becoming easier to author and review.
+- Revisit model serving and model packaging boundaries so future aggregation strategies are easier to introduce.
+- Upgrade Flower to the latest supported version in a controlled way.
+- Preserve room for more advanced federated strategies beyond FedAvg.
+- Design toward a turnkey secure federated learning platform.
 
-### 2. Recovery Procedure
+## Security Roadmap
 
-Keep a short, canonical recovery sequence for operators:
+Important longer-term capabilities to keep in scope:
 
-- if server replacement succeeds but `/clients` stays empty:
-  - restart `orchestrator-daemonset`
-- if a run aborts during preparation:
-  - wait for client pods to return
-  - verify `/clients`
-  - retry with a fresh run
-- if needed, inspect:
-  - `orchestrator` logs
-  - `server-logic` logs
-  - `/status`
+- differential privacy
+- multi-party computation
+- fully homomorphic encryption
 
-### 3. Optional Follow-Up Work
-
-These are useful, but no longer baseline blockers:
-
-- continue shrinking the heavy Python and Flower images
-- document where duplicate side effects are acceptable under retry
-- consider longer-term simplification of the client-side Kafka control path
+These should be evaluated in a way that preserves clean interfaces around scenario definition, aggregation logic, and weight transport.
