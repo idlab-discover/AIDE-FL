@@ -24,7 +24,7 @@ spec:
       containers:
 
       - name: flower-superlink
-        image: flwr/superlink:1.18.0
+        image: flwr/superlink:1.27.0
         ports:
         - containerPort: 9091
           name: serverappio-api
