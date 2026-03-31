@@ -9,6 +9,8 @@ import wandb
 
 
 flask_app = None
+flower_app_path = "."
+flower_superlink = "deployment"
 
 
 def run_flower_command(command: list[str]) -> tuple[dict, int]:
@@ -56,6 +58,19 @@ def run_flower_command(command: list[str]) -> tuple[dict, int]:
 
     return payload, 200
 
+
+def build_serverapp_command(args: list[str]) -> list[str]:
+    command = ["flower-superexec", "--plugin-type", "serverapp"]
+
+    normalized_args: list[str] = []
+    for arg in args:
+        if arg == "--serverappio-api-address":
+            normalized_args.append("--appio-api-address")
+            continue
+        normalized_args.append(arg)
+
+    return command + normalized_args
+
 def setup_flask():
     flask_app = Flask(__name__)
 
@@ -90,7 +105,9 @@ def setup_flask():
 def start_training() -> str:
     """Start the federated learning training process"""
     print("Starting Flower federated learning training...")
-    payload, status_code = run_flower_command(["flwr", "run", ".", "--format", "json"])
+    payload, status_code = run_flower_command(
+        ["flwr", "run", flower_app_path, flower_superlink, "--format", "json"],
+    )
     return jsonify(payload), status_code
         
         
@@ -98,9 +115,9 @@ def training_status(run_id: str) -> str:
     """Get training status from Flower"""
     print("Running command to get training run status...")
 
-    command = ["flwr", "ls", "--format", "json"]
+    command = ["flwr", "ls", flower_superlink, "--format", "json"]
     if run_id:
-        command = ["flwr", "ls", "--run-id", run_id, "--format", "json"]
+        command = ["flwr", "ls", "--run-id", run_id, flower_superlink, "--format", "json"]
 
     payload, status_code = run_flower_command(command)
     return jsonify(payload), status_code
@@ -111,7 +128,7 @@ def main():
 
     setup_flask()
     subprocess.run(["wandb", "login"])
-    subprocess.run(["flwr-serverapp"] + sys.argv[1:])
+    subprocess.run(build_serverapp_command(sys.argv[1:]))
 
 
 if __name__ == "__main__":

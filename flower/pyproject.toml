@@ -29,10 +29,3 @@ clientapp = "flower.client_app:app"
 
 [tool.flwr.app.config]
 verbose = false
-
-[tool.flwr.federations]
-default = "deployment"
-
-[tool.flwr.federations.deployment]
-address = "127.0.0.1:9093"
-root-certificates = "./certs/ca.crt"
