@@ -1,14 +1,52 @@
-from flwr.server.strategy import FedAvg
-from flwr.common import parameters_to_ndarrays
-
-import tensorflow as tf
-import os
 import json
-import wandb
-import numpy as np
-from safetensors.numpy import save_file
-from datetime import datetime
+import os
 from collections import defaultdict
+from datetime import datetime
+
+import numpy as np
+import tensorflow as tf
+import wandb
+from flwr.app import ArrayRecord, ConfigRecord, MetricRecord
+from flwr.serverapp.strategy import FedAvg
+from flwr.serverapp.strategy.fedavg import aggregate_arrayrecords
+from safetensors.numpy import save_file
+
+ARRAYS_KEY = "arrays"
+CONFIG_KEY = "config"
+METRICS_KEY = "metrics"
+HISTORY_KEY = "history"
+WEIGHTED_BY_KEY = "num-examples"
+
+
+def aggregate_numeric_metrics(contents, weighted_by_key: str) -> MetricRecord:
+    metric_sums = defaultdict(float)
+    metric_counts = defaultdict(float)
+    total_weight = 0.0
+
+    for content in contents:
+        metrics = content.metric_records.get(METRICS_KEY)
+        if metrics is None:
+            continue
+
+        weight = float(metrics.get(weighted_by_key, 0))
+        if weight <= 0:
+            continue
+        total_weight += weight
+
+        for key, value in metrics.items():
+            if key == weighted_by_key or isinstance(value, list):
+                continue
+            metric_sums[key] += float(value) * weight
+            metric_counts[key] += weight
+
+    aggregated = {}
+    if total_weight > 0:
+        aggregated[weighted_by_key] = int(total_weight)
+
+    for key, total in metric_sums.items():
+        aggregated[key] = total / metric_counts[key]
+
+    return MetricRecord(aggregated)
 
 
 class SaveModelFedAvg(FedAvg):
@@ -20,112 +58,93 @@ class SaveModelFedAvg(FedAvg):
         self.server_rounds = server_rounds
         self.fitted_validated_metrics = {}
         self.distributed_metrics = {}
-        self.centralised_metrics = {}
-        
+
         date_name = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
         wandb.init(project="aide-flower-deployment", name=f"{scenario_name}-{date_name}")
-    
-    def aggregate_fit(self, server_round, results, failures):
-        """Add functionality to default FedAvg aggregate_fit function that saves checkpoints as h5 files and the final model as safetensors."""
-        
-        parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
-        
-        if parameters_aggregated is None:
-            return parameters_aggregated, metrics_aggregated
-        
-        self.fitted_validated_metrics[server_round] = metrics_aggregated.get("histories")
-        
-        # Save metrics as json
-        path = os.path.join(self.share_dir, f"{self.scenario_name}_fitted_validated_metrics.json")
-        with open(path, 'w') as file:
-            json.dump(self.fitted_validated_metrics, file, indent=4)
-        print(f"Updated fitted_validated metrics in {path}")
-        
-        # Set aggregated weights to the model
-        weights = parameters_to_ndarrays(parameters_aggregated)
+
+    def aggregate_train(self, server_round, replies):
+        valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
+        arrays = metrics = None
+        if valid_replies:
+            reply_contents = [reply.content for reply in valid_replies]
+            arrays = aggregate_arrayrecords(reply_contents, self.weighted_by_key)
+            metrics = self.train_metrics_aggr_fn(reply_contents, self.weighted_by_key)
+
+        histories = []
+        for reply in valid_replies:
+            history = reply.content.config_records.get(HISTORY_KEY)
+            if history is None:
+                continue
+            history_json = history.get(HISTORY_KEY)
+            if history_json:
+                histories.append(json.loads(history_json))
+
+        self.fitted_validated_metrics[server_round] = {
+            "aggregated": dict(metrics) if metrics is not None else {},
+            "histories": histories,
+        }
+        self._write_json(
+            f"{self.scenario_name}_fitted_validated_metrics.json",
+            self.fitted_validated_metrics,
+        )
+
+        if arrays is None:
+            return arrays, metrics
+
+        weights = arrays.to_numpy_ndarrays()
         self.model.set_weights(weights)
-        
-        # Save model checkpoint
+
         if server_round == self.server_rounds:
-            
-            # Safe last aggregated model in safetensors
             weights_dict = {
-                f"weight_{i}": w.astype(np.float32) if not np.issubdtype(w.dtype, np.floating) else w for i, w in enumerate(weights)
+                f"weight_{i}": w.astype(np.float32) if not np.issubdtype(w.dtype, np.floating) else w
+                for i, w in enumerate(weights)
             }
-            
-            st_path = os.path.join(self.share_dir, f"{self.scenario_name}.safetensors")
-            save_file(weights_dict, st_path)
-            print(f"Saved checkpoint to {st_path}")
-        
-        path = os.path.join(self.share_dir, f"{self.scenario_name}_round_{server_round}.weights.h5") # Must end with .weights.h5
-        self.model.save_weights(path)
-        print(f"Saved checkpoint to {path}")
-        
-        return parameters_aggregated, metrics_aggregated
-    
-    def aggregate_evaluate(self, server_round, results, failures):
-        """Add functionality to default FedAvg aggregate_evaluate function that saves distributed evaluation metrics to json and logs them to wandb."""
+            save_file(weights_dict, os.path.join(self.share_dir, f"{self.scenario_name}.safetensors"))
 
-        loss_aggregated, metrics_aggregated = super().aggregate_evaluate(server_round, results, failures)
-        
-        metrics = {"avg_loss": loss_aggregated, **metrics_aggregated}
-        
-        self.distributed_metrics[server_round] = metrics
-        
-        # Save metrics as json
-        path = os.path.join(self.share_dir, f"{self.scenario_name}_distributed_metrics.json")
-        with open(path, 'w') as file:
-            json.dump(self.distributed_metrics, file, indent=4)
-        print(f"Updated distributed metrics in {path}")
-        
-        # There are no "metrics" if all clients fail. Then nothing to log to wandb
-        if not metrics_aggregated.get("distributed_metrics"): # get("metrics") returns None if not present instead of KeyError in case of ["metrics"]
-            return loss_aggregated, metrics_aggregated
-        
-        # Log to wandb
-        client_metrics_list = metrics_aggregated["distributed_metrics"]
-        metric_sums = defaultdict(float)
-        metric_counts = defaultdict(int)
-        
-        # Log per-client metrics
-        for client_id, metrics in enumerate(client_metrics_list):
-            for metric_name, metric_value in metrics.items():
-                wandb.log({f"client_{client_id}/{metric_name}": metric_value}, step=server_round)
-                metric_sums[metric_name] += metric_value
-                metric_counts[metric_name] += 1
-        
-        # Log average per metric
-        avg_metrics = {f"distributed/avg_{i}": metric_sums[i] / metric_counts[i] for i in metric_sums}
-        wandb.log({"distributed/avg_loss": loss_aggregated, **avg_metrics}, step=server_round)
-        
-        return loss_aggregated, metrics_aggregated
-    
-    def evaluate(self, server_round, parameters):
-        """Add functionality to default FedAvg evaluate function that saves centralised evaluation metrics to json and logs them to wandb."""
+        checkpoint = os.path.join(self.share_dir, f"{self.scenario_name}_round_{server_round}.weights.h5")
+        self.model.save_weights(checkpoint)
+        print(f"Saved checkpoint to {checkpoint}")
 
-        eval_res = super().evaluate(server_round, parameters)
-        
-        if eval_res is None:
-            return None
-        
-        loss, str_metrics = eval_res
-        dict_metrics = json.loads(str_metrics.get("centralised_metrics")) # Flower does not support setting a dict type as value so had to be sent as a string
+        if metrics is not None:
+            wandb.log(
+                {f"train/{key}": value for key, value in metrics.items() if key != WEIGHTED_BY_KEY},
+                step=server_round,
+            )
 
-        metrics_combined = {"loss": loss, **dict_metrics}
-        self.centralised_metrics[server_round] = metrics_combined
-        
-        # Save centralised metrics as json
-        path = os.path.join(self.share_dir, f"{self.scenario_name}_centralised_metrics.json")
-        with open(path, 'w') as file:
-            json.dump(self.centralised_metrics, file, indent=4)
-        print(f"Updated centralised metrics in {path}")
-        
-        # There are no "metrics" if all clients fail. Then nothing to log to wandb
-        if not str_metrics.get("centralised_metrics"):
-            return loss, str_metrics
-        
-        # Log to wandb
-        combined = {f"centralised/{i}": dict_metrics[i] for i in dict_metrics}
-        wandb.log({"centralised/loss": loss, **combined}, step=server_round)
-        
-        return loss, str_metrics
+        return arrays, metrics
+
+    def aggregate_evaluate(self, server_round, replies):
+        valid_replies, _ = self._check_and_log_replies(replies, is_train=False)
+        metrics = None
+        if valid_replies:
+            reply_contents = [reply.content for reply in valid_replies]
+            metrics = self.evaluate_metrics_aggr_fn(reply_contents, self.weighted_by_key)
+
+        client_metrics = []
+        for reply in valid_replies:
+            metric_record = reply.content.metric_records.get(METRICS_KEY)
+            if metric_record is not None:
+                client_metrics.append(dict(metric_record))
+
+        self.distributed_metrics[server_round] = {
+            "aggregated": dict(metrics) if metrics is not None else {},
+            "clients": client_metrics,
+        }
+        self._write_json(
+            f"{self.scenario_name}_distributed_metrics.json",
+            self.distributed_metrics,
+        )
+
+        if metrics is not None:
+            wandb.log(
+                {f"distributed/{key}": value for key, value in metrics.items() if key != WEIGHTED_BY_KEY},
+                step=server_round,
+            )
+
+        return metrics
+
+    def _write_json(self, filename: str, payload):
+        path = os.path.join(self.share_dir, filename)
+        with open(path, "w", encoding="utf-8") as file:
+            json.dump(payload, file, indent=4)
+        print(f"Updated {filename} in {path}")

@@ -7,18 +7,21 @@ It is intentionally specific to this repository, not a generic Flower summary.
 
 ## Current State
 
-The current implementation still contains legacy patterns:
+The current implementation is partly migrated:
 
-- server-side control flow uses a Flask shim in `flower/main.py`
-- the shim shells out to `flwr run` and `flwr ls`
-- `flower/flower/client_app.py` uses `NumPyClient`
-- `flower/flower/server_app.py` uses the older `ServerAppComponents` +
-  `ServerConfig` + `flwr.server.strategy.FedAvg` path
-- framework-specific behavior is mixed directly into shared helpers in
+- server-side control flow still uses a Flask shim in `flower/main.py`
+- the shim still shells out to `flwr run` and `flwr ls`
+- `flower/flower/client_app.py` now uses `ClientApp.train` /
+  `ClientApp.evaluate` with explicit `Message` handling
+- `flower/flower/server_app.py` now uses `ServerApp.main` +
+  `serverapp.strategy.FedAvg.start(...)`
+- framework-specific behavior is still mixed directly into shared helpers in
   `flower/flower/task.py`
+- the TensorFlow path still carries Keras-specific payload fields such as
+  `model_data` inside `ConfigRecord`
 
-This works for the TensorFlow baseline, but it is not the right long-term shape
-for a multi-framework Flower `1.27.x` app.
+This is a better Flower `1.27.x` shape for the TensorFlow baseline, but it is
+still not the final multi-framework architecture.
 
 ## Target Flower Concepts
 
@@ -190,17 +193,14 @@ These align with Flower `1.27.x` strategy defaults, including
 
 ## Immediate Migration Implications
 
-The next code steps should follow this order:
+The next code steps should now follow this order:
 
-1. Remove remaining runtime behavior that depends on legacy Flower CLI/config
+1. Keep removing runtime behavior that depends on legacy Flower CLI/config
    assumptions.
-2. Move the client path from `NumPyClient` to `ClientApp.train` /
-   `ClientApp.evaluate` with explicit `Message` handling.
-3. Move the server path from the older `ServerAppComponents` + legacy strategy
-   wiring toward the modern `ServerApp` + `serverapp.strategy.FedAvg.start(...)`
-   path.
-4. Re-express TensorFlow training/evaluation in terms of:
-   - `ArrayRecord`
-   - `ConfigRecord`
-   - `MetricRecord`
-5. Only then split framework adapters away from the TensorFlow baseline.
+2. Stabilize the current TensorFlow Message API path with live runs on-cluster.
+3. Split framework adapters away from the TensorFlow baseline so
+   `flower/flower/task.py` stops being the shared framework choke point.
+4. Replace TensorFlow-specific config payload assumptions with a framework-aware
+   scenario/model contract.
+5. Add the next framework on top of the adapter boundary, starting with
+   scikit-learn.
