@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -16,6 +17,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	writeWait  = 10 * time.Second
+	pongWait   = 30 * time.Second
+	pingPeriod = 20 * time.Second
+)
+
 type OrchestratorController struct {
 	service.OrchestratorService
 	service.KafkaService
@@ -23,6 +30,10 @@ type OrchestratorController struct {
 	cancelScenarioFunc context.CancelFunc // This function can be called to stop scenario flow
 	activePrepID       string
 	scenarioMu         sync.Mutex
+}
+
+type generalMessageWriter interface {
+	WriteMessage(messageType int, data []byte) error
 }
 
 func NewOrchestratorController(orchestratorService *service.OrchestratorService, kafkaService *service.KafkaService) *OrchestratorController {
@@ -64,9 +75,15 @@ func (controller OrchestratorController) ConnectServer(host string, clientId str
 
 		// Create context to cancel consuming general messages when connection is lost
 		ctxGenMessages, cancelConsumingGeneralMessages := context.WithCancel(context.Background())
+		ctxKeepAlive, cancelKeepAlive := context.WithCancel(context.Background())
 
 		// Start general message listener goroutine
-		go controller.consumeGeneralMessages(ctxGenMessages, c)
+		go func() {
+			controller.closeOnBackgroundFailure(c, controller.consumeGeneralMessages(ctxGenMessages, c))
+		}()
+		go func() {
+			controller.closeOnBackgroundFailure(c, controller.keepAlive(ctxKeepAlive, c))
+		}()
 
 		// Listen for incoming scenario from server
 		err = controller.listenForScenarios(c)
@@ -75,18 +92,56 @@ func (controller OrchestratorController) ConnectServer(host string, clientId str
 		slog.Warn("Disconnected from server, retrying", "error", err)
 		slog.Info("Stopping general message consumer")
 		cancelConsumingGeneralMessages() // Stop consuming general messages
-		c.Close()                        // Close connection before trying to reconnect
+		cancelKeepAlive()
+		c.Close() // Close connection before trying to reconnect
 
 		time.Sleep(time.Second * 2)
 	}
 }
 
-func (controller *OrchestratorController) consumeGeneralMessages(ctx context.Context, conn *websocket.Conn) {
+func (controller *OrchestratorController) closeOnBackgroundFailure(conn *websocket.Conn, err error) {
+	if err == nil || errors.Is(err, context.Canceled) {
+		return
+	}
+
+	slog.Warn("Closing WebSocket after background failure", "error", err)
+	conn.Close()
+}
+
+func (controller *OrchestratorController) keepAlive(ctx context.Context, conn *websocket.Conn) error {
+	if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		return fmt.Errorf("unable to set initial read deadline: %w", err)
+	}
+
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
+
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			deadline := time.Now().Add(writeWait)
+			if err := conn.WriteControl(websocket.PingMessage, []byte("ping"), deadline); err != nil {
+				return fmt.Errorf("unable to send ping to server: %w", err)
+			}
+		}
+	}
+}
+
+func (controller *OrchestratorController) consumeGeneralMessages(ctx context.Context, conn generalMessageWriter) error {
 	for {
 		m, err := controller.KafkaService.ConsumeGeneralMessage(ctx)
 		if err != nil {
-			slog.Error("Unable to consume general message", "error", err)
-			return
+			if errors.Is(err, context.Canceled) {
+				return nil
+			}
+
+			return fmt.Errorf("unable to consume general message: %w", err)
 		}
 
 		if m.Type == "ERROR" {
@@ -103,7 +158,7 @@ func (controller *OrchestratorController) consumeGeneralMessages(ctx context.Con
 		slog.Info("Sending general message to server")
 		err = conn.WriteMessage(websocket.TextMessage, byteArray)
 		if err != nil {
-			slog.Error("Unable to send general message to server", "err", err)
+			return fmt.Errorf("unable to send general message to server: %w", err)
 		}
 	}
 }
