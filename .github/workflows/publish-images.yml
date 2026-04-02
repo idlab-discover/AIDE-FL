@@ -13,33 +13,16 @@ permissions:
   packages: write
 
 jobs:
-  build-and-publish:
+  build-flower-bases:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - image: orchestrator
-            context: client/orchestrator
-            dockerfile: client/orchestrator/Dockerfile
-          - image: datastore-logic
-            context: client/datastore/datastore-logic
-            dockerfile: client/datastore/datastore-logic/Dockerfile
-          - image: preprocessor-logic
-            context: client/preprocessor/preprocessor-logic
-            dockerfile: client/preprocessor/preprocessor-logic/Dockerfile
-          - image: trainer-logic
-            context: client/trainer/trainer-logic
-            dockerfile: client/trainer/trainer-logic/Dockerfile
-          - image: flower-clientapp
-            context: flower
-            dockerfile: flower/clientapp.Dockerfile
-          - image: flower-serverapp
-            context: flower
-            dockerfile: flower/serverapp.Dockerfile
-          - image: server-logic
-            context: server/server/server-logic
-            dockerfile: server/server/server-logic/Dockerfile
+          - image: flower-clientapp-base
+            dockerfile: flower/clientapp-base.Dockerfile
+          - image: flower-serverapp-base
+            dockerfile: flower/serverapp-base.Dockerfile
 
     steps:
       - name: Check out repository
@@ -87,7 +70,98 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Build and publish base image
+        uses: docker/build-push-action@v6
+        with:
+          context: flower
+          file: ${{ matrix.dockerfile }}
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  build-and-publish:
+    runs-on: ubuntu-latest
+    needs: build-flower-bases
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: orchestrator
+            context: client/orchestrator
+            dockerfile: client/orchestrator/Dockerfile
+          - image: datastore-logic
+            context: client/datastore/datastore-logic
+            dockerfile: client/datastore/datastore-logic/Dockerfile
+          - image: preprocessor-logic
+            context: client/preprocessor/preprocessor-logic
+            dockerfile: client/preprocessor/preprocessor-logic/Dockerfile
+          - image: trainer-logic
+            context: client/trainer/trainer-logic
+            dockerfile: client/trainer/trainer-logic/Dockerfile
+          - image: flower-clientapp
+            context: flower
+            dockerfile: flower/clientapp.Dockerfile
+            base_image: flower-clientapp-base
+          - image: flower-serverapp
+            context: flower
+            dockerfile: flower/serverapp.Dockerfile
+            base_image: flower-serverapp-base
+          - image: server-logic
+            context: server/server/server-logic
+            dockerfile: server/server/server-logic/Dockerfile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR with PAT
+        if: ${{ secrets.GHCR_PAT != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME || github.repository_owner }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Log in to GHCR with GITHUB_TOKEN
+        if: ${{ secrets.GHCR_PAT == '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image name
+        id: image
+        env:
+          OWNER: ${{ github.repository_owner }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          owner_lc="$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "name=ghcr.io/${owner_lc}/${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "owner=${owner_lc}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=sha,format=short,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
       - name: Build and publish image
+        if: ${{ !matrix.base_image }}
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -95,3 +169,19 @@ jobs:
           push: true
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      - name: Build and publish Flower image
+        if: ${{ matrix.base_image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            BASE_IMAGE=ghcr.io/${{ steps.image.outputs.owner }}/${{ matrix.base_image }}:${{ steps.image.outputs.sha_tag }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

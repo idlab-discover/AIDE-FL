@@ -1,10 +1,8 @@
-FROM flwr/serverapp:latest
+ARG BASE_IMAGE=ghcr.io/str-gen/flower-serverapp-base:latest
+FROM ${BASE_IMAGE}
 
 WORKDIR /app
 ENV FLWR_HOME=/app/.flwr
-
-COPY serverapp-requirements.txt .
-RUN python -m pip install -U --no-cache-dir -r serverapp-requirements.txt
 
 COPY --chown=49999:49999 main.py .
 COPY --chown=49999:49999 config.toml /app/.flwr/config.toml
