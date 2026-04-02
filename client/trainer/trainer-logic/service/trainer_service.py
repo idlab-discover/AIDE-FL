@@ -22,9 +22,15 @@ class TrainerService:
             raise ValueError("scenario tensorflow model is missing config")
 
         return model_config
+
+    def _get_model_config(self, scenario: dict):
+        framework = scenario.get("framework")
+        if framework == "tensorflow":
+            return self._get_tensorflow_model_config(scenario)
+        raise ValueError(f"unsupported framework: {framework}")
     
     def _get_input_shape(self, scenario: dict):
-        model_config = self._get_tensorflow_model_config(scenario)
+        model_config = self._get_model_config(scenario)
         layers = model_config['config']['layers']
         if not layers:
             raise ValueError("scenario model does not define any layers")

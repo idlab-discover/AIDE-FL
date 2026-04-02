@@ -6,16 +6,18 @@ from flwr.app import (
     Context,
     Error,
     Message,
-    MetricRecord,
     RecordDict,
 )
 from flwr.clientapp import ClientApp
 
-from flower.task import *
+from flower.frameworks import get_adapter
+from flower.frameworks.base import ClientDatasets
+from flower.task import load_data
 
 model = local_epochs = batch_size = None
 x_train = y_train = x_eval = y_eval = x_test = y_test = None
-STATE_KEY = "tensorflow-client"
+adapter = None
+STATE_KEY = "framework-client"
 ARRAYS_KEY = "arrays"
 CONFIG_KEY = "config"
 METRICS_KEY = "metrics"
@@ -28,30 +30,16 @@ def _as_int(value):
     return int(value)
 
 
-def _as_float(value):
-    if value is None:
-        return None
-    return float(value)
-
-
 def _ensure_client_state(context: Context, config: ConfigRecord):
-    global model, local_epochs, batch_size
+    global adapter, model, local_epochs, batch_size
     global x_train, y_train, x_eval, y_eval, x_test, y_test
 
     state_config = context.state.config_records.get(STATE_KEY)
     framework = config["framework"]
-    model_data_str = config["model_config"]
     label_column = config["label_column"]
+    adapter = get_adapter(framework)
 
-    if framework != "tensorflow":
-        raise ValueError(f"unsupported framework: {framework}")
-
-    reload_local_state = (
-        state_config is None
-        or state_config.get("framework") != framework
-        or state_config.get("model_config") != model_data_str
-        or state_config.get("label_column") != label_column
-    )
+    reload_local_state = adapter.state_reload_required(state_config, config)
 
     local_epochs = _as_int(config["local_epochs"])
     batch_size = _as_int(config["batch_size"])
@@ -60,17 +48,14 @@ def _ensure_client_state(context: Context, config: ConfigRecord):
         return
 
     print("Loading model and datasets for current run")
-    model_data = json.loads(model_data_str)
-    model = keras.models.model_from_json(model_data_str)
-    x_train, y_train, x_eval, y_eval, x_test, y_test = load_data(label_column, model_data)
-
-    context.state[STATE_KEY] = ConfigRecord(
-        {
-            "framework": framework,
-            "model_config": model_data_str,
-            "label_column": label_column,
-        }
+    model = adapter.restore_client_model(config)
+    model_config = adapter.get_model_config_from_record(config)
+    x_train, y_train, x_eval, y_eval, x_test, y_test = load_data(
+        label_column,
+        adapt_features=lambda x: adapter.adapt_features(x, model_config),
     )
+
+    context.state[STATE_KEY] = adapter.client_state_record(config)
 
 
 def _require_arrays(message: Message) -> ArrayRecord:
@@ -96,36 +81,35 @@ app = ClientApp()
 
 @app.train()
 def train(message: Message, context: Context) -> Message:
-    global model, x_train, y_train, x_eval, y_eval
+    global adapter, model, x_train, y_train, x_eval, y_eval, x_test, y_test
 
     try:
         config = _require_config(message)
         _ensure_client_state(context, config)
 
-        model.set_weights(_require_arrays(message).to_numpy_ndarrays())
-        history = model.fit(
-            x=x_train,
-            y=y_train,
-            epochs=local_epochs,
-            batch_size=batch_size,
-            validation_data=(x_eval, y_eval),
+        result = adapter.train(
+            model,
+            _require_arrays(message),
+            ClientDatasets(
+                x_train=x_train,
+                y_train=y_train,
+                x_eval=x_eval,
+                y_eval=y_eval,
+                x_test=x_test,
+                y_test=y_test,
+            ),
+            config,
             verbose=context.run_config.get("verbose"),
         )
 
-        history_metrics = history.history
         reply = RecordDict(
             {
-                ARRAYS_KEY: ArrayRecord(model.get_weights()),
-                METRICS_KEY: MetricRecord(
-                    {
-                        "num-examples": len(x_train),
-                        "train-loss": _as_float(history_metrics["loss"][-1]),
-                        "train-val-loss": _as_float(history_metrics.get("val_loss", [0.0])[-1]),
-                    }
-                ),
-                HISTORY_KEY: ConfigRecord({"history": json.dumps(history_metrics)}),
+                ARRAYS_KEY: result.arrays,
+                METRICS_KEY: result.metrics,
             }
         )
+        if result.history is not None:
+            reply[HISTORY_KEY] = ConfigRecord({"history": json.dumps(result.history)})
         return message.create_reply(reply)
     except Exception as exc:
         return _error_reply(message, exc)
@@ -133,26 +117,30 @@ def train(message: Message, context: Context) -> Message:
 
 @app.evaluate()
 def evaluate(message: Message, context: Context) -> Message:
-    global model, x_test, y_test
+    global adapter, model, x_train, y_train, x_eval, y_eval, x_test, y_test
 
     try:
         config = _require_config(message)
         _ensure_client_state(context, config)
 
-        model.set_weights(_require_arrays(message).to_numpy_ndarrays())
-        evaluation = model.evaluate(x_test, y_test, verbose=0, return_dict=True)
-
-        metrics = {
-            "num-examples": len(x_test),
-            "loss": _as_float(evaluation.pop("loss")),
-        }
-        for key, value in evaluation.items():
-            metrics[key] = _as_float(value)
+        metrics = adapter.evaluate(
+            model,
+            _require_arrays(message),
+            ClientDatasets(
+                x_train=x_train,
+                y_train=y_train,
+                x_eval=x_eval,
+                y_eval=y_eval,
+                x_test=x_test,
+                y_test=y_test,
+            ),
+            config,
+        )
 
         return message.create_reply(
             RecordDict(
                 {
-                    METRICS_KEY: MetricRecord(metrics),
+                    METRICS_KEY: metrics,
                 }
             )
         )

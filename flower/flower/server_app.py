@@ -2,41 +2,23 @@ import json
 import os
 import wandb
 
-from flwr.app import ArrayRecord, ConfigRecord, Context, MetricRecord
+from flwr.app import Context, MetricRecord
 from flwr.serverapp import Grid, ServerApp
 
-from flower.task import *
+from flower.frameworks import get_adapter_for_scenario
+from flower.frameworks.base import HoldOutDataset
 from flower.strategies import SaveModelFedAvg, aggregate_numeric_metrics
+from flower.task import load_server_config, load_server_data
 
 
-def get_centralised_evaluation_fn(model, x_hold_out, y_hold_out): # testloader loads the centralised test set
+def get_centralised_evaluation_fn(adapter, model, x_hold_out, y_hold_out):
+    dataset = HoldOutDataset(x_hold_out=x_hold_out, y_hold_out=y_hold_out)
 
     def evaluate_centralised(server_round, arrays):
-        model.set_weights(arrays.to_numpy_ndarrays())
-        evaluation = model.evaluate(x_hold_out, y_hold_out, verbose=0, return_dict=True)
-
-        metrics = {"loss": float(evaluation.pop("loss"))}
-        for key, value in evaluation.items():
-            metrics[key] = float(value)
-
+        metrics = adapter.evaluate_centralised(model, arrays, dataset)
         wandb.log({f"centralised/{key}": value for key, value in metrics.items()}, step=server_round)
-        return MetricRecord(metrics)
-    
+        return MetricRecord(dict(metrics))
     return evaluate_centralised
-
-
-def make_on_fit_config(framework: str, model_data: dict, local_epochs: int, batch_size: int, label_column: str):
-
-    print("Preparing train config for clients")
-    return ConfigRecord(
-        {
-            "framework": framework,
-            "model_config": json.dumps(model_data),
-            "local_epochs": int(local_epochs),
-            "batch_size": int(batch_size),
-            "label_column": label_column,
-        }
-    )
 
 
 def write_json(path: str, payload) -> None:
@@ -49,26 +31,39 @@ app = ServerApp()
 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
-    framework, scenario_name, hold_out_dataset, drop_cols, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column = load_server_config()
+    del context
+    scenario = load_server_config()
+    adapter = get_adapter_for_scenario(scenario)
 
-    model = keras.models.model_from_json(json.dumps(model_data))
-    initial_arrays = ArrayRecord(model.get_weights())
+    scenario_name = scenario["name"]
+    aggregation = scenario["aggregation"]
+    training = scenario["training"]
+    label_column = scenario["label_column"]
+    drop_cols = scenario["preprocessing"]["drop_columns"]
+    model_config = adapter.model_config_from_scenario(scenario)
 
+    model = adapter.build_model_from_scenario(scenario)
+    initial_arrays = adapter.initial_arrays(model)
     evaluate_fn = None
-    if hold_out_dataset:
-        x_hold_out, y_hold_out = load_server_data(label_column, drop_cols)
-        evaluate_fn = get_centralised_evaluation_fn(model, x_hold_out, y_hold_out)
+    if scenario["hold_out_dataset"]:
+        x_hold_out, y_hold_out = load_server_data(
+            label_column,
+            drop_cols,
+            adapt_features=lambda x: adapter.adapt_features(x, model_config),
+        )
+        evaluate_fn = get_centralised_evaluation_fn(adapter, model, x_hold_out, y_hold_out)
 
     strategy = SaveModelFedAvg(
         scenario_name=scenario_name,
         model=model,
+        adapter=adapter,
         share_dir="share",
-        server_rounds=server_rounds,
-        fraction_train=fraction_fit,
-        fraction_evaluate=fraction_evaluate,
+        server_rounds=training["server_rounds"],
+        fraction_train=aggregation["fraction_fit"],
+        fraction_evaluate=aggregation["fraction_evaluate"],
         min_train_nodes=1,
         min_evaluate_nodes=1,
-        min_available_nodes=min_available_clients,
+        min_available_nodes=aggregation["min_available_clients"],
         arrayrecord_key="arrays",
         configrecord_key="config",
         weighted_by_key="num-examples",
@@ -76,11 +71,11 @@ def main(grid: Grid, context: Context) -> None:
         evaluate_metrics_aggr_fn=aggregate_numeric_metrics,
     )
     try:
-        config = make_on_fit_config(framework, model_data, local_epochs, batch_size, label_column)
+        config = adapter.make_config_record(scenario)
         result = strategy.start(
             grid=grid,
             initial_arrays=initial_arrays,
-            num_rounds=server_rounds,
+            num_rounds=training["server_rounds"],
             train_config=config,
             evaluate_config=config,
             evaluate_fn=evaluate_fn,

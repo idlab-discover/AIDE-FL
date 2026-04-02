@@ -15,13 +15,14 @@ The current implementation is partly migrated:
   `ClientApp.evaluate` with explicit `Message` handling
 - `flower/flower/server_app.py` now uses `ServerApp.main` +
   `serverapp.strategy.FedAvg.start(...)`
-- framework-specific behavior is still mixed directly into shared helpers in
-  `flower/flower/task.py`
-- the TensorFlow path now carries explicit framework/model fields in
-  `ConfigRecord`, but only TensorFlow is implemented so far
+- framework-specific behavior now hangs off an adapter boundary under
+  `flower/flower/frameworks/`
+- `flower/flower/task.py` is now limited to shared scenario/parquet helpers
+- the TensorFlow path carries explicit framework/model fields in `ConfigRecord`
+  and is the first adapter-backed implementation
 
-This is a better Flower `1.27.x` shape for the TensorFlow baseline, but it is
-still not the final multi-framework architecture.
+This is a better Flower `1.27.x` shape for the TensorFlow baseline. It is now
+ready for additional frameworks to plug into the same adapter contract.
 
 ## Target Flower Concepts
 
@@ -115,6 +116,14 @@ Important implication:
 - `scenario.model` should define how to build the local model, not how the
   federated transport is represented
 
+Current TensorFlow implementation:
+
+- `ArrayRecord` carries Keras weight ndarrays explicitly
+- authored model definitions remain Keras JSON
+- checkpoint artifacts remain `.weights.h5`
+- final exported model state remains `.safetensors`, with final TensorFlow
+  weights also written as `.weights.h5`
+
 ### ConfigRecord
 
 `ConfigRecord` should carry run-specific instructions from server to client.
@@ -198,9 +207,5 @@ The next code steps should now follow this order:
 1. Keep removing runtime behavior that depends on legacy Flower CLI/config
    assumptions.
 2. Stabilize the current TensorFlow Message API path with live runs on-cluster.
-3. Split framework adapters away from the TensorFlow baseline so
-   `flower/flower/task.py` stops being the shared framework choke point.
-4. Replace TensorFlow-specific config payload assumptions with a framework-aware
-   scenario/model contract.
-5. Add the next framework on top of the adapter boundary, starting with
+3. Add the next framework on top of the adapter boundary, starting with
    scikit-learn.

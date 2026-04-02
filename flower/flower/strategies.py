@@ -2,14 +2,14 @@ import json
 import os
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
-import numpy as np
-import tensorflow as tf
 import wandb
-from flwr.app import ArrayRecord, ConfigRecord, MetricRecord
+from flwr.app import MetricRecord
 from flwr.serverapp.strategy import FedAvg
 from flwr.serverapp.strategy.fedavg import aggregate_arrayrecords
-from safetensors.numpy import save_file
+
+from flower.frameworks.base import FrameworkAdapter
 
 ARRAYS_KEY = "arrays"
 CONFIG_KEY = "config"
@@ -50,10 +50,19 @@ def aggregate_numeric_metrics(contents, weighted_by_key: str) -> MetricRecord:
 
 
 class SaveModelFedAvg(FedAvg):
-    def __init__(self, scenario_name: str, model: tf.keras.Model, share_dir: str, server_rounds: int, **kwargs):
+    def __init__(
+        self,
+        scenario_name: str,
+        model: Any,
+        adapter: FrameworkAdapter,
+        share_dir: str,
+        server_rounds: int,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.scenario_name = scenario_name
         self.model = model
+        self.adapter = adapter
         self.share_dir = share_dir
         self.server_rounds = server_rounds
         self.fitted_validated_metrics = {}
@@ -91,19 +100,14 @@ class SaveModelFedAvg(FedAvg):
         if arrays is None:
             return arrays, metrics
 
-        weights = arrays.to_numpy_ndarrays()
-        self.model.set_weights(weights)
-
-        if server_round == self.server_rounds:
-            weights_dict = {
-                f"weight_{i}": w.astype(np.float32) if not np.issubdtype(w.dtype, np.floating) else w
-                for i, w in enumerate(weights)
-            }
-            save_file(weights_dict, os.path.join(self.share_dir, f"{self.scenario_name}.safetensors"))
-
-        checkpoint = os.path.join(self.share_dir, f"{self.scenario_name}_round_{server_round}.weights.h5")
-        self.model.save_weights(checkpoint)
-        print(f"Saved checkpoint to {checkpoint}")
+        self.adapter.save_server_artifacts(
+            model=self.model,
+            arrays=arrays,
+            share_dir=self.share_dir,
+            scenario_name=self.scenario_name,
+            server_round=server_round,
+            server_rounds=self.server_rounds,
+        )
 
         if metrics is not None:
             wandb.log(

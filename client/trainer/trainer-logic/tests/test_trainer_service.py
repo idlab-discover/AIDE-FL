@@ -92,6 +92,23 @@ class TrainerServiceTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not compatible with dataset"):
             self.service.validate(make_scenario([None, 3]))
 
+    def test_validate_rejects_unsupported_framework(self):
+        frame = pd.DataFrame(
+            {
+                "feature_a": [1.0, 2.0],
+                "label": [0.0, 1.0],
+            }
+        )
+        self.write_test_parquet(frame)
+
+        scenario = {
+            "framework": "xgboost",
+            "label_column": "label",
+        }
+
+        with self.assertRaisesRegex(ValueError, "unsupported framework"):
+            self.service.validate(scenario)
+
 
 if __name__ == "__main__":
     unittest.main()
