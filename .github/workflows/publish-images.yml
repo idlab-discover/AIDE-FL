@@ -15,6 +15,8 @@ permissions:
 jobs:
   build-flower-bases:
     runs-on: ubuntu-latest
+    outputs:
+      flower_base_changed: ${{ steps.changes.outputs.flower_base_changed }}
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +29,42 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Flower base changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "flower_base_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            base_ref="${{ github.event.before }}"
+          else
+            base_ref="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+
+          if [[ -z "${base_ref}" ]]; then
+            echo "flower_base_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git diff --name-only "${base_ref}" HEAD -- \
+            flower/serverapp-base.Dockerfile \
+            flower/clientapp-base.Dockerfile \
+            flower/serverapp-requirements.txt \
+            flower/clientapp-requirements.txt \
+            flower/pyproject.toml \
+            | grep -q .; then
+            echo "flower_base_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "flower_base_changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -71,6 +109,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and publish base image
+        if: ${{ steps.changes.outputs.flower_base_changed == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: flower
@@ -83,7 +122,6 @@ jobs:
 
   build-and-publish:
     runs-on: ubuntu-latest
-    needs: build-flower-bases
     strategy:
       fail-fast: false
       matrix:
@@ -100,14 +138,6 @@ jobs:
           - image: trainer-logic
             context: client/trainer/trainer-logic
             dockerfile: client/trainer/trainer-logic/Dockerfile
-          - image: flower-clientapp
-            context: flower
-            dockerfile: flower/clientapp.Dockerfile
-            base_image: flower-clientapp-base
-          - image: flower-serverapp
-            context: flower
-            dockerfile: flower/serverapp.Dockerfile
-            base_image: flower-serverapp-base
           - image: server-logic
             context: server/server/server-logic
             dockerfile: server/server/server-logic/Dockerfile
@@ -161,7 +191,6 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and publish image
-        if: ${{ !matrix.base_image }}
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
@@ -172,8 +201,87 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
+  build-and-publish-flower:
+    runs-on: ubuntu-latest
+    needs: build-flower-bases
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: flower-clientapp
+            context: flower
+            dockerfile: flower/clientapp.Dockerfile
+            base_image: flower-clientapp-base
+          - image: flower-serverapp
+            context: flower
+            dockerfile: flower/serverapp.Dockerfile
+            base_image: flower-serverapp-base
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR with PAT
+        if: ${{ secrets.GHCR_PAT != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME || github.repository_owner }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Log in to GHCR with GITHUB_TOKEN
+        if: ${{ secrets.GHCR_PAT == '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image name
+        id: image
+        env:
+          OWNER: ${{ github.repository_owner }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          owner_lc="$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          echo "name=ghcr.io/${owner_lc}/${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "owner=${owner_lc}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=sha,format=short,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Wait for matching Flower base tag
+        if: ${{ needs.build-flower-bases.outputs.flower_base_changed == 'true' }}
+        shell: bash
+        env:
+          BASE_IMAGE: ghcr.io/${{ steps.image.outputs.owner }}/${{ matrix.base_image }}:${{ steps.image.outputs.sha_tag }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 30); do
+            if docker manifest inspect "${BASE_IMAGE}" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for ${BASE_IMAGE} to become available in GHCR" >&2
+          exit 1
+
       - name: Build and publish Flower image
-        if: ${{ matrix.base_image }}
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
