@@ -51,13 +51,14 @@ The workflow publishes with `GITHUB_TOKEN` by default. If an existing GHCR packa
 
 ## Scenarios
 
-Scenarios are the driving factor behind this framework. They include the required dataset name, preprocessing steps, hyperparameters, and model architecture. It is sent from the central server to each client which prepare themselves for training. Once they are all done preparing, the server will start the training process.
+Scenarios are the driving factor behind this framework. They include the required dataset name, preprocessing steps, training settings, aggregation settings, and framework-specific model definition. It is sent from the central server to each client which prepare themselves for training. Once they are all done preparing, the server will start the training process.
 
 A scenario follows a certain JSON template:
 
 ```json
 {
   "name": "string",
+  "framework": "string",
   "dataset": "string",
   "datasets": {
     "string": "string"
@@ -75,24 +76,30 @@ A scenario follows a certain JSON template:
         "test": float
     }
   },
-  "hyper": {
+  "training": {
     "server_rounds": int,
     "local_epochs": int,
     "batch_size": int
   },
-  "strategy": {
+  "aggregation": {
+    "strategy": "fedavg",
     "fraction_fit": float,
     "fraction_evaluate": float,
     "min_available_clients": int
   },
-  "model_file": "string",
-  "model": dict
+  "tensorflow": {
+    "model": {
+      "config_file": "string",
+      "config": dict
+    }
+  }
 }
 ```
 
 - `name`: Name for the scenario. This is the UID for the scenario. Change the name of the scenario if modifications are made. If a training session is started with a different scenario but with the same name as a previous one, the previous scenario will be used.
+- `framework`: The ML framework/runtime family. Current live support is TensorFlow via `framework: "tensorflow"` with a matching `tensorflow` block.
 - `dataset` (mutually exclusive with `datasets`): Uses the parquet dataset in each client's Minio datastore with matching name (under `datasets/[datasetname].parquet`), or tries downloading the dataset from Kaggle (e.g. `dhoogla-nfunswnb15v2` matches with dataset `nfunswnb15v2` (case insensitive) of user `dhoogla`) and uploads it to the Minio datastore. NOTE: The downloaded zip from Kaggle must contain a dataset as parquet file and the first one is taken if there would be multiple parquet files.
-- `datasets` (mutually exclusive with `dataset`): Similar to `dataset` but with the ability to define a dataset per client (clients are identified by the node's name on which they run). Value must be a dictionary (e.g. `{"client1": "some-dataset"}`). The length of `datasets` must be greater than or equal to `strategy.min_available_clients`.
+- `datasets` (mutually exclusive with `dataset`): Similar to `dataset` but with the ability to define a dataset per client (clients are identified by the node's name on which they run). Value must be a dictionary (e.g. `{"client1": "some-dataset"}`). The length of `datasets` must be greater than or equal to `aggregation.min_available_clients`.
 - `hold_out_dataset`: This optional value holds the name of a dataset which is used to evaluate the aggregated model at the end of each round at server-side. This dataset must be placed in the server’s datastore or, like before, may refer to a Kaggle dataset which will be downloaded to the server’s datastore.
 - `centralised`: If `true`, the framework retrieves the dataset(s) set in `dataset` or `datasets` from the server's Minio datastore. If `false`, the client's own Minio datastores are used.
 - `label_column`: The name of the column containing the labels of your dataset. 
@@ -100,16 +107,26 @@ A scenario follows a certain JSON template:
 - `preprocessing.drop_rows`: Drop amount of random rows ro shrink dataset.
 - `preprocessing.shuffle`: Shuffle dataset.
 - `preprocessing.split`: Percentage between `train`, `eval` and `test` splits.
-- `hyper.server_rounds`: Amount of aggregating rounds between clients and server.
-- `hyper.local_epochs`: Amount of local epochs to perform by clients between aggregations.
-- `hyper.batch_size`: Batch size for local epochs.
-- `strategy.fraction_fit`: Percentage of available clients that are required for fitting.
-- `strategy.fraction_evaluate`: Percentage of available clients that are required for evaluation.
-- `strategy.min_available_clients`: Minimum amount of clients that need to be available/connected for a training sessions.
-- `model_file`: Preferred authored format. Path to a JSON file containing the arbitrary Keras architecture agreed upon by the participants.
-- `model`: Backward-compatible inline architecture payload. This is still accepted during the transition period and is what runtime components currently consume after scenario rendering.
+- `training.server_rounds`: Amount of aggregating rounds between clients and server.
+- `training.local_epochs`: Amount of local epochs to perform by clients between aggregations.
+- `training.batch_size`: Batch size for local epochs.
+- `aggregation.strategy`: Aggregation strategy. The only supported value right now is `fedavg`.
+- `aggregation.fraction_fit`: Percentage of available clients that are required for fitting.
+- `aggregation.fraction_evaluate`: Percentage of available clients that are required for evaluation.
+- `aggregation.min_available_clients`: Minimum amount of clients that need to be available/connected for a training sessions.
+- `tensorflow.model.config_file`: Preferred authored format. Path to a TensorFlow/Keras model config file relative to the scenario file or absolute on disk.
+- `tensorflow.model.config`: Inline TensorFlow/Keras model config payload. This remains useful for tests and generated scenarios.
 
-To submit an authored scenario containing `model_file`, render it first so the payload includes `model`:
+Legacy compatibility:
+
+- top-level `hyper` is still accepted and normalized to `training`.
+- top-level legacy `strategy` is still accepted and normalized to `aggregation` with `aggregation.strategy: "fedavg"`.
+- top-level `model_file` is still accepted and normalized to `tensorflow.model.config_file`.
+- top-level raw `model` payloads are still accepted and normalized to `tensorflow.model.config`.
+
+These legacy fields emit deprecation warnings and are intended as a migration bridge only.
+
+To submit an authored scenario containing `tensorflow.model.config_file`, render it first so the payload includes `tensorflow.model.config`:
 
 ```bash
 python render_scenario.py examples/nids.json | \
@@ -125,7 +142,7 @@ Interacting with the framework happens fully through the central server (`http:/
 - POST `/start`: Start a training run with a scenario as body. The example scenario above can be used to try it out. The response of a successfull request will include that run's `run-id` which can be used to get its status.
 
   ```bash
-  # Here, scenario.json may use model_file in authored form
+  # Here, scenario.json may use tensorflow.model.config_file in authored form
   python render_scenario.py scenario.json | \
     curl -X POST -H "Content-Type: application/json" --data @- http://[server-address]/start
   ```

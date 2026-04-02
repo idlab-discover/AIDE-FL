@@ -24,6 +24,8 @@ import (
 )
 
 const shareDir = "/app/share"
+const defaultFramework = "tensorflow"
+const defaultAggregationStrategy = "fedavg"
 
 type serverLogicServiceImpl struct {
 	configuration.Config
@@ -56,13 +58,32 @@ func datasetsValidation(sl validator.StructLevel) {
 	}
 
 	// datasets must contain at least as much entries as the min amount of available clients that are required
-	if len(scenario.Datasets) > 0 && len(scenario.Datasets) < scenario.Strategy.MinAvailableClients {
-		sl.ReportError(scenario.Datasets, "Datasets", "datasets", "min_available_clients", fmt.Sprintf("need at least %d datasets, got %d", scenario.Strategy.MinAvailableClients, len(scenario.Datasets)))
+	if len(scenario.Datasets) > 0 && len(scenario.Datasets) < scenario.Aggregation.MinAvailableClients {
+		sl.ReportError(scenario.Datasets, "Datasets", "datasets", "min_available_clients", fmt.Sprintf("need at least %d datasets, got %d", scenario.Aggregation.MinAvailableClients, len(scenario.Datasets)))
 	}
 
-	if len(scenario.Model) == 0 && scenario.ModelFile == "" {
-		sl.ReportError(scenario.Model, "Model", "model", "required_if_missing_model_file", "")
-		sl.ReportError(scenario.ModelFile, "ModelFile", "model_file", "required_if_missing_model", "")
+	switch scenario.Framework {
+	case defaultFramework:
+		if scenario.TensorFlow == nil {
+			sl.ReportError(scenario.TensorFlow, "TensorFlow", "tensorflow", "required", "")
+		} else if len(scenario.TensorFlow.Model.Config) == 0 && scenario.TensorFlow.Model.ConfigFile == "" {
+			sl.ReportError(scenario.TensorFlow.Model, "Model", "tensorflow.model", "required", "")
+		}
+	default:
+		sl.ReportError(scenario.Framework, "Framework", "framework", "unsupported", "")
+	}
+
+	if scenario.Framework != defaultFramework && scenario.TensorFlow != nil {
+		sl.ReportError(scenario.TensorFlow, "TensorFlow", "tensorflow", "forbidden", "")
+	}
+	if scenario.Framework != "scikit_learn" && len(scenario.ScikitLearn) != 0 {
+		sl.ReportError(scenario.ScikitLearn, "ScikitLearn", "scikit_learn", "forbidden", "")
+	}
+	if scenario.Framework != "xgboost" && len(scenario.XGBoost) != 0 {
+		sl.ReportError(scenario.XGBoost, "XGBoost", "xgboost", "forbidden", "")
+	}
+	if scenario.Aggregation.Strategy != defaultAggregationStrategy {
+		sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
 	}
 }
 
@@ -77,6 +98,7 @@ func (service *serverLogicServiceImpl) DecodeScenario(r io.ReadCloser) (*model.S
 		return nil, fmt.Errorf("unable to decode JSON to scenario: %w", err)
 	}
 
+	service.normalizeScenario(&scenario)
 	if err := service.resolveScenarioModel(&scenario); err != nil {
 		return nil, err
 	}
@@ -84,22 +106,70 @@ func (service *serverLogicServiceImpl) DecodeScenario(r io.ReadCloser) (*model.S
 	return &scenario, nil
 }
 
+func (service *serverLogicServiceImpl) warnDeprecated(field string, replacement string) {
+	slog.Warn("Deprecated scenario field encountered", "field", field, "replacement", replacement)
+}
+
+func (service *serverLogicServiceImpl) normalizeScenario(scenario *model.Scenario) {
+	if scenario.LegacyHyper != nil {
+		service.warnDeprecated("hyper", "training")
+		scenario.Training = *scenario.LegacyHyper
+		scenario.LegacyHyper = nil
+	}
+
+	if scenario.LegacyStrategy != nil {
+		service.warnDeprecated("strategy", "aggregation")
+		scenario.Aggregation = model.Aggregation{
+			Strategy:            defaultAggregationStrategy,
+			FractionFit:         scenario.LegacyStrategy.FractionFit,
+			FractionEvaluate:    scenario.LegacyStrategy.FractionEvaluate,
+			MinAvailableClients: scenario.LegacyStrategy.MinAvailableClients,
+		}
+		scenario.LegacyStrategy = nil
+	}
+
+	if scenario.Framework != defaultFramework {
+		return
+	}
+
+	if scenario.TensorFlow == nil {
+		scenario.TensorFlow = &model.TensorFlowFramework{}
+	}
+
+	if len(scenario.LegacyModel) != 0 {
+		service.warnDeprecated("model", "tensorflow.model")
+		scenario.TensorFlow.Model.Config = scenario.LegacyModel
+		scenario.LegacyModel = nil
+	}
+
+	if scenario.LegacyModelFile != "" {
+		service.warnDeprecated("model_file", "tensorflow.model.config_file")
+		scenario.TensorFlow.Model.ConfigFile = scenario.LegacyModelFile
+		scenario.LegacyModelFile = ""
+	}
+}
+
 func (service *serverLogicServiceImpl) resolveScenarioModel(scenario *model.Scenario) error {
-	if len(scenario.Model) != 0 || scenario.ModelFile == "" {
+	if scenario.Framework != defaultFramework || scenario.TensorFlow == nil {
 		return nil
 	}
 
-	modelBytes, err := os.ReadFile(scenario.ModelFile)
+	modelPath := scenario.TensorFlow.Model.ConfigFile
+	if len(scenario.TensorFlow.Model.Config) != 0 || modelPath == "" {
+		return nil
+	}
+
+	modelBytes, err := os.ReadFile(modelPath)
 	if err != nil {
-		return fmt.Errorf("unable to read model_file %q: %w", scenario.ModelFile, err)
+		return fmt.Errorf("unable to read model config file %q: %w", modelPath, err)
 	}
 
 	var modelData map[string]interface{}
 	if err := json.Unmarshal(modelBytes, &modelData); err != nil {
-		return fmt.Errorf("unable to decode model_file %q: %w", scenario.ModelFile, err)
+		return fmt.Errorf("unable to decode model config file %q: %w", modelPath, err)
 	}
 
-	scenario.Model = modelData
+	scenario.TensorFlow.Model.Config = modelData
 	return nil
 }
 
@@ -125,11 +195,31 @@ func (service *serverLogicServiceImpl) scenarioForClient(baseScenario model.Scen
 	return baseScenario
 }
 
+func (service *serverLogicServiceImpl) runtimeCompatibleScenario(scenario model.Scenario) model.Scenario {
+	scenario.LegacyHyper = &model.Training{
+		ServerRounds: scenario.Training.ServerRounds,
+		LocalEpochs:  scenario.Training.LocalEpochs,
+		BatchSize:    scenario.Training.BatchSize,
+	}
+	scenario.LegacyStrategy = &model.LegacyAggregation{
+		FractionFit:         scenario.Aggregation.FractionFit,
+		FractionEvaluate:    scenario.Aggregation.FractionEvaluate,
+		MinAvailableClients: scenario.Aggregation.MinAvailableClients,
+	}
+
+	if scenario.Framework == defaultFramework && scenario.TensorFlow != nil {
+		scenario.LegacyModel = scenario.TensorFlow.Model.Config
+	}
+
+	return scenario
+}
+
 func (service *serverLogicServiceImpl) StartClients(scenario *model.Scenario, prepId uuid.UUID, clients map[string]*model.Client) {
 	slog.Info("Starting", "clients", slices.Collect(maps.Keys(clients)))
 
 	for _, c := range clients {
 		clientScenario := service.scenarioForClient(*scenario, c.Id)
+		clientScenario = service.runtimeCompatibleScenario(clientScenario)
 
 		scenarioMessage := model.ScenarioMessage{
 			PrepId:   prepId.String(),
@@ -149,7 +239,8 @@ func (service *serverLogicServiceImpl) SetFlowerConfig(scenario *model.Scenario)
 	slog.Info("Updating config file")
 	config_path := path.Join(shareDir, "config.ini")
 
-	scenario_json, err := json.Marshal(scenario)
+	runtimeScenario := service.runtimeCompatibleScenario(*scenario)
+	scenario_json, err := json.Marshal(runtimeScenario)
 	exception.PanicLogging(err, "Unable to unmarshal scenario from JSON")
 
 	err = os.MkdirAll(filepath.Dir(config_path), 0o755)

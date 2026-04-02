@@ -2,6 +2,7 @@ package impl
 
 import (
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-func TestDecodeScenarioResolvesModelFile(t *testing.T) {
+func TestDecodeScenarioResolvesLegacyModelFile(t *testing.T) {
 	tempDir := t.TempDir()
 	modelPath := filepath.Join(tempDir, "model.json")
 	if err := os.WriteFile(modelPath, []byte(`{"class_name":"Sequential","config":{"layers":[]}}`), 0o644); err != nil {
@@ -21,6 +22,7 @@ func TestDecodeScenarioResolvesModelFile(t *testing.T) {
 	service := &serverLogicServiceImpl{}
 	body := io.NopCloser(strings.NewReader(`{
 		"name":"demo",
+		"framework":"tensorflow",
 		"dataset":"dataset",
 		"label_column":"label",
 		"preprocessing":{"drop_columns":[],"drop_rows":0,"shuffle":false,"split":{"train":0.7,"eval":0.2,"test":0.1}},
@@ -33,29 +35,107 @@ func TestDecodeScenarioResolvesModelFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeScenario returned error: %v", err)
 	}
-	if scenario.ModelFile != modelPath {
-		t.Fatalf("expected model_file %q, got %q", modelPath, scenario.ModelFile)
+	if scenario.Framework != defaultFramework {
+		t.Fatalf("expected framework %q, got %q", defaultFramework, scenario.Framework)
 	}
-	if len(scenario.Model) == 0 {
+	if scenario.Training.ServerRounds != 1 {
+		t.Fatalf("expected training to be normalized, got %#v", scenario.Training)
+	}
+	if scenario.Aggregation.Strategy != defaultAggregationStrategy {
+		t.Fatalf("expected aggregation strategy %q, got %q", defaultAggregationStrategy, scenario.Aggregation.Strategy)
+	}
+	if scenario.TensorFlow == nil || len(scenario.TensorFlow.Model.Config) == 0 {
 		t.Fatal("expected model to be loaded from model_file")
 	}
 }
 
-func TestValidateScenarioRequiresModelOrModelFile(t *testing.T) {
+func TestDecodeScenarioResolvesFrameworkAwareConfigFile(t *testing.T) {
+	tempDir := t.TempDir()
+	modelPath := filepath.Join(tempDir, "model.json")
+	if err := os.WriteFile(modelPath, []byte(`{"class_name":"Sequential","config":{"layers":[]}}`), 0o644); err != nil {
+		t.Fatalf("write model file: %v", err)
+	}
+
+	service := &serverLogicServiceImpl{}
+	body := io.NopCloser(strings.NewReader(`{
+		"name":"demo",
+		"framework":"tensorflow",
+		"dataset":"dataset",
+		"label_column":"label",
+		"preprocessing":{"drop_columns":[],"drop_rows":0,"shuffle":false,"split":{"train":0.7,"eval":0.2,"test":0.1}},
+		"training":{"server_rounds":1,"local_epochs":1,"batch_size":16},
+		"aggregation":{"strategy":"fedavg","fraction_fit":1,"fraction_evaluate":1,"min_available_clients":1},
+		"tensorflow":{"model":{"config_file":"` + modelPath + `"}}
+	}`))
+
+	scenario, err := service.DecodeScenario(body)
+	if err != nil {
+		t.Fatalf("DecodeScenario returned error: %v", err)
+	}
+	if scenario.TensorFlow == nil {
+		t.Fatal("expected tensorflow block to be present")
+	}
+	if scenario.TensorFlow.Model.ConfigFile != modelPath {
+		t.Fatalf("expected config_file %q, got %q", modelPath, scenario.TensorFlow.Model.ConfigFile)
+	}
+	if len(scenario.TensorFlow.Model.Config) == 0 {
+		t.Fatal("expected model config to be loaded from config_file")
+	}
+}
+
+func TestValidateScenarioRequiresTensorFlowBlock(t *testing.T) {
 	service := &serverLogicServiceImpl{}
 	service.Validate = validator.New()
 	service.Validate.RegisterStructValidation(datasetsValidation, model.Scenario{})
 
 	scenario := &model.Scenario{
 		Name:          "demo",
+		Framework:     defaultFramework,
 		Dataset:       "dataset",
 		LabelColumn:   "label",
 		Preprocessing: model.Preprocessing{DropColumns: []string{}, Split: model.SplitConfig{Train: 0.7, Eval: 0.2, Test: 0.1}},
-		Hyper:         model.Hyper{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
-		Strategy:      model.Strategy{FractionFit: 1, FractionEvaluate: 1, MinAvailableClients: 1},
+		Training:      model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation:   model.Aggregation{Strategy: defaultAggregationStrategy, FractionFit: 1, FractionEvaluate: 1, MinAvailableClients: 1},
 	}
 
 	if err := service.ValidateScenario(scenario); err == nil {
-		t.Fatal("expected validation error when both model and model_file are missing")
+		t.Fatal("expected validation error when model details are missing")
+	}
+}
+
+func TestDecodeScenarioLogsDeprecationWarnings(t *testing.T) {
+	var logs strings.Builder
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	originalLogger := slog.Default()
+	slog.SetDefault(logger)
+	defer slog.SetDefault(originalLogger)
+
+	tempDir := t.TempDir()
+	modelPath := filepath.Join(tempDir, "model.json")
+	if err := os.WriteFile(modelPath, []byte(`{"class_name":"Sequential","config":{"layers":[]}}`), 0o644); err != nil {
+		t.Fatalf("write model file: %v", err)
+	}
+
+	service := &serverLogicServiceImpl{}
+	body := io.NopCloser(strings.NewReader(`{
+		"name":"demo",
+		"framework":"tensorflow",
+		"dataset":"dataset",
+		"label_column":"label",
+		"preprocessing":{"drop_columns":[],"drop_rows":0,"shuffle":false,"split":{"train":0.7,"eval":0.2,"test":0.1}},
+		"hyper":{"server_rounds":1,"local_epochs":1,"batch_size":16},
+		"strategy":{"fraction_fit":1,"fraction_evaluate":1,"min_available_clients":1},
+		"model_file":"` + modelPath + `"
+	}`))
+
+	if _, err := service.DecodeScenario(body); err != nil {
+		t.Fatalf("DecodeScenario returned error: %v", err)
+	}
+
+	output := logs.String()
+	for _, field := range []string{"hyper", "strategy", "model_file"} {
+		if !strings.Contains(output, "field="+field) {
+			t.Fatalf("expected deprecation warning for %s, got %q", field, output)
+		}
 	}
 }

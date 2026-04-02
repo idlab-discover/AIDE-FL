@@ -3,11 +3,13 @@ package model
 type Scenario struct {
 	PrepID        string                 `json:"prep_id,omitempty"`
 	Name          string                 `json:"name"`
+	Framework     string                 `json:"framework"`
 	Dataset       string                 `json:"dataset"`
 	LabelColumn   string                 `json:"label_column"`
 	Preprocessing map[string]interface{} `json:"preprocessing"`
-	Hyper         map[string]interface{} `json:"hyper"`
-	Strategy      map[string]interface{} `json:"strategy"`
-	ModelFile     string                 `json:"model_file,omitempty"`
-	Model         map[string]interface{} `json:"model"`
+	Training      map[string]interface{} `json:"training"`
+	Aggregation   map[string]interface{} `json:"aggregation"`
+	TensorFlow    map[string]interface{} `json:"tensorflow,omitempty"`
+	ScikitLearn   map[string]interface{} `json:"scikit_learn,omitempty"`
+	XGBoost       map[string]interface{} `json:"xgboost,omitempty"`
 }

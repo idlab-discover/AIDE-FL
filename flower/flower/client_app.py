@@ -39,12 +39,17 @@ def _ensure_client_state(context: Context, config: ConfigRecord):
     global x_train, y_train, x_eval, y_eval, x_test, y_test
 
     state_config = context.state.config_records.get(STATE_KEY)
-    model_data_str = config["model_data"]
+    framework = config["framework"]
+    model_data_str = config["model_config"]
     label_column = config["label_column"]
+
+    if framework != "tensorflow":
+        raise ValueError(f"unsupported framework: {framework}")
 
     reload_local_state = (
         state_config is None
-        or state_config.get("model_data") != model_data_str
+        or state_config.get("framework") != framework
+        or state_config.get("model_config") != model_data_str
         or state_config.get("label_column") != label_column
     )
 
@@ -61,7 +66,8 @@ def _ensure_client_state(context: Context, config: ConfigRecord):
 
     context.state[STATE_KEY] = ConfigRecord(
         {
-            "model_data": model_data_str,
+            "framework": framework,
+            "model_config": model_data_str,
             "label_column": label_column,
         }
     )

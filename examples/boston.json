@@ -1,5 +1,6 @@
 {
   "name": "boston",
+  "framework": "tensorflow",
   "datasets": {
     "client1": "boston_part1",
     "client2": "boston_part2"
@@ -17,15 +18,20 @@
       "test": 0.05
     }
   },
-  "hyper": {
+  "training": {
     "server_rounds": 10,
     "local_epochs": 10,
     "batch_size": 16
   },
-  "strategy": {
+  "aggregation": {
+    "strategy": "fedavg",
     "fraction_fit": 1,
     "fraction_evaluate": 1,
     "min_available_clients": 2
   },
-  "model_file": "models/boston-model.json"
+  "tensorflow": {
+    "model": {
+      "config_file": "models/boston-model.json"
+    }
+  }
 }

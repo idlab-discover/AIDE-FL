@@ -17,16 +17,21 @@ from configuration.logger import Logger
 
 def make_scenario(input_shape):
     return {
+        "framework": "tensorflow",
         "label_column": "label",
-        "model": {
-            "config": {
-                "layers": [
-                    {
-                        "config": {
-                            "batch_shape": input_shape,
-                        }
+        "tensorflow": {
+            "model": {
+                "config": {
+                    "config": {
+                        "layers": [
+                            {
+                                "config": {
+                                    "batch_shape": input_shape,
+                                }
+                            }
+                        ]
                     }
-                ]
+                }
             }
         },
     }

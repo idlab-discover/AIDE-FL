@@ -17,8 +17,8 @@ The current implementation is partly migrated:
   `serverapp.strategy.FedAvg.start(...)`
 - framework-specific behavior is still mixed directly into shared helpers in
   `flower/flower/task.py`
-- the TensorFlow path still carries Keras-specific payload fields such as
-  `model_data` inside `ConfigRecord`
+- the TensorFlow path now carries explicit framework/model fields in
+  `ConfigRecord`, but only TensorFlow is implemented so far
 
 This is a better Flower `1.27.x` shape for the TensorFlow baseline, but it is
 still not the final multi-framework architecture.
@@ -119,13 +119,13 @@ Important implication:
 
 `ConfigRecord` should carry run-specific instructions from server to client.
 
-For the current TensorFlow path this should eventually include:
+For the current TensorFlow path this should include:
 
-- `model_data`
+- `framework`
+- `model_config`
 - `local_epochs`
 - `batch_size`
 - `label_column`
-- framework identifier once scenarios become explicit about framework choice
 
 This is the correct place for scenario-derived train/evaluate configuration that
 must be sent to each client.

@@ -2,16 +2,32 @@ package model
 
 type Scenario struct {
 	Name           string                 `json:"name" validate:"required"`
+	Framework      string                 `json:"framework" validate:"required"`
 	Dataset        string                 `json:"dataset,omitempty"`
 	Datasets       map[string]string      `json:"datasets,omitempty"`
 	HoldOutDataset string                 `json:"hold_out_dataset"`
 	Centralised    bool                   `json:"centralised"`
 	LabelColumn    string                 `json:"label_column" validate:"required"`
 	Preprocessing  Preprocessing          `json:"preprocessing" validate:"required"`
-	Hyper          Hyper                  `json:"hyper" validate:"required"`
-	Strategy       Strategy               `json:"strategy" validate:"required"`
-	ModelFile      string                 `json:"model_file,omitempty"`
-	Model          map[string]interface{} `json:"model,omitempty"`
+	Training       Training               `json:"training" validate:"required"`
+	Aggregation    Aggregation            `json:"aggregation" validate:"required"`
+	TensorFlow     *TensorFlowFramework   `json:"tensorflow,omitempty"`
+	ScikitLearn    map[string]interface{} `json:"scikit_learn,omitempty"`
+	XGBoost        map[string]interface{} `json:"xgboost,omitempty"`
+
+	LegacyHyper     *Training              `json:"hyper,omitempty"`
+	LegacyStrategy  *LegacyAggregation     `json:"strategy,omitempty"`
+	LegacyModelFile string                 `json:"model_file,omitempty"`
+	LegacyModel     map[string]interface{} `json:"model,omitempty"`
+}
+
+type TensorFlowFramework struct {
+	Model TensorFlowModel `json:"model" validate:"required"`
+}
+
+type TensorFlowModel struct {
+	ConfigFile string                 `json:"config_file,omitempty"`
+	Config     map[string]interface{} `json:"config,omitempty"`
 }
 
 type Preprocessing struct {
@@ -27,13 +43,20 @@ type SplitConfig struct {
 	Test  float64 `json:"test" validate:"required"`
 }
 
-type Hyper struct {
+type Training struct {
 	ServerRounds int `json:"server_rounds" validate:"required"`
 	LocalEpochs  int `json:"local_epochs" validate:"required"`
 	BatchSize    int `json:"batch_size" validate:"required"`
 }
 
-type Strategy struct {
+type Aggregation struct {
+	Strategy            string  `json:"strategy" validate:"required"`
+	FractionFit         float64 `json:"fraction_fit" validate:"required,gt=0,lte=1.0"`
+	FractionEvaluate    float64 `json:"fraction_evaluate" validate:"required,gt=0,lte=1.0"`
+	MinAvailableClients int     `json:"min_available_clients" validate:"required,gte=1"`
+}
+
+type LegacyAggregation struct {
 	FractionFit         float64 `json:"fraction_fit" validate:"required,gt=0,lte=1.0"`
 	FractionEvaluate    float64 `json:"fraction_evaluate" validate:"required,gt=0,lte=1.0"`
 	MinAvailableClients int     `json:"min_available_clients" validate:"required,gte=1"`

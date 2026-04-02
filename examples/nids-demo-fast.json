@@ -1,5 +1,6 @@
 {
   "name": "nids-demo-fast",
+  "framework": "tensorflow",
   "dataset": "dhoogla-nfunswnb15v2",
   "hold_out_dataset": "dhoogla-nfunswnb15v2",
   "centralised": false,
@@ -35,15 +36,20 @@
       "test": 0.15
     }
   },
-  "hyper": {
+  "training": {
     "server_rounds": 10,
     "local_epochs": 1,
     "batch_size": 512
   },
-  "strategy": {
+  "aggregation": {
+    "strategy": "fedavg",
     "fraction_fit": 1.0,
     "fraction_evaluate": 1.0,
     "min_available_clients": 2
   },
-  "model_file": "models/nids-model.json"
+  "tensorflow": {
+    "model": {
+      "config_file": "models/nids-model.json"
+    }
+  }
 }

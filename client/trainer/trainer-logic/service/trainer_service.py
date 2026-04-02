@@ -7,9 +7,25 @@ import os
 class TrainerService:
     def __init__(self):
         self.logger = Logger.get_logger("TrainerService")
+
+    def _get_tensorflow_model_config(self, scenario: dict):
+        tensorflow = scenario.get("tensorflow")
+        if not isinstance(tensorflow, dict):
+            raise ValueError("scenario is missing tensorflow block")
+
+        model = tensorflow.get("model")
+        if not isinstance(model, dict):
+            raise ValueError("scenario tensorflow block is missing model")
+
+        model_config = model.get("config")
+        if not isinstance(model_config, dict):
+            raise ValueError("scenario tensorflow model is missing config")
+
+        return model_config
     
     def _get_input_shape(self, scenario: dict):
-        layers = scenario['model']['config']['layers']
+        model_config = self._get_tensorflow_model_config(scenario)
+        layers = model_config['config']['layers']
         if not layers:
             raise ValueError("scenario model does not define any layers")
 

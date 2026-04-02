@@ -440,11 +440,11 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	// Check for ample client connections
 	clients := controller.snapshotClients()
 	clientCount := len(clients)
-	if clientCount < scenario.Strategy.MinAvailableClients {
-		slog.Error("Aborting training due to insufficient client connections", "current", clientCount, "required", scenario.Strategy.MinAvailableClients)
+	if clientCount < scenario.Aggregation.MinAvailableClients {
+		slog.Error("Aborting training due to insufficient client connections", "current", clientCount, "required", scenario.Aggregation.MinAvailableClients)
 
 		response := model.GeneralResponse{
-			Message: fmt.Sprintf("Aborting training due to insufficient client connections (%d out of %d)", clientCount, scenario.Strategy.MinAvailableClients),
+			Message: fmt.Sprintf("Aborting training due to insufficient client connections (%d out of %d)", clientCount, scenario.Aggregation.MinAvailableClients),
 			Data:    nil,
 		}
 		jsonData, _ := json.Marshal(response)

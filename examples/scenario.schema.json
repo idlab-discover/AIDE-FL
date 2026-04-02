@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aide-fl.local/examples/scenario.schema.json",
+  "title": "AIDE-FL Scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "framework",
+    "label_column",
+    "preprocessing",
+    "training",
+    "aggregation"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "framework": {
+      "type": "string",
+      "enum": ["tensorflow", "scikit_learn", "xgboost"]
+    },
+    "dataset": {
+      "type": "string",
+      "minLength": 1
+    },
+    "datasets": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "hold_out_dataset": {
+      "type": "string"
+    },
+    "centralised": {
+      "type": "boolean"
+    },
+    "label_column": {
+      "type": "string",
+      "minLength": 1
+    },
+    "preprocessing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drop_columns", "drop_rows", "shuffle", "split"],
+      "properties": {
+        "drop_columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "drop_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "shuffle": {
+          "type": "boolean"
+        },
+        "split": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["train", "eval", "test"],
+          "properties": {
+            "train": {
+              "type": "number"
+            },
+            "eval": {
+              "type": "number"
+            },
+            "test": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "training": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["server_rounds", "local_epochs", "batch_size"],
+      "properties": {
+        "server_rounds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "local_epochs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "batch_size": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "aggregation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "fraction_fit", "fraction_evaluate", "min_available_clients"],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["fedavg"]
+        },
+        "fraction_fit": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "fraction_evaluate": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "min_available_clients": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "tensorflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model"],
+      "properties": {
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "config": {
+              "type": "object"
+            },
+            "config_file": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "oneOf": [
+            {
+              "required": ["config"]
+            },
+            {
+              "required": ["config_file"]
+            }
+          ]
+        }
+      }
+    },
+    "scikit_learn": {
+      "type": "object"
+    },
+    "xgboost": {
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "required": ["dataset"]
+    },
+    {
+      "required": ["datasets"]
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "framework": {
+            "const": "tensorflow"
+          }
+        }
+      },
+      "then": {
+        "required": ["tensorflow"]
+      }
+    }
+  ]
+}

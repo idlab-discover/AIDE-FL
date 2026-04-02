@@ -25,12 +25,13 @@ def get_centralised_evaluation_fn(model, x_hold_out, y_hold_out): # testloader l
     return evaluate_centralised
 
 
-def make_on_fit_config(model_data: dict, local_epochs: int, batch_size: int, label_column: str):
+def make_on_fit_config(framework: str, model_data: dict, local_epochs: int, batch_size: int, label_column: str):
 
     print("Preparing train config for clients")
     return ConfigRecord(
         {
-            "model_data": json.dumps(model_data),
+            "framework": framework,
+            "model_config": json.dumps(model_data),
             "local_epochs": int(local_epochs),
             "batch_size": int(batch_size),
             "label_column": label_column,
@@ -48,7 +49,7 @@ app = ServerApp()
 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
-    scenario_name, hold_out_dataset, drop_cols, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column = load_server_config()
+    framework, scenario_name, hold_out_dataset, drop_cols, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column = load_server_config()
 
     model = keras.models.model_from_json(json.dumps(model_data))
     initial_arrays = ArrayRecord(model.get_weights())
@@ -75,7 +76,7 @@ def main(grid: Grid, context: Context) -> None:
         evaluate_metrics_aggr_fn=aggregate_numeric_metrics,
     )
     try:
-        config = make_on_fit_config(model_data, local_epochs, batch_size, label_column)
+        config = make_on_fit_config(framework, model_data, local_epochs, batch_size, label_column)
         result = strategy.start(
             grid=grid,
             initial_arrays=initial_arrays,

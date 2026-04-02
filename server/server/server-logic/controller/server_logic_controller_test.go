@@ -182,10 +182,13 @@ func TestStartReturnsRetryableErrorWhenPreparationAborts(t *testing.T) {
 	server := &fakeServerLogicService{
 		decodeScenarioFn: func(io.ReadCloser) (*model.Scenario, error) {
 			return &model.Scenario{
-				Name: "scenario-a",
-				Strategy: model.Strategy{
+				Name:      "scenario-a",
+				Framework: "tensorflow",
+				Aggregation: model.Aggregation{
+					Strategy:            "fedavg",
 					MinAvailableClients: 1,
 				},
+				TensorFlow: &model.TensorFlowFramework{Model: model.TensorFlowModel{Config: map[string]interface{}{"config": map[string]interface{}{"layers": []interface{}{}}}}},
 			}, nil
 		},
 		validateScenarioFn: func(*model.Scenario) error { return nil },

@@ -21,23 +21,26 @@ def load_server_config():
     config.read(config_filename)
        
     scenario = json.loads(config["serverapp"]["scenario"])
+    framework = scenario["framework"]
+    if framework != "tensorflow":
+        raise ValueError(f"unsupported framework: {framework}")
 
     scenario_name = scenario["name"]
     hold_out_dataset = scenario["hold_out_dataset"]
     drop_cols = scenario["preprocessing"]["drop_columns"]
-    model_data = scenario["model"]
-    fraction_fit = scenario["strategy"]["fraction_fit"]
-    fraction_evaluate = scenario["strategy"]["fraction_evaluate"]
-    min_available_clients = scenario["strategy"]["min_available_clients"]
-    server_rounds = scenario["hyper"]["server_rounds"]
+    model_data = scenario["tensorflow"]["model"]["config"]
+    fraction_fit = scenario["aggregation"]["fraction_fit"]
+    fraction_evaluate = scenario["aggregation"]["fraction_evaluate"]
+    min_available_clients = scenario["aggregation"]["min_available_clients"]
+    server_rounds = scenario["training"]["server_rounds"]
     
-    local_epochs = scenario["hyper"]["local_epochs"]
-    batch_size = scenario["hyper"]["batch_size"]
+    local_epochs = scenario["training"]["local_epochs"]
+    batch_size = scenario["training"]["batch_size"]
     label_column = scenario["label_column"]
 
     print(f"Reloaded config")
 
-    return scenario_name, hold_out_dataset, drop_cols, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column
+    return framework, scenario_name, hold_out_dataset, drop_cols, model_data, fraction_fit, fraction_evaluate, min_available_clients, server_rounds, local_epochs, batch_size, label_column
     
 
 def prepare_data(df: pd.DataFrame, label_column: str) -> tuple[pd.DataFrame, pd.DataFrame]:
