@@ -3,8 +3,8 @@ package configuration
 import (
 	"time"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/repository"
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/repository/impl"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/repository"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/repository/impl"
 	"github.com/segmentio/kafka-go"
 )
 

@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/service"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/service"
 )
 
 type orchestratorServiceImpl struct {

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/exception"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/model"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/repository"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/service"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/exception"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/model"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/repository"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/service"
 	"github.com/segmentio/kafka-go"
 )
 

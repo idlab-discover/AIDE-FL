@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/exception"
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/model"
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/repository"
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/service"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/exception"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/model"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/repository"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/service"
 	"github.com/segmentio/kafka-go"
 )
 

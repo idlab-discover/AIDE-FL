@@ -4,11 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/controller"
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
-	repository "github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/repository/impl"
-	service "github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service/impl"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/configuration"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/controller"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/exception"
+	repository "github.com/Str-Gen/AIDE-FL/server/server/server-logic/repository/impl"
+	service "github.com/Str-Gen/AIDE-FL/server/server/server-logic/service/impl"
 )
 
 func main() {

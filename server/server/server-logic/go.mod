@@ -1,4 +1,4 @@
-module github.com/MartienskieNum1/AIDE-FL/server/server/server-logic
+module github.com/Str-Gen/AIDE-FL/server/server/server-logic
 
 go 1.24.2
 

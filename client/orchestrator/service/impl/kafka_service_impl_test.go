@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/model"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/model"
 	"github.com/segmentio/kafka-go"
 )
 

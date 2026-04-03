@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/model"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/service"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/configuration"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/model"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/service"
 )
 
 type DatastoreController struct {

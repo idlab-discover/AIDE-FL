@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/exception"
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/model"
-	"github.com/MartienskieNum1/AIDE-FL/client/orchestrator/service"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/exception"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/model"
+	"github.com/Str-Gen/AIDE-FL/client/orchestrator/service"
 	"github.com/gorilla/websocket"
 )
 

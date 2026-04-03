@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/repository"
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/exception"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/repository"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/service"
 )
 
 type minioServiceImpl struct {

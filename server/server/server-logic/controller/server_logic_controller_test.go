@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/model"
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/service"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/model"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/service"
 	"github.com/google/uuid"
 )
 

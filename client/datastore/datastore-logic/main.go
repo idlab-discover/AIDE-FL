@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/controller"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/exception"
-	repository "github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/repository/impl"
-	service "github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/service/impl"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/configuration"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/controller"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/exception"
+	repository "github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/repository/impl"
+	service "github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/service/impl"
 )
 
 func main() {

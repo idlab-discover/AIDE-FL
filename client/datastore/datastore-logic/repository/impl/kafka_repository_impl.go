@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/exception"
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/repository"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/exception"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/repository"
 	"github.com/segmentio/kafka-go"
 )
 

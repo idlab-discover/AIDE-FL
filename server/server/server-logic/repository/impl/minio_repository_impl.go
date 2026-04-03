@@ -5,9 +5,9 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/configuration"
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/exception"
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/repository"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/configuration"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/exception"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/repository"
 	"github.com/minio/minio-go/v7"
 )
 

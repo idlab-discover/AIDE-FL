@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/model"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/model"
 	"github.com/go-playground/validator/v10"
 )
 

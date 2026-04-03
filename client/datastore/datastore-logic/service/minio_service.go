@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/MartienskieNum1/AIDE-FL/client/datastore/datastore-logic/model"
+	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/model"
 )
 
 type MinioService interface {

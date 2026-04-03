@@ -3,7 +3,7 @@ package service
 import (
 	"io"
 
-	"github.com/MartienskieNum1/AIDE-FL/server/server/server-logic/model"
+	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/model"
 	"github.com/google/uuid"
 )
 
