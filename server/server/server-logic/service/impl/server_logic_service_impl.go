@@ -300,6 +300,7 @@ func (service *serverLogicServiceImpl) SetFlowerConfig(scenario *model.Scenario)
 	cfg, err := ini.LoadSources(ini.LoadOptions{}, config_path)
 	exception.PanicLogging(err, "Unable to load config file")
 
+	cfg.DeleteSection("serverapp")
 	section, err := cfg.NewSection("serverapp")
 	exception.PanicLogging(err, "Unable to create section")
 
@@ -308,6 +309,11 @@ func (service *serverLogicServiceImpl) SetFlowerConfig(scenario *model.Scenario)
 
 	err = cfg.SaveTo(config_path)
 	exception.PanicLogging(err, "Unable to save config file")
+
+	donePath := path.Join(shareDir, "done")
+	if err := os.Remove(donePath); err != nil && !os.IsNotExist(err) {
+		exception.PanicLogging(err, "Unable to remove stale done marker")
+	}
 }
 
 func (service *serverLogicServiceImpl) StartTraining() (string, error) {
