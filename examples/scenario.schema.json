@@ -105,7 +105,7 @@
       "properties": {
         "strategy": {
           "type": "string",
-          "enum": ["fedavg"]
+          "enum": ["fedavg", "fedxgbbagging"]
         },
         "fraction_fit": {
           "type": "number",
@@ -152,10 +152,75 @@
       }
     },
     "scikit_learn": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model"],
+      "properties": {
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "n_features", "classes"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["logistic_regression"]
+            },
+            "n_features": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "classes": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": ["number", "string", "boolean"]
+              }
+            },
+            "penalty": {
+              "type": "string"
+            },
+            "solver": {
+              "type": "string"
+            },
+            "multi_class": {
+              "type": "string"
+            }
+          }
+        }
+      }
     },
     "xgboost": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "params"],
+      "properties": {
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "n_features"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["booster"]
+            },
+            "n_features": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "params": {
+          "type": "object",
+          "required": ["objective"],
+          "properties": {
+            "objective": {
+              "type": "string",
+              "enum": ["binary:logistic"]
+            }
+          },
+          "additionalProperties": true
+        }
+      }
     }
   },
   "oneOf": [
@@ -177,6 +242,30 @@
       },
       "then": {
         "required": ["tensorflow"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "framework": {
+            "const": "scikit_learn"
+          }
+        }
+      },
+      "then": {
+        "required": ["scikit_learn"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "framework": {
+            "const": "xgboost"
+          }
+        }
+      },
+      "then": {
+        "required": ["xgboost"]
       }
     }
   ]

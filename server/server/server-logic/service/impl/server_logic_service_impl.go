@@ -26,6 +26,7 @@ import (
 const shareDir = "/app/share"
 const defaultFramework = "tensorflow"
 const defaultAggregationStrategy = "fedavg"
+const defaultXGBoostAggregationStrategy = "fedxgbbagging"
 
 type serverLogicServiceImpl struct {
 	configuration.Config
@@ -69,6 +70,37 @@ func datasetsValidation(sl validator.StructLevel) {
 		} else if len(scenario.TensorFlow.Model.Config) == 0 && scenario.TensorFlow.Model.ConfigFile == "" {
 			sl.ReportError(scenario.TensorFlow.Model, "Model", "tensorflow.model", "required", "")
 		}
+	case "scikit_learn":
+		if scenario.ScikitLearn == nil {
+			sl.ReportError(scenario.ScikitLearn, "ScikitLearn", "scikit_learn", "required", "")
+		} else {
+			if scenario.ScikitLearn.Model.Kind != "logistic_regression" {
+				sl.ReportError(scenario.ScikitLearn.Model.Kind, "Kind", "scikit_learn.model.kind", "unsupported", "")
+			}
+			if scenario.ScikitLearn.Model.NFeatures < 1 {
+				sl.ReportError(scenario.ScikitLearn.Model.NFeatures, "NFeatures", "scikit_learn.model.n_features", "required", "")
+			}
+			if len(scenario.ScikitLearn.Model.Classes) < 2 {
+				sl.ReportError(scenario.ScikitLearn.Model.Classes, "Classes", "scikit_learn.model.classes", "required", "")
+			}
+		}
+	case "xgboost":
+		if scenario.XGBoost == nil {
+			sl.ReportError(scenario.XGBoost, "XGBoost", "xgboost", "required", "")
+		} else {
+			if scenario.XGBoost.Model.Kind != "booster" {
+				sl.ReportError(scenario.XGBoost.Model.Kind, "Kind", "xgboost.model.kind", "unsupported", "")
+			}
+			if scenario.XGBoost.Model.NFeatures < 1 {
+				sl.ReportError(scenario.XGBoost.Model.NFeatures, "NFeatures", "xgboost.model.n_features", "required", "")
+			}
+			objective, ok := scenario.XGBoost.Params["objective"].(string)
+			if !ok || objective == "" {
+				sl.ReportError(scenario.XGBoost.Params, "Params", "xgboost.params.objective", "required", "")
+			} else if objective != "binary:logistic" {
+				sl.ReportError(objective, "Objective", "xgboost.params.objective", "unsupported", "")
+			}
+		}
 	default:
 		sl.ReportError(scenario.Framework, "Framework", "framework", "unsupported", "")
 	}
@@ -76,14 +108,21 @@ func datasetsValidation(sl validator.StructLevel) {
 	if scenario.Framework != defaultFramework && scenario.TensorFlow != nil {
 		sl.ReportError(scenario.TensorFlow, "TensorFlow", "tensorflow", "forbidden", "")
 	}
-	if scenario.Framework != "scikit_learn" && len(scenario.ScikitLearn) != 0 {
+	if scenario.Framework != "scikit_learn" && scenario.ScikitLearn != nil {
 		sl.ReportError(scenario.ScikitLearn, "ScikitLearn", "scikit_learn", "forbidden", "")
 	}
-	if scenario.Framework != "xgboost" && len(scenario.XGBoost) != 0 {
+	if scenario.Framework != "xgboost" && scenario.XGBoost != nil {
 		sl.ReportError(scenario.XGBoost, "XGBoost", "xgboost", "forbidden", "")
 	}
-	if scenario.Aggregation.Strategy != defaultAggregationStrategy {
-		sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
+	switch scenario.Framework {
+	case "xgboost":
+		if scenario.Aggregation.Strategy != defaultXGBoostAggregationStrategy {
+			sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
+		}
+	default:
+		if scenario.Aggregation.Strategy != defaultAggregationStrategy {
+			sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
+		}
 	}
 }
 

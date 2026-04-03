@@ -7,7 +7,7 @@ from flwr.serverapp import Grid, ServerApp
 
 from flower.frameworks import get_adapter_for_scenario
 from flower.frameworks.base import HoldOutDataset
-from flower.strategies import SaveModelFedAvg, aggregate_numeric_metrics
+from flower.strategies import build_strategy
 from flower.task import load_server_config, load_server_data
 
 
@@ -53,22 +53,13 @@ def main(grid: Grid, context: Context) -> None:
         )
         evaluate_fn = get_centralised_evaluation_fn(adapter, model, x_hold_out, y_hold_out)
 
-    strategy = SaveModelFedAvg(
+    strategy = build_strategy(
+        aggregation,
         scenario_name=scenario_name,
         model=model,
         adapter=adapter,
         share_dir="share",
         server_rounds=training["server_rounds"],
-        fraction_train=aggregation["fraction_fit"],
-        fraction_evaluate=aggregation["fraction_evaluate"],
-        min_train_nodes=1,
-        min_evaluate_nodes=1,
-        min_available_nodes=aggregation["min_available_clients"],
-        arrayrecord_key="arrays",
-        configrecord_key="config",
-        weighted_by_key="num-examples",
-        train_metrics_aggr_fn=aggregate_numeric_metrics,
-        evaluate_metrics_aggr_fn=aggregate_numeric_metrics,
     )
     try:
         config = adapter.make_config_record(scenario)

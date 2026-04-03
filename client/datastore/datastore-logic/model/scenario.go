@@ -5,6 +5,7 @@ type Scenario struct {
 	Name          string                 `json:"name"`
 	Framework     string                 `json:"framework"`
 	Dataset       string                 `json:"dataset"`
+	Centralised   bool                   `json:"centralised"`
 	LabelColumn   string                 `json:"label_column"`
 	Preprocessing map[string]interface{} `json:"preprocessing"`
 	Training      map[string]interface{} `json:"training"`

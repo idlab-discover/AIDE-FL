@@ -82,7 +82,7 @@ A scenario follows a certain JSON template:
     "batch_size": int
   },
   "aggregation": {
-    "strategy": "fedavg",
+    "strategy": "string",
     "fraction_fit": float,
     "fraction_evaluate": float,
     "min_available_clients": int
@@ -92,12 +92,28 @@ A scenario follows a certain JSON template:
       "config_file": "string",
       "config": dict
     }
+  },
+  "scikit_learn": {
+    "model": {
+      "kind": "logistic_regression",
+      "n_features": int,
+      "classes": ["any"]
+    }
+  },
+  "xgboost": {
+    "model": {
+      "kind": "booster",
+      "n_features": int
+    },
+    "params": {
+      "objective": "binary:logistic"
+    }
   }
 }
 ```
 
 - `name`: Name for the scenario. This is the UID for the scenario. Change the name of the scenario if modifications are made. If a training session is started with a different scenario but with the same name as a previous one, the previous scenario will be used.
-- `framework`: The ML framework/runtime family. Current live support is TensorFlow via `framework: "tensorflow"` with a matching `tensorflow` block.
+- `framework`: The ML framework/runtime family. Current in-repo support includes TensorFlow via `framework: "tensorflow"` with a matching `tensorflow` block, scikit-learn logistic regression via `framework: "scikit_learn"` with a matching `scikit_learn` block, and XGBoost bagging via `framework: "xgboost"` with a matching `xgboost` block.
 - `dataset` (mutually exclusive with `datasets`): Uses the parquet dataset in each client's Minio datastore with matching name (under `datasets/[datasetname].parquet`), or tries downloading the dataset from Kaggle (e.g. `dhoogla-nfunswnb15v2` matches with dataset `nfunswnb15v2` (case insensitive) of user `dhoogla`) and uploads it to the Minio datastore. NOTE: The downloaded zip from Kaggle must contain a dataset as parquet file and the first one is taken if there would be multiple parquet files.
 - `datasets` (mutually exclusive with `dataset`): Similar to `dataset` but with the ability to define a dataset per client (clients are identified by the node's name on which they run). Value must be a dictionary (e.g. `{"client1": "some-dataset"}`). The length of `datasets` must be greater than or equal to `aggregation.min_available_clients`.
 - `hold_out_dataset`: This optional value holds the name of a dataset which is used to evaluate the aggregated model at the end of each round at server-side. This dataset must be placed in the server’s datastore or, like before, may refer to a Kaggle dataset which will be downloaded to the server’s datastore.
@@ -110,12 +126,19 @@ A scenario follows a certain JSON template:
 - `training.server_rounds`: Amount of aggregating rounds between clients and server.
 - `training.local_epochs`: Amount of local epochs to perform by clients between aggregations.
 - `training.batch_size`: Batch size for local epochs.
-- `aggregation.strategy`: Aggregation strategy. The only supported value right now is `fedavg`.
+- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg` for TensorFlow and scikit-learn, and `fedxgbbagging` for XGBoost.
 - `aggregation.fraction_fit`: Percentage of available clients that are required for fitting.
 - `aggregation.fraction_evaluate`: Percentage of available clients that are required for evaluation.
 - `aggregation.min_available_clients`: Minimum amount of clients that need to be available/connected for a training sessions.
 - `tensorflow.model.config_file`: Preferred authored format. Path to a TensorFlow/Keras model config file relative to the scenario file or absolute on disk.
 - `tensorflow.model.config`: Inline TensorFlow/Keras model config payload. This remains useful for tests and generated scenarios.
+- `scikit_learn.model.kind`: Currently supports `logistic_regression`.
+- `scikit_learn.model.n_features`: Feature-column count expected by the model. This lets the server and trainer initialize and validate the federated parameter shape.
+- `scikit_learn.model.classes`: Full ordered class list for the classifier, used to initialize a consistent federated parameter shape across clients.
+- `scikit_learn.model.penalty`, `scikit_learn.model.solver`, `scikit_learn.model.multi_class`: Optional scikit-learn logistic regression settings.
+- `xgboost.model.kind`: Currently supports `booster`.
+- `xgboost.model.n_features`: Feature-column count expected by the booster input matrix.
+- `xgboost.params`: Raw XGBoost parameter dictionary. Current runtime support is intentionally narrow and expects `objective: "binary:logistic"` together with a `fedxgbbagging` aggregation strategy.
 
 Legacy compatibility:
 

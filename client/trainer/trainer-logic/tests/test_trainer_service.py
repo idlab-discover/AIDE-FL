@@ -37,6 +37,36 @@ def make_scenario(input_shape):
     }
 
 
+def make_scikit_scenario(n_features):
+    return {
+        "framework": "scikit_learn",
+        "label_column": "label",
+        "scikit_learn": {
+            "model": {
+                "kind": "logistic_regression",
+                "n_features": n_features,
+                "classes": [0, 1],
+            }
+        },
+    }
+
+
+def make_xgboost_scenario(n_features):
+    return {
+        "framework": "xgboost",
+        "label_column": "label",
+        "xgboost": {
+            "model": {
+                "kind": "booster",
+                "n_features": n_features,
+            },
+            "params": {
+                "objective": "binary:logistic",
+            },
+        },
+    }
+
+
 class TrainerServiceTest(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -92,7 +122,72 @@ class TrainerServiceTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not compatible with dataset"):
             self.service.validate(make_scenario([None, 3]))
 
-    def test_validate_rejects_unsupported_framework(self):
+    def test_validate_accepts_scikit_learn_feature_count(self):
+        frame = pd.DataFrame(
+            {
+                "feature_a": [1.0, 2.0],
+                "feature_b": [3.0, 4.0],
+                "label": [0.0, 1.0],
+            }
+        )
+        self.write_test_parquet(frame)
+
+        self.service.validate(make_scikit_scenario(2))
+
+    def test_validate_rejects_scikit_learn_feature_count_mismatch(self):
+        frame = pd.DataFrame(
+            {
+                "feature_a": [1.0, 2.0],
+                "feature_b": [3.0, 4.0],
+                "label": [0.0, 1.0],
+            }
+        )
+        self.write_test_parquet(frame)
+
+        with self.assertRaisesRegex(ValueError, "expects 3 feature columns"):
+            self.service.validate(make_scikit_scenario(3))
+
+    def test_validate_infers_scikit_learn_framework_from_block(self):
+        frame = pd.DataFrame(
+            {
+                "feature_a": [1.0, 2.0],
+                "feature_b": [3.0, 4.0],
+                "label": [0.0, 1.0],
+            }
+        )
+        self.write_test_parquet(frame)
+
+        scenario = make_scikit_scenario(2)
+        del scenario["framework"]
+
+        self.service.validate(scenario)
+
+    def test_validate_accepts_xgboost_feature_count(self):
+        frame = pd.DataFrame(
+            {
+                "feature_a": [1.0, 2.0],
+                "feature_b": [3.0, 4.0],
+                "label": [0.0, 1.0],
+            }
+        )
+        self.write_test_parquet(frame)
+
+        self.service.validate(make_xgboost_scenario(2))
+
+    def test_validate_rejects_xgboost_feature_count_mismatch(self):
+        frame = pd.DataFrame(
+            {
+                "feature_a": [1.0, 2.0],
+                "feature_b": [3.0, 4.0],
+                "label": [0.0, 1.0],
+            }
+        )
+        self.write_test_parquet(frame)
+
+        with self.assertRaisesRegex(ValueError, "expects 3 feature columns"):
+            self.service.validate(make_xgboost_scenario(3))
+
+    def test_validate_rejects_missing_framework_configuration(self):
         frame = pd.DataFrame(
             {
                 "feature_a": [1.0, 2.0],
@@ -106,7 +201,7 @@ class TrainerServiceTest(unittest.TestCase):
             "label_column": "label",
         }
 
-        with self.assertRaisesRegex(ValueError, "unsupported framework"):
+        with self.assertRaisesRegex(ValueError, "scenario is missing xgboost block"):
             self.service.validate(scenario)
 
 
