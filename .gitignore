@@ -35,3 +35,5 @@ certs
 *.safetensors
 *.parquet
 *.json
+
+.venv-codex-aide/
