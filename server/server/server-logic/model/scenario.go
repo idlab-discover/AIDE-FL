@@ -1,19 +1,21 @@
 package model
 
 type Scenario struct {
-	Name           string                `json:"name" validate:"required"`
-	Framework      string                `json:"framework" validate:"required"`
-	Dataset        string                `json:"dataset,omitempty"`
-	Datasets       map[string]string     `json:"datasets,omitempty"`
-	HoldOutDataset string                `json:"hold_out_dataset"`
-	Centralised    bool                  `json:"centralised"`
-	LabelColumn    string                `json:"label_column" validate:"required"`
-	Preprocessing  Preprocessing         `json:"preprocessing" validate:"required"`
-	Training       Training              `json:"training" validate:"required"`
-	Aggregation    Aggregation           `json:"aggregation" validate:"required"`
-	TensorFlow     *TensorFlowFramework  `json:"tensorflow,omitempty"`
-	ScikitLearn    *ScikitLearnFramework `json:"scikit_learn,omitempty"`
-	XGBoost        *XGBoostFramework     `json:"xgboost,omitempty"`
+	Name               string                `json:"name" validate:"required"`
+	Framework          string                `json:"framework" validate:"required"`
+	Dataset            string                `json:"dataset,omitempty"`
+	DatasetFile        string                `json:"dataset_file,omitempty"`
+	Datasets           map[string]string     `json:"datasets,omitempty"`
+	HoldOutDataset     string                `json:"hold_out_dataset"`
+	HoldOutDatasetFile string                `json:"hold_out_dataset_file,omitempty"`
+	Centralised        bool                  `json:"centralised"`
+	LabelColumn        string                `json:"label_column" validate:"required"`
+	Preprocessing      Preprocessing         `json:"preprocessing" validate:"required"`
+	Training           Training              `json:"training" validate:"required"`
+	Aggregation        Aggregation           `json:"aggregation" validate:"required"`
+	TensorFlow         *TensorFlowFramework  `json:"tensorflow,omitempty"`
+	ScikitLearn        *ScikitLearnFramework `json:"scikit_learn,omitempty"`
+	XGBoost            *XGBoostFramework     `json:"xgboost,omitempty"`
 
 	LegacyHyper     *Training              `json:"hyper,omitempty"`
 	LegacyStrategy  *LegacyAggregation     `json:"strategy,omitempty"`

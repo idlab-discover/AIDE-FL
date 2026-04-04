@@ -25,6 +25,10 @@
       "type": "string",
       "minLength": 1
     },
+    "dataset_file": {
+      "type": "string",
+      "minLength": 1
+    },
     "datasets": {
       "type": "object",
       "minProperties": 1,
@@ -35,6 +39,10 @@
     },
     "hold_out_dataset": {
       "type": "string"
+    },
+    "hold_out_dataset_file": {
+      "type": "string",
+      "minLength": 1
     },
     "centralised": {
       "type": "boolean"

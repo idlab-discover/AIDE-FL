@@ -114,9 +114,11 @@ A scenario follows a certain JSON template:
 
 - `name`: Name for the scenario. This is the UID for the scenario. Change the name of the scenario if modifications are made. If a training session is started with a different scenario but with the same name as a previous one, the previous scenario will be used.
 - `framework`: The ML framework/runtime family. Current in-repo support includes TensorFlow via `framework: "tensorflow"` with a matching `tensorflow` block, scikit-learn logistic regression via `framework: "scikit_learn"` with a matching `scikit_learn` block, and XGBoost bagging via `framework: "xgboost"` with a matching `xgboost` block.
-- `dataset` (mutually exclusive with `datasets`): Uses the parquet dataset in each client's Minio datastore with matching name (under `datasets/[datasetname].parquet`), or tries downloading the dataset from Kaggle (e.g. `dhoogla-nfunswnb15v2` matches with dataset `nfunswnb15v2` (case insensitive) of user `dhoogla`) and uploads it to the Minio datastore. NOTE: The downloaded zip from Kaggle must contain a dataset as parquet file and the first one is taken if there would be multiple parquet files.
+- `dataset` (mutually exclusive with `datasets`): Uses the parquet dataset in each client's Minio datastore with matching name (under `datasets/[datasetname].parquet`), or tries downloading the dataset from Kaggle (e.g. `dhoogla-nfunswnb15v2` matches Kaggle dataset `nfunswnb15v2` of user `dhoogla`, and `samybtt-ermds-x` matches `ermds-x` of user `samybtt`) and uploads it to the Minio datastore.
+- `dataset_file`: Optional parquet member name to extract from a downloaded Kaggle zip when the archive contains multiple parquet files.
 - `datasets` (mutually exclusive with `dataset`): Similar to `dataset` but with the ability to define a dataset per client (clients are identified by the node's name on which they run). Value must be a dictionary (e.g. `{"client1": "some-dataset"}`). The length of `datasets` must be greater than or equal to `aggregation.min_available_clients`.
 - `hold_out_dataset`: This optional value holds the name of a dataset which is used to evaluate the aggregated model at the end of each round at server-side. This dataset must be placed in the server’s datastore or, like before, may refer to a Kaggle dataset which will be downloaded to the server’s datastore.
+- `hold_out_dataset_file`: Optional parquet member name to extract for the hold-out dataset when a Kaggle zip contains multiple parquet files.
 - `centralised`: If `true`, the framework retrieves the dataset(s) set in `dataset` or `datasets` from the server's Minio datastore. If `false`, the client's own Minio datastores are used.
 - `label_column`: The name of the column containing the labels of your dataset. 
 - `preprocessing.drop_columns`: Columns to be dropped/ignored from dataset.
@@ -204,7 +206,7 @@ This is possible with the two Jupyter notebooks contained in the `manual-testing
 
 ### Examples
 
-The `examples` directory contains Python scripts, used to generate datasets, corresponding authored scenarios, and separate model JSON files. Each script generates three parquet files: Parts 1 and 2, each containing 3/7 of the original set, are to be uploaded to two separate clients, number 3, containing 1/7 of the original set, needs to be uploaded to the server’s datastore to serve as hold-out dataset. The scenarios need to be completed with the correct client IDs under the datasets key. The directory also contains a scenario for use of a NIDS dataset, which retrieves its datasets directly from Kaggle.
+The `examples` directory contains authored scenarios and model definitions for the currently maintained demo flows. The NIDS scenarios retrieve their datasets directly from Kaggle. Additional scenarios can point at Kaggle-hosted parquet archives directly, and may set `dataset_file` when the archive contains multiple parquet members and one specific file should be used.
 
 ## Server Services
 

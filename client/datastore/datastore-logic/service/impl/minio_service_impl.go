@@ -25,7 +25,7 @@ func (service *minioServiceImpl) Create(scenario model.Scenario) (model.Scenario
 			return model.Scenario{}, err
 		}
 
-		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
+		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename, scenario.DatasetFile)
 		service.MinioRepository.Insert(datasetFilename, datasetFilename)
 		service.LocalRepository.RemoveFile(datasetFilename)
 	}

@@ -29,7 +29,7 @@ func (service *minioServiceImpl) EnsureBucketExists(bucketName string) {
 	}
 }
 
-func (service *minioServiceImpl) CreateDataset(dataset string) error {
+func (service *minioServiceImpl) CreateDataset(dataset string, datasetFile string) error {
 
 	datasetFilename := dataset + ".parquet"
 
@@ -39,7 +39,7 @@ func (service *minioServiceImpl) CreateDataset(dataset string) error {
 			return err
 		}
 
-		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
+		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename, datasetFile)
 		service.MinioRepository.InsertDataset(datasetFilename, datasetFilename)
 		service.LocalRepository.RemoveFile(datasetFilename)
 	}
@@ -47,7 +47,7 @@ func (service *minioServiceImpl) CreateDataset(dataset string) error {
 	return nil
 }
 
-func (service *minioServiceImpl) CreateAndShareHoldOutDataset(dataset string) error {
+func (service *minioServiceImpl) CreateAndShareHoldOutDataset(dataset string, datasetFile string) error {
 	datasetFilename := dataset + ".parquet"
 	holdOutPath := path.Join(shareDir, "hold-out.parquet")
 
@@ -57,7 +57,7 @@ func (service *minioServiceImpl) CreateAndShareHoldOutDataset(dataset string) er
 			return err
 		}
 
-		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename)
+		service.LocalRepository.ExtractParquetFromZip(zipName, datasetFilename, datasetFile)
 		service.MinioRepository.InsertDataset(datasetFilename, datasetFilename)
 		service.LocalRepository.MoveFile(datasetFilename, holdOutPath)
 	} else {

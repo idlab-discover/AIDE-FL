@@ -53,10 +53,10 @@ func (f *fakeServerLogicService) RemoveArtifacts() {}
 
 type fakeMinioService struct{}
 
-func (f *fakeMinioService) EnsureBucketExists(string)                 {}
-func (f *fakeMinioService) CreateDataset(string) error                { return nil }
-func (f *fakeMinioService) CreateAndShareHoldOutDataset(string) error { return nil }
-func (f *fakeMinioService) UploadArtifacts(string)                    {}
+func (f *fakeMinioService) EnsureBucketExists(string)                         {}
+func (f *fakeMinioService) CreateDataset(string, string) error                { return nil }
+func (f *fakeMinioService) CreateAndShareHoldOutDataset(string, string) error { return nil }
+func (f *fakeMinioService) UploadArtifacts(string)                            {}
 
 type fakeConfig struct{}
 
@@ -162,6 +162,24 @@ func TestTrainingSessionHandlesDisconnectAfterReconnect(t *testing.T) {
 	}
 	if session.errorMessage.Origin != "server" {
 		t.Fatalf("unexpected error origin: %q", session.errorMessage.Origin)
+	}
+}
+
+func TestTrainingSessionIgnoresDisconnectAfterClientDone(t *testing.T) {
+	session := newTrainingSession()
+	client := &model.Client{Id: "client-a", Address: "ready"}
+
+	prepID := session.reset(map[string]*model.Client{
+		client.Id: client,
+	})
+	if !session.trackClientDone(client.Id, prepID.String()) {
+		t.Fatal("expected DONE to be accepted for active client")
+	}
+
+	session.handleClientDisconnect(client)
+
+	if session.errorMessage != nil {
+		t.Fatalf("expected completed client disconnect to be ignored, got %+v", session.errorMessage)
 	}
 }
 

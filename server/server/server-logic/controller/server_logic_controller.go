@@ -212,6 +212,11 @@ func (session *trainingSession) handleClientDisconnect(client *model.Client) {
 		return
 	}
 
+	if _, ok := session.completedClients[client.Id]; ok {
+		slog.Info("Ignoring disconnect from completed client", "client", client.Id)
+		return
+	}
+
 	slog.Info("Aborting training if in preparation phase.")
 	session.errorMessage = &model.GeneralMessage{
 		Type:    "ERROR",
@@ -477,17 +482,17 @@ func (controller *ServerLogicController) start(w http.ResponseWriter, r *http.Re
 	// Download datasets (if not present) if centralised property is set true
 	if scenario.Centralised {
 		if scenario.Dataset != "" {
-			controller.MinioService.CreateDataset(scenario.Dataset)
+			controller.MinioService.CreateDataset(scenario.Dataset, scenario.DatasetFile)
 		} else { // If "dataset" isn't set, "datasets" must be set (part of scenario validation)
 			for _, dataset := range scenario.Datasets {
-				controller.MinioService.CreateDataset(dataset)
+				controller.MinioService.CreateDataset(dataset, "")
 			}
 		}
 	}
 
 	// Download hold-out dataset (if not present) if hold_out_dataset property is set
 	if scenario.HoldOutDataset != "" {
-		controller.MinioService.CreateAndShareHoldOutDataset(scenario.HoldOutDataset)
+		controller.MinioService.CreateAndShareHoldOutDataset(scenario.HoldOutDataset, scenario.HoldOutDatasetFile)
 	}
 
 	// Set new preparation ID and reset run state.

@@ -41,30 +41,46 @@ func (repo *localRepositoryImpl) RemoveFile(filename string) {
 	exception.PanicLogging(err, "Unable to remove", "file", filename)
 }
 
-func (repo *localRepositoryImpl) ExtractParquetFromZip(zipFilename string, outFilename string) {
-	slog.Info("Extracting first parquet file from", "zip", zipFilename)
+func (repo *localRepositoryImpl) ExtractParquetFromZip(zipFilename string, outFilename string, datasetFile string) {
+	if datasetFile == "" {
+		slog.Info("Extracting first parquet file from", "zip", zipFilename)
+	} else {
+		slog.Info("Extracting requested parquet file from", "zip", zipFilename, "datasetFile", datasetFile)
+	}
 
 	archive, err := zip.OpenReader(zipFilename)
 	exception.PanicLogging(err, "Unable to extract from", "file", zipFilename)
 	defer archive.Close()
 
-	// Extract first parquet file
+	found := false
 	for _, f := range archive.File {
-		if strings.HasSuffix(f.Name, ".parquet") {
-			fileInArchive, err := f.Open()
-			exception.PanicLogging(err, "Unable to open", "file", f.Name)
-
-			dstFile, err := os.Create(outFilename)
-			exception.PanicLogging(err, "Unable to create", "file", outFilename)
-
-			_, err = io.Copy(dstFile, fileInArchive)
-			exception.PanicLogging(err, "Unable to write", "file", dstFile)
-
-			dstFile.Close()
-			fileInArchive.Close()
-
-			break
+		if !strings.HasSuffix(strings.ToLower(f.Name), ".parquet") {
+			continue
 		}
+		if datasetFile != "" && f.Name != datasetFile {
+			continue
+		}
+
+		fileInArchive, err := f.Open()
+		exception.PanicLogging(err, "Unable to open", "file", f.Name)
+
+		dstFile, err := os.Create(outFilename)
+		exception.PanicLogging(err, "Unable to create", "file", outFilename)
+
+		_, err = io.Copy(dstFile, fileInArchive)
+		exception.PanicLogging(err, "Unable to write", "file", dstFile)
+
+		dstFile.Close()
+		fileInArchive.Close()
+		found = true
+		break
+	}
+
+	if !found {
+		if datasetFile == "" {
+			exception.PanicLogging(os.ErrNotExist, "Unable to find parquet file in archive", "file", zipFilename)
+		}
+		exception.PanicLogging(os.ErrNotExist, "Unable to find requested parquet file in archive", "file", datasetFile)
 	}
 
 	// Remove zip after extraction
@@ -74,11 +90,12 @@ func (repo *localRepositoryImpl) ExtractParquetFromZip(zipFilename string, outFi
 func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) (string, error) {
 	slog.Info("Downloading Kaggle", "dataset", dataset)
 
-	if !strings.Contains(dataset, "-") {
-		return "", errors.New("dataset name must contain a '-' to split kaggle username from kaggle dataset")
+	datasetPath, err := kaggleDatasetPath(dataset)
+	if err != nil {
+		return "", err
 	}
 
-	fileKeyURL := repo.Config.Get("KAGGLE_URL") + strings.Replace(dataset, "-", "/", -1)
+	fileKeyURL := repo.Config.Get("KAGGLE_URL") + datasetPath
 
 	// Download from Kaggle
 	resp, err := http.Get(fileKeyURL)
@@ -100,4 +117,13 @@ func (repo *localRepositoryImpl) DownloadKaggleDataset(dataset string) (string, 
 	exception.PanicLogging(err, "Unable to write", "file", file)
 
 	return outFilename, nil
+}
+
+func kaggleDatasetPath(dataset string) (string, error) {
+	parts := strings.SplitN(dataset, "-", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", errors.New("dataset name must contain a '-' to split kaggle username from kaggle dataset")
+	}
+
+	return parts[0] + "/" + parts[1], nil
 }

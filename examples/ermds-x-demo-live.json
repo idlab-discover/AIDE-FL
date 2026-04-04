@@ -1,0 +1,47 @@
+{
+  "name": "ermds-x-demo-live",
+  "framework": "xgboost",
+  "dataset": "samybtt-ermds-x",
+  "dataset_file": "ermds.parquet",
+  "centralised": false,
+  "label_column": "label",
+  "preprocessing": {
+    "drop_columns": [
+      "obfuscation",
+      "sha256"
+    ],
+    "drop_rows": 78044,
+    "shuffle": true,
+    "split": {
+      "train": 0.7,
+      "eval": 0.15,
+      "test": 0.15
+    }
+  },
+  "training": {
+    "server_rounds": 1,
+    "local_epochs": 1,
+    "batch_size": 256
+  },
+  "aggregation": {
+    "strategy": "fedxgbbagging",
+    "fraction_fit": 1.0,
+    "fraction_evaluate": 1.0,
+    "min_available_clients": 2
+  },
+  "xgboost": {
+    "model": {
+      "kind": "booster",
+      "n_features": 2381
+    },
+    "params": {
+      "objective": "binary:logistic",
+      "eta": 0.3,
+      "max_depth": 6,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "eval_metric": "logloss",
+      "tree_method": "hist"
+    }
+  }
+}
