@@ -6,8 +6,7 @@ from typing import Any
 
 import wandb
 from flwr.app import MetricRecord
-from flwr.serverapp.strategy import Bulyan, FedAvg, FedXgbBagging, FedXgbCyclic
-from flwr.serverapp.strategy.fedavg import aggregate_arrayrecords
+from flwr.serverapp.strategy import Bulyan, FedAvg, FedMedian, FedXgbBagging, FedXgbCyclic
 
 from flower.frameworks.base import FrameworkAdapter
 
@@ -148,25 +147,24 @@ class SaveModelStrategyMixin:
         print(f"Updated {filename} in {path}")
 
 
-class SaveModelFedAvg(SaveModelStrategyMixin, FedAvg):
-    def aggregate_train(self, server_round, replies):
-        valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
-        arrays = metrics = None
-        if valid_replies:
-            reply_contents = [reply.content for reply in valid_replies]
-            arrays = aggregate_arrayrecords(reply_contents, self.weighted_by_key)
-            metrics = self.train_metrics_aggr_fn(reply_contents, self.weighted_by_key)
-
-        self._record_train_histories(server_round, valid_replies, metrics)
-        return self._save_train_results(server_round, arrays, metrics)
-
-
-class SaveModelBulyan(SaveModelStrategyMixin, Bulyan):
+class SaveModelStrategy(SaveModelStrategyMixin):
     def aggregate_train(self, server_round, replies):
         valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
         arrays, metrics = super().aggregate_train(server_round, valid_replies)
         self._record_train_histories(server_round, valid_replies, metrics)
         return self._save_train_results(server_round, arrays, metrics)
+
+
+class SaveModelFedAvg(SaveModelStrategy, FedAvg):
+    pass
+
+
+class SaveModelFedMedian(SaveModelStrategy, FedMedian):
+    pass
+
+
+class SaveModelBulyan(SaveModelStrategy, Bulyan):
+    pass
 
 
 class SaveXGBoostBagging(FedXgbBagging):
@@ -350,6 +348,16 @@ def build_strategy(
 
     if strategy_name == "fedavg":
         return SaveModelFedAvg(
+            scenario_name=scenario_name,
+            model=model,
+            adapter=adapter,
+            share_dir=share_dir,
+            server_rounds=server_rounds,
+            **fedavg_kwargs,
+        )
+
+    if strategy_name == "fedmedian":
+        return SaveModelFedMedian(
             scenario_name=scenario_name,
             model=model,
             adapter=adapter,

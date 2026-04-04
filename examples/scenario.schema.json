@@ -113,7 +113,7 @@
       "properties": {
         "strategy": {
           "type": "string",
-          "enum": ["fedavg", "bulyan", "fedxgbbagging", "fedxgbcyclic"]
+          "enum": ["fedavg", "fedmedian", "bulyan", "fedxgbbagging", "fedxgbcyclic"]
         },
         "fraction_fit": {
           "type": "number",

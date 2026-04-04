@@ -128,7 +128,7 @@ A scenario follows a certain JSON template:
 - `training.server_rounds`: Amount of aggregating rounds between clients and server.
 - `training.local_epochs`: Amount of local epochs to perform by clients between aggregations.
 - `training.batch_size`: Batch size for local epochs.
-- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg` or `bulyan` for TensorFlow and scikit-learn, and `fedxgbbagging` or `fedxgbcyclic` for XGBoost.
+- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg`, `fedmedian`, or `bulyan` for TensorFlow and scikit-learn, and `fedxgbbagging` or `fedxgbcyclic` for XGBoost.
 - `aggregation.fraction_fit`: Percentage of available clients that are required for fitting.
 - `aggregation.fraction_evaluate`: Percentage of available clients that are required for evaluation.
 - `aggregation.min_available_clients`: Minimum amount of clients that need to be available/connected for a training sessions.
