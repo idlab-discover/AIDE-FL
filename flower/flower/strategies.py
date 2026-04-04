@@ -6,7 +6,7 @@ from typing import Any
 
 import wandb
 from flwr.app import MetricRecord
-from flwr.serverapp.strategy import Bulyan, FedAvg, FedMedian, FedXgbBagging, FedXgbCyclic
+from flwr.serverapp.strategy import Bulyan, FedAdam, FedAvg, FedMedian, FedXgbBagging, FedXgbCyclic
 
 from flower.frameworks.base import FrameworkAdapter
 
@@ -160,6 +160,10 @@ class SaveModelFedAvg(SaveModelStrategy, FedAvg):
 
 
 class SaveModelFedMedian(SaveModelStrategy, FedMedian):
+    pass
+
+
+class SaveModelFedAdam(SaveModelStrategy, FedAdam):
     pass
 
 
@@ -345,6 +349,14 @@ def build_strategy(
         "min_train_nodes": 1,
         "min_evaluate_nodes": 1,
     }
+    fedadam_kwargs = {
+        **fedavg_kwargs,
+        "eta": float(aggregation.get("eta", 0.1)),
+        "eta_l": float(aggregation.get("eta_l", 0.1)),
+        "beta_1": float(aggregation.get("beta_1", 0.9)),
+        "beta_2": float(aggregation.get("beta_2", 0.99)),
+        "tau": float(aggregation.get("tau", 0.001)),
+    }
 
     if strategy_name == "fedavg":
         return SaveModelFedAvg(
@@ -364,6 +376,16 @@ def build_strategy(
             share_dir=share_dir,
             server_rounds=server_rounds,
             **fedavg_kwargs,
+        )
+
+    if strategy_name == "fedadam":
+        return SaveModelFedAdam(
+            scenario_name=scenario_name,
+            model=model,
+            adapter=adapter,
+            share_dir=share_dir,
+            server_rounds=server_rounds,
+            **fedadam_kwargs,
         )
 
     if strategy_name == "bulyan":

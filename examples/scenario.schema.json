@@ -113,7 +113,7 @@
       "properties": {
         "strategy": {
           "type": "string",
-          "enum": ["fedavg", "fedmedian", "bulyan", "fedxgbbagging", "fedxgbcyclic"]
+          "enum": ["fedavg", "fedmedian", "fedadam", "bulyan", "fedxgbbagging", "fedxgbcyclic"]
         },
         "fraction_fit": {
           "type": "number",
@@ -132,6 +132,28 @@
         "num_malicious_nodes": {
           "type": "integer",
           "minimum": 0
+        },
+        "eta": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "eta_l": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "beta_1": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "beta_2": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "tau": {
+          "type": "number",
+          "exclusiveMinimum": 0
         }
       }
     },
