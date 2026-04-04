@@ -4,6 +4,7 @@ import json
 import os
 
 import numpy as np
+import tensorflow as tf
 from flwr.app import ArrayRecord, ConfigRecord, MetricRecord
 from safetensors.numpy import save_file
 from tensorflow import keras
@@ -123,6 +124,10 @@ class TensorFlowAdapter(FrameworkAdapter):
 
     def train(self, model, arrays: ArrayRecord, datasets: ClientDatasets, config: ConfigRecord, verbose) -> TrainResult:
         self._apply_arrays(model, arrays)
+        proximal_mu = float(config.get("proximal-mu", 0.0))
+        if proximal_mu > 0:
+            return self._train_fedprox(model, datasets, config)
+
         history = model.fit(
             x=datasets.x_train,
             y=datasets.y_train,
@@ -138,6 +143,66 @@ class TensorFlowAdapter(FrameworkAdapter):
                 "num-examples": len(datasets.x_train),
                 "train-loss": float(history_metrics["loss"][-1]),
                 "train-val-loss": float(history_metrics.get("val_loss", [0.0])[-1]),
+            }
+        )
+
+        return TrainResult(
+            arrays=ArrayRecord(model.get_weights()),
+            metrics=metrics,
+            history=history_metrics,
+        )
+
+    def _train_fedprox(self, model, datasets: ClientDatasets, config: ConfigRecord) -> TrainResult:
+        global_weights = [tf.identity(variable) for variable in model.trainable_variables]
+        proximal_mu = float(config["proximal-mu"])
+        batch_size = int(config["batch_size"])
+        local_epochs = int(config["local_epochs"])
+
+        history_metrics: dict[str, list[float]] = {"loss": [], "val_loss": []}
+        train_dataset = (
+            tf.data.Dataset.from_tensor_slices((datasets.x_train, datasets.y_train))
+            .shuffle(len(datasets.x_train))
+            .batch(batch_size)
+            .prefetch(tf.data.AUTOTUNE)
+        )
+
+        @tf.function
+        def train_step(x_batch, y_batch):
+            with tf.GradientTape() as tape:
+                predictions = model(x_batch, training=True)
+                base_loss = model.compute_loss(x=x_batch, y=y_batch, y_pred=predictions, training=True)
+                prox_term = tf.add_n(
+                    [
+                        tf.reduce_sum(tf.square(variable - global_weight))
+                        for variable, global_weight in zip(model.trainable_variables, global_weights)
+                    ]
+                )
+                loss = base_loss + 0.5 * proximal_mu * prox_term
+
+            gradients = tape.gradient(loss, model.trainable_variables)
+            model.optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            return loss
+
+        for _ in range(local_epochs):
+            train_loss = tf.keras.metrics.Mean()
+            for x_batch, y_batch in train_dataset:
+                train_loss.update_state(train_step(x_batch, y_batch))
+
+            val_eval = model.evaluate(datasets.x_eval, datasets.y_eval, verbose=0, return_dict=True)
+
+            history_metrics["loss"].append(float(train_loss.result().numpy()))
+            history_metrics["val_loss"].append(float(val_eval["loss"]))
+
+            for key, value in val_eval.items():
+                if key == "loss":
+                    continue
+                history_metrics.setdefault(f"val_{key}", []).append(float(value))
+
+        metrics = MetricRecord(
+            {
+                "num-examples": len(datasets.x_train),
+                "train-loss": history_metrics["loss"][-1],
+                "train-val-loss": history_metrics["val_loss"][-1],
             }
         )
 

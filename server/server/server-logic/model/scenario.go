@@ -80,6 +80,7 @@ type Aggregation struct {
 	FractionEvaluate    float64  `json:"fraction_evaluate" validate:"required,gt=0,lte=1.0"`
 	MinAvailableClients int      `json:"min_available_clients" validate:"required,gte=1"`
 	NumMaliciousNodes   int      `json:"num_malicious_nodes,omitempty" validate:"gte=0"`
+	ProximalMu          *float64 `json:"proximal_mu,omitempty" validate:"omitempty,gte=0"`
 	Eta                 *float64 `json:"eta,omitempty" validate:"omitempty,gt=0"`
 	EtaL                *float64 `json:"eta_l,omitempty" validate:"omitempty,gt=0"`
 	Beta1               *float64 `json:"beta_1,omitempty" validate:"omitempty,gt=0,lt=1"`

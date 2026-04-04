@@ -128,11 +128,12 @@ A scenario follows a certain JSON template:
 - `training.server_rounds`: Amount of aggregating rounds between clients and server.
 - `training.local_epochs`: Amount of local epochs to perform by clients between aggregations.
 - `training.batch_size`: Batch size for local epochs.
-- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg`, `fedmedian`, `fedadam`, `fedadagrad`, `fedyogi`, or `bulyan` for TensorFlow and scikit-learn, and `fedxgbbagging` or `fedxgbcyclic` for XGBoost.
+- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg`, `fedmedian`, `fedprox`, `fedadam`, `fedadagrad`, `fedyogi`, or `bulyan` for TensorFlow, `fedavg`, `fedmedian`, `fedadam`, `fedadagrad`, `fedyogi`, or `bulyan` for scikit-learn, and `fedxgbbagging` or `fedxgbcyclic` for XGBoost.
 - `aggregation.fraction_fit`: Percentage of available clients that are required for fitting.
 - `aggregation.fraction_evaluate`: Percentage of available clients that are required for evaluation.
 - `aggregation.min_available_clients`: Minimum amount of clients that need to be available/connected for a training sessions.
 - `aggregation.num_malicious_nodes`: Assumed number of Byzantine clients for `bulyan`. Runtime validation requires `min_available_clients >= 4 * num_malicious_nodes + 3`.
+- `aggregation.proximal_mu`: Optional FedProx proximal strength. This is currently supported on the TensorFlow path.
 - `aggregation.eta`, `aggregation.eta_l`, `aggregation.beta_1`, `aggregation.beta_2`, `aggregation.tau`: Optional FedOpt optimizer controls for `fedadam`, `fedadagrad`, and `fedyogi`. If omitted, each Flower strategy keeps its own built-in defaults.
 - `tensorflow.model.config_file`: Preferred authored format. Path to a TensorFlow/Keras model config file relative to the scenario file or absolute on disk.
 - `tensorflow.model.config`: Inline TensorFlow/Keras model config payload. This remains useful for tests and generated scenarios.

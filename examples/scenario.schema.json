@@ -113,7 +113,7 @@
       "properties": {
         "strategy": {
           "type": "string",
-          "enum": ["fedavg", "fedmedian", "fedadam", "fedadagrad", "fedyogi", "bulyan", "fedxgbbagging", "fedxgbcyclic"]
+          "enum": ["fedavg", "fedmedian", "fedprox", "fedadam", "fedadagrad", "fedyogi", "bulyan", "fedxgbbagging", "fedxgbcyclic"]
         },
         "fraction_fit": {
           "type": "number",
@@ -131,6 +131,10 @@
         },
         "num_malicious_nodes": {
           "type": "integer",
+          "minimum": 0
+        },
+        "proximal_mu": {
+          "type": "number",
           "minimum": 0
         },
         "eta": {

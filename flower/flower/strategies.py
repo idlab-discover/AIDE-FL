@@ -12,6 +12,7 @@ from flwr.serverapp.strategy import (
     FedAdam,
     FedAvg,
     FedMedian,
+    FedProx,
     FedXgbBagging,
     FedXgbCyclic,
     FedYogi,
@@ -169,6 +170,10 @@ class SaveModelFedAvg(SaveModelStrategy, FedAvg):
 
 
 class SaveModelFedMedian(SaveModelStrategy, FedMedian):
+    pass
+
+
+class SaveModelFedProx(SaveModelStrategy, FedProx):
     pass
 
 
@@ -404,6 +409,17 @@ def build_strategy(
             adapter=adapter,
             share_dir=share_dir,
             server_rounds=server_rounds,
+            **fedavg_kwargs,
+        )
+
+    if strategy_name == "fedprox":
+        return SaveModelFedProx(
+            scenario_name=scenario_name,
+            model=model,
+            adapter=adapter,
+            share_dir=share_dir,
+            server_rounds=server_rounds,
+            proximal_mu=float(aggregation.get("proximal_mu", 0.0)),
             **fedavg_kwargs,
         )
 

@@ -27,6 +27,7 @@ const shareDir = "/app/share"
 const defaultFramework = "tensorflow"
 const defaultAggregationStrategy = "fedavg"
 const medianAggregationStrategy = "fedmedian"
+const proxAggregationStrategy = "fedprox"
 const adamAggregationStrategy = "fedadam"
 const adagradAggregationStrategy = "fedadagrad"
 const yogiAggregationStrategy = "fedyogi"
@@ -126,9 +127,15 @@ func datasetsValidation(sl validator.StructLevel) {
 			scenario.Aggregation.Strategy != cyclicXGBoostAggregationStrategy {
 			sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
 		}
+	case "scikit_learn":
+		if scenario.Aggregation.Strategy == proxAggregationStrategy {
+			sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
+		}
+		fallthrough
 	default:
 		if scenario.Aggregation.Strategy != defaultAggregationStrategy &&
 			scenario.Aggregation.Strategy != medianAggregationStrategy &&
+			scenario.Aggregation.Strategy != proxAggregationStrategy &&
 			scenario.Aggregation.Strategy != adamAggregationStrategy &&
 			scenario.Aggregation.Strategy != adagradAggregationStrategy &&
 			scenario.Aggregation.Strategy != yogiAggregationStrategy &&
