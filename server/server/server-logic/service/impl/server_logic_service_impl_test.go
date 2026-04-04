@@ -159,6 +159,35 @@ func TestValidateScenarioAcceptsXGBoostBlock(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioAcceptsXGBoostCyclicStrategy(t *testing.T) {
+	service := &serverLogicServiceImpl{}
+	service.Validate = validator.New()
+	service.Validate.RegisterStructValidation(datasetsValidation, model.Scenario{})
+
+	scenario := &model.Scenario{
+		Name:          "demo",
+		Framework:     "xgboost",
+		Dataset:       "dataset",
+		LabelColumn:   "label",
+		Preprocessing: model.Preprocessing{DropColumns: []string{}, Split: model.SplitConfig{Train: 0.7, Eval: 0.2, Test: 0.1}},
+		Training:      model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation:   model.Aggregation{Strategy: cyclicXGBoostAggregationStrategy, FractionFit: 1, FractionEvaluate: 1, MinAvailableClients: 1},
+		XGBoost: &model.XGBoostFramework{
+			Model: model.XGBoostModel{
+				Kind:      "booster",
+				NFeatures: 4,
+			},
+			Params: map[string]any{
+				"objective": "binary:logistic",
+			},
+		},
+	}
+
+	if err := service.ValidateScenario(scenario); err != nil {
+		t.Fatalf("expected valid xgboost cyclic scenario, got %v", err)
+	}
+}
+
 func TestDecodeScenarioLogsDeprecationWarnings(t *testing.T) {
 	var logs strings.Builder
 	logger := slog.New(slog.NewTextHandler(&logs, nil))

@@ -27,6 +27,7 @@ const shareDir = "/app/share"
 const defaultFramework = "tensorflow"
 const defaultAggregationStrategy = "fedavg"
 const defaultXGBoostAggregationStrategy = "fedxgbbagging"
+const cyclicXGBoostAggregationStrategy = "fedxgbcyclic"
 
 type serverLogicServiceImpl struct {
 	configuration.Config
@@ -116,7 +117,8 @@ func datasetsValidation(sl validator.StructLevel) {
 	}
 	switch scenario.Framework {
 	case "xgboost":
-		if scenario.Aggregation.Strategy != defaultXGBoostAggregationStrategy {
+		if scenario.Aggregation.Strategy != defaultXGBoostAggregationStrategy &&
+			scenario.Aggregation.Strategy != cyclicXGBoostAggregationStrategy {
 			sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
 		}
 	default:
