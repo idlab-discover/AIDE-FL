@@ -232,6 +232,74 @@ func TestValidateScenarioAcceptsFedAdamStrategy(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioAcceptsFedAdagradStrategy(t *testing.T) {
+	service := &serverLogicServiceImpl{}
+	service.Validate = validator.New()
+	service.Validate.RegisterStructValidation(datasetsValidation, model.Scenario{})
+
+	scenario := &model.Scenario{
+		Name:          "demo",
+		Framework:     "scikit_learn",
+		Dataset:       "dataset",
+		LabelColumn:   "label",
+		Preprocessing: model.Preprocessing{DropColumns: []string{}, Split: model.SplitConfig{Train: 0.7, Eval: 0.2, Test: 0.1}},
+		Training:      model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation: model.Aggregation{
+			Strategy:            adagradAggregationStrategy,
+			FractionFit:         1,
+			FractionEvaluate:    1,
+			MinAvailableClients: 2,
+			Eta:                 float64Ptr(0.05),
+			EtaL:                float64Ptr(0.2),
+			Tau:                 float64Ptr(0.01),
+		},
+		ScikitLearn: &model.ScikitLearnFramework{
+			Model: model.ScikitLearnModel{
+				Kind:      "logistic_regression",
+				NFeatures: 4,
+				Classes:   []interface{}{0, 1},
+			},
+		},
+	}
+
+	if err := service.ValidateScenario(scenario); err != nil {
+		t.Fatalf("expected valid fedadagrad scenario, got %v", err)
+	}
+}
+
+func TestValidateScenarioAcceptsFedYogiStrategy(t *testing.T) {
+	service := &serverLogicServiceImpl{}
+	service.Validate = validator.New()
+	service.Validate.RegisterStructValidation(datasetsValidation, model.Scenario{})
+
+	scenario := &model.Scenario{
+		Name:          "demo",
+		Framework:     defaultFramework,
+		Dataset:       "dataset",
+		LabelColumn:   "label",
+		Preprocessing: model.Preprocessing{DropColumns: []string{}, Split: model.SplitConfig{Train: 0.7, Eval: 0.2, Test: 0.1}},
+		Training:      model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation: model.Aggregation{
+			Strategy:            yogiAggregationStrategy,
+			FractionFit:         1,
+			FractionEvaluate:    1,
+			MinAvailableClients: 2,
+			Eta:                 float64Ptr(0.02),
+			EtaL:                float64Ptr(0.05),
+			Beta1:               float64Ptr(0.85),
+			Beta2:               float64Ptr(0.95),
+			Tau:                 float64Ptr(0.01),
+		},
+		TensorFlow: &model.TensorFlowFramework{
+			Model: model.TensorFlowModel{Config: map[string]interface{}{"class_name": "Sequential"}},
+		},
+	}
+
+	if err := service.ValidateScenario(scenario); err != nil {
+		t.Fatalf("expected valid fedyogi scenario, got %v", err)
+	}
+}
+
 func TestValidateScenarioRejectsInvalidFedAdamBeta(t *testing.T) {
 	service := &serverLogicServiceImpl{}
 	service.Validate = validator.New()

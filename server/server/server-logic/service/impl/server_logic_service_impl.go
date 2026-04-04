@@ -28,6 +28,8 @@ const defaultFramework = "tensorflow"
 const defaultAggregationStrategy = "fedavg"
 const medianAggregationStrategy = "fedmedian"
 const adamAggregationStrategy = "fedadam"
+const adagradAggregationStrategy = "fedadagrad"
+const yogiAggregationStrategy = "fedyogi"
 const bulyanAggregationStrategy = "bulyan"
 const defaultXGBoostAggregationStrategy = "fedxgbbagging"
 const cyclicXGBoostAggregationStrategy = "fedxgbcyclic"
@@ -128,6 +130,8 @@ func datasetsValidation(sl validator.StructLevel) {
 		if scenario.Aggregation.Strategy != defaultAggregationStrategy &&
 			scenario.Aggregation.Strategy != medianAggregationStrategy &&
 			scenario.Aggregation.Strategy != adamAggregationStrategy &&
+			scenario.Aggregation.Strategy != adagradAggregationStrategy &&
+			scenario.Aggregation.Strategy != yogiAggregationStrategy &&
 			scenario.Aggregation.Strategy != bulyanAggregationStrategy {
 			sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
 		}

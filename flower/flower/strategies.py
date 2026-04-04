@@ -6,7 +6,16 @@ from typing import Any
 
 import wandb
 from flwr.app import MetricRecord
-from flwr.serverapp.strategy import Bulyan, FedAdam, FedAvg, FedMedian, FedXgbBagging, FedXgbCyclic
+from flwr.serverapp.strategy import (
+    Bulyan,
+    FedAdagrad,
+    FedAdam,
+    FedAvg,
+    FedMedian,
+    FedXgbBagging,
+    FedXgbCyclic,
+    FedYogi,
+)
 
 from flower.frameworks.base import FrameworkAdapter
 
@@ -164,6 +173,14 @@ class SaveModelFedMedian(SaveModelStrategy, FedMedian):
 
 
 class SaveModelFedAdam(SaveModelStrategy, FedAdam):
+    pass
+
+
+class SaveModelFedAdagrad(SaveModelStrategy, FedAdagrad):
+    pass
+
+
+class SaveModelFedYogi(SaveModelStrategy, FedYogi):
     pass
 
 
@@ -332,6 +349,26 @@ def build_strategy(
     share_dir: str,
     server_rounds: int,
 ):
+    def build_fedopt_kwargs(
+        *,
+        eta: float,
+        eta_l: float,
+        tau: float,
+        beta_1: float | None = None,
+        beta_2: float | None = None,
+    ) -> dict[str, float | str | int]:
+        kwargs = {
+            **fedavg_kwargs,
+            "eta": float(aggregation.get("eta", eta)),
+            "eta_l": float(aggregation.get("eta_l", eta_l)),
+            "tau": float(aggregation.get("tau", tau)),
+        }
+        if beta_1 is not None:
+            kwargs["beta_1"] = float(aggregation.get("beta_1", beta_1))
+        if beta_2 is not None:
+            kwargs["beta_2"] = float(aggregation.get("beta_2", beta_2))
+        return kwargs
+
     strategy_name = aggregation["strategy"]
     num_malicious_nodes = int(aggregation.get("num_malicious_nodes", 0))
     base_kwargs = {
@@ -348,14 +385,6 @@ def build_strategy(
         **base_kwargs,
         "min_train_nodes": 1,
         "min_evaluate_nodes": 1,
-    }
-    fedadam_kwargs = {
-        **fedavg_kwargs,
-        "eta": float(aggregation.get("eta", 0.1)),
-        "eta_l": float(aggregation.get("eta_l", 0.1)),
-        "beta_1": float(aggregation.get("beta_1", 0.9)),
-        "beta_2": float(aggregation.get("beta_2", 0.99)),
-        "tau": float(aggregation.get("tau", 0.001)),
     }
 
     if strategy_name == "fedavg":
@@ -385,7 +414,27 @@ def build_strategy(
             adapter=adapter,
             share_dir=share_dir,
             server_rounds=server_rounds,
-            **fedadam_kwargs,
+            **build_fedopt_kwargs(eta=0.1, eta_l=0.1, beta_1=0.9, beta_2=0.99, tau=0.001),
+        )
+
+    if strategy_name == "fedadagrad":
+        return SaveModelFedAdagrad(
+            scenario_name=scenario_name,
+            model=model,
+            adapter=adapter,
+            share_dir=share_dir,
+            server_rounds=server_rounds,
+            **build_fedopt_kwargs(eta=0.1, eta_l=0.1, tau=0.001),
+        )
+
+    if strategy_name == "fedyogi":
+        return SaveModelFedYogi(
+            scenario_name=scenario_name,
+            model=model,
+            adapter=adapter,
+            share_dir=share_dir,
+            server_rounds=server_rounds,
+            **build_fedopt_kwargs(eta=0.01, eta_l=0.0316, beta_1=0.9, beta_2=0.99, tau=0.001),
         )
 
     if strategy_name == "bulyan":
