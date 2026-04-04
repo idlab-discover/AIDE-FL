@@ -113,7 +113,7 @@
       "properties": {
         "strategy": {
           "type": "string",
-          "enum": ["fedavg", "fedxgbbagging", "fedxgbcyclic"]
+          "enum": ["fedavg", "bulyan", "fedxgbbagging", "fedxgbcyclic"]
         },
         "fraction_fit": {
           "type": "number",
@@ -128,6 +128,10 @@
         "min_available_clients": {
           "type": "integer",
           "minimum": 1
+        },
+        "num_malicious_nodes": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     },

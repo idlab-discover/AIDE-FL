@@ -128,10 +128,11 @@ A scenario follows a certain JSON template:
 - `training.server_rounds`: Amount of aggregating rounds between clients and server.
 - `training.local_epochs`: Amount of local epochs to perform by clients between aggregations.
 - `training.batch_size`: Batch size for local epochs.
-- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg` for TensorFlow and scikit-learn, and `fedxgbbagging` or `fedxgbcyclic` for XGBoost.
+- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg` or `bulyan` for TensorFlow and scikit-learn, and `fedxgbbagging` or `fedxgbcyclic` for XGBoost.
 - `aggregation.fraction_fit`: Percentage of available clients that are required for fitting.
 - `aggregation.fraction_evaluate`: Percentage of available clients that are required for evaluation.
 - `aggregation.min_available_clients`: Minimum amount of clients that need to be available/connected for a training sessions.
+- `aggregation.num_malicious_nodes`: Assumed number of Byzantine clients for `bulyan`. Runtime validation requires `min_available_clients >= 4 * num_malicious_nodes + 3`.
 - `tensorflow.model.config_file`: Preferred authored format. Path to a TensorFlow/Keras model config file relative to the scenario file or absolute on disk.
 - `tensorflow.model.config`: Inline TensorFlow/Keras model config payload. This remains useful for tests and generated scenarios.
 - `scikit_learn.model.kind`: Currently supports `logistic_regression`.
@@ -140,7 +141,7 @@ A scenario follows a certain JSON template:
 - `scikit_learn.model.penalty`, `scikit_learn.model.solver`, `scikit_learn.model.multi_class`: Optional scikit-learn logistic regression settings.
 - `xgboost.model.kind`: Currently supports `booster`.
 - `xgboost.model.n_features`: Feature-column count expected by the booster input matrix.
-- `xgboost.params`: Raw XGBoost parameter dictionary. Current runtime support is intentionally narrow and expects `objective: "binary:logistic"` together with a `fedxgbbagging` aggregation strategy.
+- `xgboost.params`: Raw XGBoost parameter dictionary. Current runtime support is intentionally narrow and expects `objective: "binary:logistic"` together with a `fedxgbbagging` or `fedxgbcyclic` aggregation strategy.
 
 Legacy compatibility:
 

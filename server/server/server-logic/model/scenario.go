@@ -79,6 +79,7 @@ type Aggregation struct {
 	FractionFit         float64 `json:"fraction_fit" validate:"required,gt=0,lte=1.0"`
 	FractionEvaluate    float64 `json:"fraction_evaluate" validate:"required,gt=0,lte=1.0"`
 	MinAvailableClients int     `json:"min_available_clients" validate:"required,gte=1"`
+	NumMaliciousNodes   int     `json:"num_malicious_nodes,omitempty" validate:"gte=0"`
 }
 
 type LegacyAggregation struct {

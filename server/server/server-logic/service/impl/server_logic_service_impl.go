@@ -26,6 +26,7 @@ import (
 const shareDir = "/app/share"
 const defaultFramework = "tensorflow"
 const defaultAggregationStrategy = "fedavg"
+const bulyanAggregationStrategy = "bulyan"
 const defaultXGBoostAggregationStrategy = "fedxgbbagging"
 const cyclicXGBoostAggregationStrategy = "fedxgbcyclic"
 
@@ -122,8 +123,22 @@ func datasetsValidation(sl validator.StructLevel) {
 			sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
 		}
 	default:
-		if scenario.Aggregation.Strategy != defaultAggregationStrategy {
+		if scenario.Aggregation.Strategy != defaultAggregationStrategy &&
+			scenario.Aggregation.Strategy != bulyanAggregationStrategy {
 			sl.ReportError(scenario.Aggregation.Strategy, "Strategy", "aggregation.strategy", "unsupported", "")
+		}
+	}
+
+	if scenario.Aggregation.Strategy == bulyanAggregationStrategy {
+		requiredClients := 4*scenario.Aggregation.NumMaliciousNodes + 3
+		if scenario.Aggregation.MinAvailableClients < requiredClients {
+			sl.ReportError(
+				scenario.Aggregation.MinAvailableClients,
+				"MinAvailableClients",
+				"aggregation.min_available_clients",
+				"min_bulyan_clients",
+				fmt.Sprintf("need at least %d clients for %d malicious nodes", requiredClients, scenario.Aggregation.NumMaliciousNodes),
+			)
 		}
 	}
 }

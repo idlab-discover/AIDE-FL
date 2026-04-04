@@ -130,6 +130,68 @@ func TestValidateScenarioAcceptsScikitLearnBlock(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioAcceptsBulyanStrategy(t *testing.T) {
+	service := &serverLogicServiceImpl{}
+	service.Validate = validator.New()
+	service.Validate.RegisterStructValidation(datasetsValidation, model.Scenario{})
+
+	scenario := &model.Scenario{
+		Name:          "demo",
+		Framework:     "scikit_learn",
+		Dataset:       "dataset",
+		LabelColumn:   "label",
+		Preprocessing: model.Preprocessing{DropColumns: []string{}, Split: model.SplitConfig{Train: 0.7, Eval: 0.2, Test: 0.1}},
+		Training:      model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation: model.Aggregation{
+			Strategy:            bulyanAggregationStrategy,
+			FractionFit:         1,
+			FractionEvaluate:    1,
+			MinAvailableClients: 7,
+			NumMaliciousNodes:   1,
+		},
+		ScikitLearn: &model.ScikitLearnFramework{
+			Model: model.ScikitLearnModel{
+				Kind:      "logistic_regression",
+				NFeatures: 4,
+				Classes:   []interface{}{0, 1},
+			},
+		},
+	}
+
+	if err := service.ValidateScenario(scenario); err != nil {
+		t.Fatalf("expected valid bulyan scenario, got %v", err)
+	}
+}
+
+func TestValidateScenarioRejectsInsufficientBulyanClients(t *testing.T) {
+	service := &serverLogicServiceImpl{}
+	service.Validate = validator.New()
+	service.Validate.RegisterStructValidation(datasetsValidation, model.Scenario{})
+
+	scenario := &model.Scenario{
+		Name:          "demo",
+		Framework:     defaultFramework,
+		Dataset:       "dataset",
+		LabelColumn:   "label",
+		Preprocessing: model.Preprocessing{DropColumns: []string{}, Split: model.SplitConfig{Train: 0.7, Eval: 0.2, Test: 0.1}},
+		Training:      model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation: model.Aggregation{
+			Strategy:            bulyanAggregationStrategy,
+			FractionFit:         1,
+			FractionEvaluate:    1,
+			MinAvailableClients: 6,
+			NumMaliciousNodes:   1,
+		},
+		TensorFlow: &model.TensorFlowFramework{
+			Model: model.TensorFlowModel{Config: map[string]interface{}{"class_name": "Sequential"}},
+		},
+	}
+
+	if err := service.ValidateScenario(scenario); err == nil {
+		t.Fatal("expected validation error for insufficient bulyan clients")
+	}
+}
+
 func TestValidateScenarioAcceptsXGBoostBlock(t *testing.T) {
 	service := &serverLogicServiceImpl{}
 	service.Validate = validator.New()

@@ -6,7 +6,7 @@ from typing import Any
 
 import wandb
 from flwr.app import MetricRecord
-from flwr.serverapp.strategy import FedAvg, FedXgbBagging, FedXgbCyclic
+from flwr.serverapp.strategy import Bulyan, FedAvg, FedXgbBagging, FedXgbCyclic
 from flwr.serverapp.strategy.fedavg import aggregate_arrayrecords
 
 from flower.frameworks.base import FrameworkAdapter
@@ -49,7 +49,7 @@ def aggregate_numeric_metrics(contents, weighted_by_key: str) -> MetricRecord:
     return MetricRecord(aggregated)
 
 
-class SaveModelFedAvg(FedAvg):
+class SaveModelStrategyMixin:
     def __init__(
         self,
         scenario_name: str,
@@ -71,32 +71,7 @@ class SaveModelFedAvg(FedAvg):
         date_name = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
         wandb.init(project="aide-flower-deployment", name=f"{scenario_name}-{date_name}")
 
-    def aggregate_train(self, server_round, replies):
-        valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
-        arrays = metrics = None
-        if valid_replies:
-            reply_contents = [reply.content for reply in valid_replies]
-            arrays = aggregate_arrayrecords(reply_contents, self.weighted_by_key)
-            metrics = self.train_metrics_aggr_fn(reply_contents, self.weighted_by_key)
-
-        histories = []
-        for reply in valid_replies:
-            history = reply.content.config_records.get(HISTORY_KEY)
-            if history is None:
-                continue
-            history_json = history.get(HISTORY_KEY)
-            if history_json:
-                histories.append(json.loads(history_json))
-
-        self.fitted_validated_metrics[server_round] = {
-            "aggregated": dict(metrics) if metrics is not None else {},
-            "histories": histories,
-        }
-        self._write_json(
-            f"{self.scenario_name}_fitted_validated_metrics.json",
-            self.fitted_validated_metrics,
-        )
-
+    def _save_train_results(self, server_round, arrays, metrics):
         if arrays is None:
             return arrays, metrics
 
@@ -116,6 +91,25 @@ class SaveModelFedAvg(FedAvg):
             )
 
         return arrays, metrics
+
+    def _record_train_histories(self, server_round, valid_replies, metrics):
+        histories = []
+        for reply in valid_replies:
+            history = reply.content.config_records.get(HISTORY_KEY)
+            if history is None:
+                continue
+            history_json = history.get(HISTORY_KEY)
+            if history_json:
+                histories.append(json.loads(history_json))
+
+        self.fitted_validated_metrics[server_round] = {
+            "aggregated": dict(metrics) if metrics is not None else {},
+            "histories": histories,
+        }
+        self._write_json(
+            f"{self.scenario_name}_fitted_validated_metrics.json",
+            self.fitted_validated_metrics,
+        )
 
     def aggregate_evaluate(self, server_round, replies):
         valid_replies, _ = self._check_and_log_replies(replies, is_train=False)
@@ -152,6 +146,27 @@ class SaveModelFedAvg(FedAvg):
         with open(path, "w", encoding="utf-8") as file:
             json.dump(payload, file, indent=4)
         print(f"Updated {filename} in {path}")
+
+
+class SaveModelFedAvg(SaveModelStrategyMixin, FedAvg):
+    def aggregate_train(self, server_round, replies):
+        valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
+        arrays = metrics = None
+        if valid_replies:
+            reply_contents = [reply.content for reply in valid_replies]
+            arrays = aggregate_arrayrecords(reply_contents, self.weighted_by_key)
+            metrics = self.train_metrics_aggr_fn(reply_contents, self.weighted_by_key)
+
+        self._record_train_histories(server_round, valid_replies, metrics)
+        return self._save_train_results(server_round, arrays, metrics)
+
+
+class SaveModelBulyan(SaveModelStrategyMixin, Bulyan):
+    def aggregate_train(self, server_round, replies):
+        valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
+        arrays, metrics = super().aggregate_train(server_round, valid_replies)
+        self._record_train_histories(server_round, valid_replies, metrics)
+        return self._save_train_results(server_round, arrays, metrics)
 
 
 class SaveXGBoostBagging(FedXgbBagging):
@@ -316,6 +331,7 @@ def build_strategy(
     server_rounds: int,
 ):
     strategy_name = aggregation["strategy"]
+    num_malicious_nodes = int(aggregation.get("num_malicious_nodes", 0))
     base_kwargs = {
         "fraction_train": aggregation["fraction_fit"],
         "fraction_evaluate": aggregation["fraction_evaluate"],
@@ -339,6 +355,17 @@ def build_strategy(
             adapter=adapter,
             share_dir=share_dir,
             server_rounds=server_rounds,
+            **fedavg_kwargs,
+        )
+
+    if strategy_name == "bulyan":
+        return SaveModelBulyan(
+            scenario_name=scenario_name,
+            model=model,
+            adapter=adapter,
+            share_dir=share_dir,
+            server_rounds=server_rounds,
+            num_malicious_nodes=num_malicious_nodes,
             **fedavg_kwargs,
         )
 
