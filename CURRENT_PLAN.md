@@ -252,6 +252,8 @@ Exit criteria:
 
 ### 7. Add scikit-learn as the second framework
 
+https://flower.ai/docs/framework/tutorial-quickstart-scikitlearn.html
+
 Goal:
 
 - prove that the new architecture is genuinely multi-framework, not just a TensorFlow cleanup
@@ -270,6 +272,8 @@ Exit criteria:
 - sklearn support does not require TensorFlow/Keras artifacts or assumptions
 
 ### 8. Add XGBoost after sklearn
+
+https://flower.ai/docs/framework/tutorial-quickstart-xgboost.html
 
 Goal:
 
