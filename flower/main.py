@@ -13,13 +13,34 @@ flower_app_path = "."
 flower_superlink = "deployment"
 
 
+def normalize_payload(payload: dict) -> dict:
+    payload.setdefault("runs", [])
+
+    if "run-id" in payload:
+        payload["run-id"] = str(payload["run-id"])
+
+    for run in payload.get("runs", []):
+        if "run-id" in run:
+            run["run-id"] = str(run["run-id"])
+
+    return payload
+
+
 def run_flower_command(command: list[str]) -> tuple[dict, int]:
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        cwd=os.getcwd(),
-    )
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            cwd=os.getcwd(),
+            check=False,
+        )
+    except OSError as exc:
+        return {
+            "success": False,
+            "runs": [],
+            "error-message": str(exc),
+        }, 503
 
     stdout = result.stdout.strip()
     stderr = result.stderr.strip()
@@ -42,14 +63,7 @@ def run_flower_command(command: list[str]) -> tuple[dict, int]:
         }
         return payload, 503
 
-    payload.setdefault("runs", [])
-
-    if "run-id" in payload:
-        payload["run-id"] = str(payload["run-id"])
-
-    for run in payload.get("runs", []):
-        if "run-id" in run:
-            run["run-id"] = str(run["run-id"])
+    payload = normalize_payload(payload)
 
     if result.returncode != 0 or payload.get("success") is False:
         if stderr and "error-message" not in payload:
@@ -57,6 +71,16 @@ def run_flower_command(command: list[str]) -> tuple[dict, int]:
         return payload, 503
 
     return payload, 200
+
+
+def build_run_command() -> list[str]:
+    return ["flwr", "run", flower_app_path, flower_superlink, "--format", "json"]
+
+
+def build_ls_command(run_id: str | None = None) -> list[str]:
+    if run_id:
+        return ["flwr", "ls", "--run-id", run_id, flower_superlink, "--format", "json"]
+    return ["flwr", "ls", flower_superlink, "--format", "json"]
 
 
 def build_serverapp_command(args: list[str]) -> list[str]:
@@ -105,9 +129,7 @@ def setup_flask():
 def start_training() -> str:
     """Start the federated learning training process"""
     print("Starting Flower federated learning training...")
-    payload, status_code = run_flower_command(
-        ["flwr", "run", flower_app_path, flower_superlink, "--format", "json"],
-    )
+    payload, status_code = run_flower_command(build_run_command())
     return jsonify(payload), status_code
         
         
@@ -115,11 +137,7 @@ def training_status(run_id: str) -> str:
     """Get training status from Flower"""
     print("Running command to get training run status...")
 
-    command = ["flwr", "ls", flower_superlink, "--format", "json"]
-    if run_id:
-        command = ["flwr", "ls", "--run-id", run_id, flower_superlink, "--format", "json"]
-
-    payload, status_code = run_flower_command(command)
+    payload, status_code = run_flower_command(build_ls_command(run_id))
     return jsonify(payload), status_code
         
 

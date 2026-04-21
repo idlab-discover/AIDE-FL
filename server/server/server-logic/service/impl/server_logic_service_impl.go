@@ -23,7 +23,8 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-const shareDir = "/app/share"
+var shareDir = "/app/share"
+
 const defaultFramework = "tensorflow"
 const defaultAggregationStrategy = "fedavg"
 const medianAggregationStrategy = "fedmedian"
@@ -266,31 +267,11 @@ func (service *serverLogicServiceImpl) scenarioForClient(baseScenario model.Scen
 	return baseScenario
 }
 
-func (service *serverLogicServiceImpl) runtimeCompatibleScenario(scenario model.Scenario) model.Scenario {
-	scenario.LegacyHyper = &model.Training{
-		ServerRounds: scenario.Training.ServerRounds,
-		LocalEpochs:  scenario.Training.LocalEpochs,
-		BatchSize:    scenario.Training.BatchSize,
-	}
-	scenario.LegacyStrategy = &model.LegacyAggregation{
-		FractionFit:         scenario.Aggregation.FractionFit,
-		FractionEvaluate:    scenario.Aggregation.FractionEvaluate,
-		MinAvailableClients: scenario.Aggregation.MinAvailableClients,
-	}
-
-	if scenario.Framework == defaultFramework && scenario.TensorFlow != nil {
-		scenario.LegacyModel = scenario.TensorFlow.Model.Config
-	}
-
-	return scenario
-}
-
 func (service *serverLogicServiceImpl) StartClients(scenario *model.Scenario, prepId uuid.UUID, clients map[string]*model.Client) {
 	slog.Info("Starting", "clients", slices.Collect(maps.Keys(clients)))
 
 	for _, c := range clients {
 		clientScenario := service.scenarioForClient(*scenario, c.Id)
-		clientScenario = service.runtimeCompatibleScenario(clientScenario)
 
 		scenarioMessage := model.ScenarioMessage{
 			PrepId:   prepId.String(),
@@ -310,8 +291,7 @@ func (service *serverLogicServiceImpl) SetFlowerConfig(scenario *model.Scenario)
 	slog.Info("Updating config file")
 	config_path := path.Join(shareDir, "config.ini")
 
-	runtimeScenario := service.runtimeCompatibleScenario(*scenario)
-	scenario_json, err := json.Marshal(runtimeScenario)
+	scenario_json, err := json.Marshal(scenario)
 	exception.PanicLogging(err, "Unable to unmarshal scenario from JSON")
 
 	err = os.MkdirAll(filepath.Dir(config_path), 0o755)

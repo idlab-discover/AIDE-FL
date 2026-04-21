@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/model"
 	"github.com/go-playground/validator/v10"
+	"gopkg.in/ini.v1"
 )
 
 func float64Ptr(v float64) *float64 {
@@ -511,6 +513,106 @@ func TestDecodeScenarioLogsDeprecationWarnings(t *testing.T) {
 	for _, field := range []string{"hyper", "strategy", "model_file"} {
 		if !strings.Contains(output, "field="+field) {
 			t.Fatalf("expected deprecation warning for %s, got %q", field, output)
+		}
+	}
+}
+
+func TestScenarioForClientKeepsCurrentShape(t *testing.T) {
+	service := &serverLogicServiceImpl{}
+	scenario := model.Scenario{
+		Name:        "demo",
+		Framework:   defaultFramework,
+		Datasets:    map[string]string{"client-a": "dataset-a", "client-b": "dataset-b"},
+		LabelColumn: "label",
+		Preprocessing: model.Preprocessing{
+			DropColumns: []string{},
+			Split:       model.SplitConfig{Train: 0.7, Eval: 0.2, Test: 0.1},
+		},
+		Training: model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation: model.Aggregation{
+			Strategy:            defaultAggregationStrategy,
+			FractionFit:         1,
+			FractionEvaluate:    1,
+			MinAvailableClients: 1,
+		},
+		TensorFlow: &model.TensorFlowFramework{
+			Model: model.TensorFlowModel{Config: map[string]interface{}{"class_name": "Sequential"}},
+		},
+	}
+
+	clientScenario := service.scenarioForClient(scenario, "client-a")
+
+	payload, err := json.Marshal(clientScenario)
+	if err != nil {
+		t.Fatalf("marshal scenario: %v", err)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("unmarshal scenario: %v", err)
+	}
+
+	if decoded["dataset"] != "dataset-a" {
+		t.Fatalf("expected client dataset to be narrowed, got %#v", decoded["dataset"])
+	}
+	for _, field := range []string{"datasets", "hyper", "strategy", "model", "model_file"} {
+		if _, ok := decoded[field]; ok {
+			t.Fatalf("expected current scenario shape without top-level %q, got %#v", field, decoded[field])
+		}
+	}
+}
+
+func TestSetFlowerConfigWritesCurrentScenarioShape(t *testing.T) {
+	service := &serverLogicServiceImpl{}
+	originalShareDir := shareDir
+	shareDir = t.TempDir()
+	defer func() {
+		shareDir = originalShareDir
+	}()
+
+	scenario := &model.Scenario{
+		Name:        "demo",
+		Framework:   defaultFramework,
+		Dataset:     "dataset-a",
+		LabelColumn: "label",
+		Preprocessing: model.Preprocessing{
+			DropColumns: []string{},
+			Split:       model.SplitConfig{Train: 0.7, Eval: 0.2, Test: 0.1},
+		},
+		Training: model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation: model.Aggregation{
+			Strategy:            defaultAggregationStrategy,
+			FractionFit:         1,
+			FractionEvaluate:    1,
+			MinAvailableClients: 1,
+		},
+		TensorFlow: &model.TensorFlowFramework{
+			Model: model.TensorFlowModel{Config: map[string]interface{}{"class_name": "Sequential"}},
+		},
+	}
+
+	service.SetFlowerConfig(scenario)
+
+	cfg, err := ini.Load(filepath.Join(shareDir, "config.ini"))
+	if err != nil {
+		t.Fatalf("load config.ini: %v", err)
+	}
+
+	if got := cfg.Section("serverapp").Key("changed").String(); got != "1" {
+		t.Fatalf("expected changed marker to be 1, got %q", got)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(cfg.Section("serverapp").Key("scenario").String()), &decoded); err != nil {
+		t.Fatalf("decode stored scenario: %v", err)
+	}
+
+	if decoded["framework"] != defaultFramework {
+		t.Fatalf("expected stored framework %q, got %#v", defaultFramework, decoded["framework"])
+	}
+	for _, field := range []string{"hyper", "strategy", "model", "model_file"} {
+		if _, ok := decoded[field]; ok {
+			t.Fatalf("expected stored scenario without top-level %q, got %#v", field, decoded[field])
 		}
 	}
 }
