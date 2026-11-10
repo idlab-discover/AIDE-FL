@@ -74,12 +74,12 @@ if ! "$ca_exists"; then
   kubectl create secret tls server-cert -n aide-fl --cert="$DIR/certs/server.pem" --key="$DIR/certs/server.key" --dry-run=client -o yaml | kubectl apply -f -
   kubectl create configmap ca-cert -n aide-fl --from-file="$DIR/certs/ca.crt" --dry-run=client -o yaml | kubectl apply -f -
 fi
-kubectl create configmap server-ip -n aide-fl --from-literal="SERVER_IP=$SERVER_IP" --from-literal="SERVER_PORT=$API_PORT" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap server-ip -n aide-fl --from-literal="SERVER_IP=$SERVER_IP" --from-literal="SERVER_PORT=:$API_PORT" --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f "$DIR/client/kafka/kafka-configmap.yaml" -f "$DIR/client/preprocessor/redis-configmap.yaml"
 # Render images and runtime settings before creating or updating any workload.
 apply_workload() {
   kubectl create --dry-run=client -o json -f "$DIR/$1" |
-    jq --arg repo "$IMAGE_REPO" --arg tag "$IMAGE_TAG" --arg port "$API_PORT" --arg mode "$WANDB_MODE_VALUE" '
+    jq --arg repo "$IMAGE_REPO" --arg tag "$IMAGE_TAG" --arg port ":$API_PORT" --arg mode "$WANDB_MODE_VALUE" '
       .spec.template.spec.containers |= map(
         if (.name | IN("flower-serverapp", "server-logic", "orchestrator", "datastore-logic", "preprocessor-logic", "flower-clientapp", "trainer-logic"))
         then .image = ($repo + "/" + .name + ":" + $tag) else . end |

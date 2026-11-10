@@ -56,13 +56,16 @@ class TestDeploy(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
             calls = [json.loads(line) for line in (directory / 'calls').read_text().splitlines()]
             self.assertFalse(any(c[0] == 'delete' for c in calls))
+            server_configs = [c for c in calls if c[:3] == ['create', 'configmap', 'server-ip']]
+            self.assertEqual(len(server_configs), 2)
+            self.assertTrue(all('--from-literal=SERVER_PORT=:8081' in c for c in server_configs))
             self.assertFalse(any(c[:2] == ['create', 'secret'] for c in calls))
             rollouts = [c for c in calls if c[:2] == ['rollout', 'status']]
             self.assertEqual(len(rollouts), 14)
             self.assertTrue(all('--timeout=300s' in c for c in rollouts))
             documents = [json.loads(line) for line in (directory / 'applied').read_text().splitlines()]
             containers = [c for d in documents if 'spec' in d for c in d['spec']['template']['spec']['containers']]
-            for name, variable, value in [('flower-serverapp', 'WANDB_MODE', 'offline'), ('server-logic', 'LISTEN_PORT', '8081'), ('orchestrator', 'SERVER_PORT', '8081')]:
+            for name, variable, value in [('flower-serverapp', 'WANDB_MODE', 'offline'), ('server-logic', 'LISTEN_PORT', ':8081'), ('orchestrator', 'SERVER_PORT', ':8081')]:
                 matches = [c for c in containers if c['name'] == name]
                 self.assertEqual(len(matches), 2)
                 for container in matches:
