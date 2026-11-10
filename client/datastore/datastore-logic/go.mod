@@ -1,4 +1,4 @@
-module github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic
+module github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic
 
 go 1.24.1
 

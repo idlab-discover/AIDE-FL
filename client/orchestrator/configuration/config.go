@@ -3,7 +3,7 @@ package configuration
 import (
 	"os"
 
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/exception"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/exception"
 	"github.com/joho/godotenv"
 )
 

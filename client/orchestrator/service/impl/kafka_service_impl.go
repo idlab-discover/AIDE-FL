@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/exception"
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/model"
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/repository"
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/service"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/exception"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/model"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/repository"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/service"
 	"github.com/segmentio/kafka-go"
 )
 

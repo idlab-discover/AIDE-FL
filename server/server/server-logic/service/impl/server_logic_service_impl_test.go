@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/model"
 	"github.com/go-playground/validator/v10"
+	"github.com/idlab-discover/AIDE-FL/server/server/server-logic/model"
 	"gopkg.in/ini.v1"
 )
 

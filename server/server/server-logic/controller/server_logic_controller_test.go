@@ -10,9 +10,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/model"
-	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/service"
 	"github.com/google/uuid"
+	"github.com/idlab-discover/AIDE-FL/server/server/server-logic/model"
+	"github.com/idlab-discover/AIDE-FL/server/server/server-logic/service"
 )
 
 type fakeServerLogicService struct {

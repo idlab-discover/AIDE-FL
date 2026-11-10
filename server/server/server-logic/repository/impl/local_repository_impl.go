@@ -11,9 +11,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/configuration"
-	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/exception"
-	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/repository"
+	"github.com/idlab-discover/AIDE-FL/server/server/server-logic/configuration"
+	"github.com/idlab-discover/AIDE-FL/server/server/server-logic/exception"
+	"github.com/idlab-discover/AIDE-FL/server/server/server-logic/repository"
 )
 
 type localRepositoryImpl struct {

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/configuration"
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/controller"
-	service "github.com/Str-Gen/AIDE-FL/client/orchestrator/service/impl"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/configuration"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/controller"
+	service "github.com/idlab-discover/AIDE-FL/client/orchestrator/service/impl"
 )
 
 func main() {

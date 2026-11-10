@@ -10,10 +10,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/configuration"
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/exception"
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/model"
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/repository"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/configuration"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/exception"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/model"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/repository"
 )
 
 type localRepositoryImpl struct {

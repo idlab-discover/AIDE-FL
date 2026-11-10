@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/exception"
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/repository"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/exception"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/repository"
 	"github.com/segmentio/kafka-go"
 )
 

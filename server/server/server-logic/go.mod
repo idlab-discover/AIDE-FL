@@ -1,4 +1,4 @@
-module github.com/Str-Gen/AIDE-FL/server/server/server-logic
+module github.com/idlab-discover/AIDE-FL/server/server/server-logic
 
 go 1.24.2
 

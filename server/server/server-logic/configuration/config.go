@@ -3,7 +3,7 @@ package configuration
 import (
 	"os"
 
-	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/exception"
+	"github.com/idlab-discover/AIDE-FL/server/server/server-logic/exception"
 	"github.com/joho/godotenv"
 )
 

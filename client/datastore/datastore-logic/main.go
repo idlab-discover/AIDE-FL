@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/configuration"
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/controller"
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/exception"
-	repository "github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/repository/impl"
-	service "github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/service/impl"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/configuration"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/controller"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/exception"
+	repository "github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/repository/impl"
+	service "github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/service/impl"
 )
 
 func main() {

@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/exception"
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/model"
-	"github.com/Str-Gen/AIDE-FL/client/orchestrator/service"
 	"github.com/gorilla/websocket"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/exception"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/model"
+	"github.com/idlab-discover/AIDE-FL/client/orchestrator/service"
 )
 
 const (

@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/exception"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/exception"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )

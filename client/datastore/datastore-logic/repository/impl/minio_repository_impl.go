@@ -5,9 +5,9 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/configuration"
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/exception"
-	"github.com/Str-Gen/AIDE-FL/client/datastore/datastore-logic/repository"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/configuration"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/exception"
+	"github.com/idlab-discover/AIDE-FL/client/datastore/datastore-logic/repository"
 	"github.com/minio/minio-go/v7"
 )
 

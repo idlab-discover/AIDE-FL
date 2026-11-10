@@ -1,4 +1,4 @@
-module github.com/Str-Gen/AIDE-FL/client/orchestrator
+module github.com/idlab-discover/AIDE-FL/client/orchestrator
 
 go 1.24.1
 

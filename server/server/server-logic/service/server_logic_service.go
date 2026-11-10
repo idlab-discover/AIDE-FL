@@ -3,8 +3,8 @@ package service
 import (
 	"io"
 
-	"github.com/Str-Gen/AIDE-FL/server/server/server-logic/model"
 	"github.com/google/uuid"
+	"github.com/idlab-discover/AIDE-FL/server/server/server-logic/model"
 )
 
 type ServerLogicService interface {
