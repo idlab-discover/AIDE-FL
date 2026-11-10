@@ -47,6 +47,7 @@ spec:
             secretKeyRef:
               name: wandb-api-key
               key: WANDB_API_KEY
+              optional: true
         volumeMounts:
         - name: server-share
           mountPath: /app/share

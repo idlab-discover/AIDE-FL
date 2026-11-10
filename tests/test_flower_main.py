@@ -61,6 +61,49 @@ class TestFlowerMain(unittest.TestCase):
     def setUpClass(cls):
         cls.module = load_flower_main_module()
 
+    def test_startup_without_credentials_is_offline_and_never_logs_in(self):
+        with patch.dict(self.module.os.environ, {}, clear=True), \
+                patch.object(self.module.sys, "argv", ["main.py", "--insecure"]), \
+                patch.object(self.module.wandb, "login") as login, \
+                patch.object(self.module, "setup_flask"), \
+                patch.object(self.module.subprocess, "run") as run:
+            self.module.main()
+            self.assertEqual(self.module.os.environ["WANDB_MODE"], "offline")
+            login.assert_not_called()
+            run.assert_called_once_with(["flower-superexec", "--plugin-type", "serverapp", "--insecure"])
+
+    def test_explicit_local_modes_do_not_login_even_with_a_key(self):
+        for mode in ("offline", "disabled"):
+            with self.subTest(mode=mode), \
+                    patch.dict(self.module.os.environ, {"WANDB_MODE": mode, "WANDB_API_KEY": "test-key"}, clear=True), \
+                    patch.object(self.module.wandb, "login") as login, \
+                    patch.object(self.module, "setup_flask"), \
+                    patch.object(self.module.subprocess, "run") as run:
+                self.module.main()
+                login.assert_not_called()
+                self.assertEqual(run.call_count, 1)
+
+    def test_supplied_key_defaults_to_online_with_one_login(self):
+        with patch.dict(self.module.os.environ, {"WANDB_API_KEY": "test-key"}, clear=True), \
+                patch.object(self.module.wandb, "login") as login, \
+                patch.object(self.module, "setup_flask"), \
+                patch.object(self.module.subprocess, "run") as run:
+            self.module.main()
+            login.assert_called_once_with(key="test-key")
+            self.assertEqual(self.module.os.environ["WANDB_MODE"], "online")
+            self.assertEqual(run.call_count, 1)
+
+    def test_invalid_or_uncredentialed_online_mode_fails_before_starting(self):
+        for mode in ("online", "typo"):
+            with self.subTest(mode=mode), \
+                    patch.dict(self.module.os.environ, {"WANDB_MODE": mode}, clear=True), \
+                    patch.object(self.module, "setup_flask") as flask, \
+                    patch.object(self.module.subprocess, "run") as run:
+                with self.assertRaises(ValueError):
+                    self.module.main()
+                flask.assert_not_called()
+                run.assert_not_called()
+
     def test_normalize_payload_converts_run_ids_to_strings(self):
         payload = {
             "success": True,

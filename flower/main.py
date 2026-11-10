@@ -142,10 +142,17 @@ def training_status(run_id: str) -> str:
         
 
 def main():
-    wandb.login(key=os.getenv("WANDB_API_KEY"))
+    key = os.getenv("WANDB_API_KEY")
+    mode = os.getenv("WANDB_MODE") or ("online" if key else "offline")
+    if mode not in {"offline", "disabled", "online"}:
+        raise ValueError("WANDB_MODE must be offline, disabled, or online")
+    os.environ["WANDB_MODE"] = mode
+    if mode == "online":
+        if not key:
+            raise ValueError("Online W&B requires WANDB_API_KEY")
+        wandb.login(key=key)
 
     setup_flask()
-    subprocess.run(["wandb", "login"])
     subprocess.run(build_serverapp_command(sys.argv[1:]))
 
 
