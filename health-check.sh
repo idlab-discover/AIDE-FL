@@ -7,6 +7,8 @@ KUBECONFIG_PATH="${KUBECONFIG_PATH:-${KUBECONFIG:-$DEFAULT_KUBECONFIG}}"
 NAMESPACE="${NAMESPACE:-aide-fl}"
 EXPECTED_CLIENTS="${EXPECTED_CLIENTS:-2}"
 SERVER_URL="${SERVER_URL:-}"
+ALLOW_CONTROL_PLANE="${ALLOW_CONTROL_PLANE:-false}"
+case "$ALLOW_CONTROL_PLANE" in true|false) ;; *) echo "ALLOW_CONTROL_PLANE must be true or false" >&2; exit 1 ;; esac
 MINIO_URL="${MINIO_URL:-}"
 
 usage() {
@@ -91,7 +93,7 @@ pass "node labels look valid ($server_node_count server, $client_node_count clie
 server_node="$(kubectl get nodes -l fl-role=server -o jsonpath='{.items[0].metadata.name}')"
 server_ip="$(kubectl get nodes -l fl-role=server -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
 control_plane_labeled="$(kubectl get nodes -l node-role.kubernetes.io/control-plane,fl-role --no-headers 2>/dev/null | wc -l | tr -d ' ')"
-[[ "$control_plane_labeled" == "0" ]] || fail "control-plane node has an fl-role label"
+[[ "$control_plane_labeled" == "0" || "$ALLOW_CONTROL_PLANE" == true ]] || fail "control-plane node has an fl-role label"
 pass "control plane is not labeled for FL scheduling"
 
 [[ -n "$SERVER_URL" ]] || SERVER_URL="http://${server_ip}"

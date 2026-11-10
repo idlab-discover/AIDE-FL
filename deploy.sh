@@ -1,284 +1,97 @@
-#!/bin/bash
-
-set -e # Exit if a command exits with non-zero status
-set -o pipefail # Exit if part of pipeline fails
-
-DIR=$(dirname "$0")
-DEFAULT_KUBECONFIG="${HOME}/.kube/aide"
-KUBECONFIG_PATH="${KUBECONFIG_PATH:-${KUBECONFIG:-$DEFAULT_KUBECONFIG}}"
+#!/usr/bin/env bash
+set -euo pipefail
+DIR=$(cd "$(dirname "$0")" && pwd)
+KUBECONFIG_PATH="${KUBECONFIG_PATH:-${KUBECONFIG:-${HOME}/.kube/aide}}"
 WANDB_KEY_VALUE="${WANDB_API_KEY:-}"
+WANDB_MODE_VALUE="${WANDB_MODE:-}"
 IMAGE_REPO="${IMAGE_REPO:-ghcr.io/idlab-discover/aide-fl}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
-
+API_PORT="${API_PORT:-80}"
+ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-300s}"
+ASSUME_YES=false
 usage() {
-  cat <<EOF
-Usage: $0 [--kubeconfig PATH] [--wandb-api-key KEY] [--image-repo REPO] [--image-tag TAG]
-
-Options:
-  --kubeconfig PATH   Path to kubeconfig file. Defaults to \$KUBECONFIG_PATH,
-                      then \$KUBECONFIG, then ${DEFAULT_KUBECONFIG}.
-  --wandb-api-key KEY Weights & Biases API key. Defaults to \$WANDB_API_KEY.
-  --image-repo REPO   Custom image repository. Defaults to \$IMAGE_REPO or ghcr.io/idlab-discover/aide-fl.
-  --image-tag TAG     Custom image tag to deploy. Defaults to \$IMAGE_TAG or latest.
-EOF
+  cat <<USAGE
+Usage: $0 [--kubeconfig PATH] [--yes] [--image-repo REPO] [--image-tag TAG]
+          [--api-port PORT] [--wandb-mode offline|disabled|online] [--wandb-api-key KEY]
+Defaults: API port 80, W&B offline (online when a key is supplied), image tag latest.
+Use an immutable published image tag for reproducible runs. ROLLOUT_TIMEOUT defaults to 300s.
+USAGE
 }
-
+fail() { echo "Error: $*" >&2; exit 1; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --kubeconfig)
-      KUBECONFIG_PATH="$2"
-      shift 2
-      ;;
-    --wandb-api-key)
-      WANDB_KEY_VALUE="$2"
-      shift 2
-      ;;
-    --image-repo)
-      IMAGE_REPO="$2"
-      shift 2
-      ;;
-    --image-tag)
-      IMAGE_TAG="$2"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      echo "Error: Unknown argument '$1'"
-      usage
-      exit 1
-      ;;
+    --yes) ASSUME_YES=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    --kubeconfig|--wandb-api-key|--wandb-mode|--image-repo|--image-tag|--api-port)
+      [[ $# -ge 2 && -n "$2" ]] || fail "Missing value for $1"
+      case "$1" in
+        --kubeconfig) KUBECONFIG_PATH="$2" ;;
+        --wandb-api-key) WANDB_KEY_VALUE="$2" ;;
+        --wandb-mode) WANDB_MODE_VALUE="$2" ;;
+        --image-repo) IMAGE_REPO="$2" ;;
+        --image-tag) IMAGE_TAG="$2" ;;
+        --api-port) API_PORT="$2" ;;
+      esac
+      shift 2 ;;
+    *) fail "Unknown argument: $1" ;;
   esac
 done
-
-if [[ -z "$KUBECONFIG_PATH" ]]; then
-  echo "Error: No kubeconfig path provided."
-  exit 1
+[[ "$API_PORT" =~ ^[1-9][0-9]{0,4}$ ]] && (( API_PORT <= 65535 )) || fail "API port must be 1..65535"
+[[ "$ROLLOUT_TIMEOUT" =~ ^[1-9][0-9]*[smh]$ ]] || fail "ROLLOUT_TIMEOUT must be a positive duration, e.g. 300s"
+if [[ -z "$WANDB_MODE_VALUE" ]]; then
+  WANDB_MODE_VALUE=offline
+  [[ -z "$WANDB_KEY_VALUE" ]] || WANDB_MODE_VALUE=online
 fi
-
-if [[ ! -f "$KUBECONFIG_PATH" ]]; then
-  echo "Error: Kubeconfig file '$KUBECONFIG_PATH' does not exist."
-  exit 1
-fi
-
+case "$WANDB_MODE_VALUE" in offline|disabled|online) ;; *) fail "Invalid W&B mode" ;; esac
+[[ -f "$KUBECONFIG_PATH" ]] || fail "Kubeconfig does not exist: $KUBECONFIG_PATH"
 export KUBECONFIG="$KUBECONFIG_PATH"
-echo "Using kubeconfig: $KUBECONFIG"
-
-# Check for dependencies
-echo "Checking dependencies..."
-required_commands=(kubectl jq openssl)
-for cmd in "${required_commands[@]}"; do
-  if ! command -v "$cmd" >/dev/null 2>&1; then
-    echo "Error: Required command '$cmd' is not installed or not in PATH."
-    exit 1
-  fi
-done
-echo "All required commands are available."
-
-# Check whether a kubeconfig context is set
-current_context=$(kubectl config current-context 2>/dev/null || true)
-if [[ -z "$current_context" ]]; then
-  echo "Error: No current Kubernetes context is set in kubeconfig."
-  exit 1
-else
-  echo "Current kubeconfig context: $current_context"
-fi
-
-# Ask whether kubeconfig points to right k8s instance
+for cmd in kubectl jq openssl; do command -v "$cmd" >/dev/null || fail "Missing command: $cmd"; done
+context=$(kubectl config current-context)
 server=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
-echo "Current Kubernetes server: ${server}"
-read -p "Is above server the right k8s instance? (y/N) " ans
-if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
-    echo "Exiting."
-    exit 1
+echo "Deploying to $context ($server), images ${IMAGE_REPO}:$IMAGE_TAG, API port $API_PORT, W&B $WANDB_MODE_VALUE"
+if ! "$ASSUME_YES"; then
+  read -r -p "Deploy to this cluster? (y/N) " answer
+  [[ "$answer" == y || "$answer" == Y ]] || exit 1
 fi
-
-# Check whether there is exactly one node with label fl-role=server and at least one node with label fl-role=client
-echo "Checking node labels..."
-
-server_count=$(kubectl get nodes -l fl-role=server --no-headers 2>/dev/null | wc -l)
-client_count=$(kubectl get nodes -l fl-role=client --no-headers 2>/dev/null | wc -l)
-
-if [[ "$server_count" -ne 1 ]]; then
-  echo "Error: Expected exactly 1 node with label 'fl-role=server', but found $server_count."
-  echo "Use    'kubectl label nodes <node-name> fl-role=server'    to add labels"
-  exit 1
+nodes=$(kubectl get nodes -o json)
+[[ $(jq '[.items[] | select(.metadata.labels["fl-role"] == "server")] | length' <<<"$nodes") == 1 ]] || fail "Expected exactly one fl-role=server node"
+[[ $(jq '[.items[] | select(.metadata.labels["fl-role"] == "client")] | length' <<<"$nodes") -ge 1 ]] || fail "Expected at least one fl-role=client node"
+SERVER_IP=$(jq -r '.items[] | select(.metadata.labels["fl-role"] == "server") | .status.addresses[] | select(.type == "InternalIP") | .address' <<<"$nodes")
+[[ -n "$SERVER_IP" ]] || fail "Server node has no InternalIP"
+if [[ "$WANDB_MODE_VALUE" == online && -z "$WANDB_KEY_VALUE" ]]; then
+  kubectl get secret wandb-api-key -n aide-fl >/dev/null 2>&1 || fail "Online W&B requires WANDB_API_KEY or an existing wandb-api-key secret"
 fi
-
-if [[ "$client_count" -lt 1 ]]; then
-  echo "Error: Expected at least 1 node with label 'fl-role=client', but found $client_count."
-  echo "Use    'kubectl label nodes <node-name> fl-role=client'    to add labels"
-  exit 1
+kubectl create namespace aide-fl --dry-run=client -o yaml | kubectl apply -f -
+if [[ -n "$WANDB_KEY_VALUE" ]]; then
+  kubectl create secret generic wandb-api-key -n aide-fl --from-literal="WANDB_API_KEY=$WANDB_KEY_VALUE" --dry-run=client -o yaml | kubectl apply -f -
 fi
-
-echo "Valid setup: $server_count server and $client_count client node(s)."
-
-# Create certificates
-echo "Creating Flower certificates..."
-${DIR}/gen_cert.sh
-
-# Check if namespace exists
-if kubectl get namespace aide-fl >/dev/null 2>&1; then
-  echo "Namespace 'aide-fl' exists."
-else
-  echo "Namespace 'aide-fl' does not exist. Creating..."
-  kubectl create namespace aide-fl
+ca_exists=false; cert_exists=false
+kubectl get configmap ca-cert -n aide-fl >/dev/null 2>&1 && ca_exists=true
+kubectl get secret server-cert -n aide-fl >/dev/null 2>&1 && cert_exists=true
+[[ "$ca_exists" == "$cert_exists" ]] || fail "Incomplete Flower certificates: restore the missing ca-cert or server-cert before deploying"
+if ! "$ca_exists"; then
+  "$DIR/gen_cert.sh"
+  kubectl create secret tls server-cert -n aide-fl --cert="$DIR/certs/server.pem" --key="$DIR/certs/server.key" --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create configmap ca-cert -n aide-fl --from-file="$DIR/certs/ca.crt" --dry-run=client -o yaml | kubectl apply -f -
 fi
-
-# Check if wandb API key secret exists
-if kubectl get secret wandb-api-key -n aide-fl >/dev/null 2>&1; then
-  echo "Wandb API key secret already exist. Deleting..."
-  kubectl delete secret wandb-api-key -n aide-fl
-fi
-
-# Create wandb API key secret
-if [[ -z "$WANDB_KEY_VALUE" ]]; then
-  read -s -p "Enter your Weights & Biases API key: " WANDB_KEY_VALUE
-  echo
-fi
-
-if [[ -z "$WANDB_KEY_VALUE" ]]; then
-  echo "Error: No Weights & Biases API key provided."
-  exit 1
-fi
-
-echo "Creating wandb API key secret..."
-kubectl create secret generic wandb-api-key --from-literal=WANDB_API_KEY=$WANDB_KEY_VALUE -n aide-fl
-
-# Check if secret and configmap with certs exist
-if kubectl get configmap ca-cert -n aide-fl >/dev/null 2>&1 || kubectl get secret server-cert -n aide-fl >/dev/null 2>&1; then
-  echo "Configmap and secret with certs already exist. Deleting..."
-  kubectl delete configmap ca-cert -n aide-fl
-  kubectl delete secret server-cert -n aide-fl
-fi
-
-# Set certificates in configmaps and secrets
-kubectl create secret tls server-cert --cert=${DIR}/certs/server.pem --key=${DIR}/certs/server.key -n aide-fl
-kubectl create configmap ca-cert --from-file=${DIR}/certs/ca.crt -n aide-fl
-
-# Check if kafka configmap exists
-if kubectl get configmap kafka-config -n aide-fl >/dev/null 2>&1; then
-  echo "'kafka-config' exists. Deleting..."
-  kubectl delete configmap kafka-config -n aide-fl
-fi
-
-# Configmap sets Kafka topics to be created
-echo "Creating Kafka topics configmap..."
-kubectl apply -f ${DIR}/client/kafka/kafka-configmap.yaml
-
-# Check if Kafka daemonset exists
-if kubectl get daemonset kafka-daemonset -n aide-fl >/dev/null 2>&1; then
-  echo "'kafka-daemonset' exists. Deleting..."
-  kubectl delete daemonset kafka-daemonset -n aide-fl
-fi
-
-# Create Kafka daemonset
-echo "Creating Kafka daemonset..."
-kubectl apply -f ${DIR}/client/kafka/kafka-daemonset.yaml
-
-# Wait for Kafka daemonset to be ready
-while true; do
-  daemonset_status=$(kubectl get daemonset kafka-daemonset -n aide-fl -o json 2>/dev/null)
-  desired=$(echo "$daemonset_status" | jq -r '.status.desiredNumberScheduled // 0')
-  ready=$(echo "$daemonset_status" | jq -r '.status.numberReady // 0')
-
-  if [[ "$desired" -eq "$ready" ]]; then
-    echo "Kafka daemonset is ready"
-    break
-  fi
-
-  echo "Waiting for Kafka daemonset to be ready..."
-  sleep 5
+kubectl create configmap server-ip -n aide-fl --from-literal="SERVER_IP=$SERVER_IP" --from-literal="SERVER_PORT=$API_PORT" --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f "$DIR/client/kafka/kafka-configmap.yaml" -f "$DIR/client/preprocessor/redis-configmap.yaml"
+# Render images and runtime settings before creating or updating any workload.
+apply_workload() {
+  kubectl create --dry-run=client -o json -f "$DIR/$1" |
+    jq --arg repo "$IMAGE_REPO" --arg tag "$IMAGE_TAG" --arg port "$API_PORT" --arg mode "$WANDB_MODE_VALUE" '
+      .spec.template.spec.containers |= map(
+        if (.name | IN("flower-serverapp", "server-logic", "orchestrator", "datastore-logic", "preprocessor-logic", "flower-clientapp", "trainer-logic"))
+        then .image = ($repo + "/" + .name + ":" + $tag) else . end |
+        if .name == "flower-serverapp" then .env = ((.env // [] | map(select(.name != "WANDB_MODE"))) + [{name:"WANDB_MODE",value:$mode}])
+        elif .name == "server-logic" then .env = ((.env // [] | map(select(.name != "LISTEN_PORT"))) + [{name:"LISTEN_PORT",value:$port}])
+        elif .name == "orchestrator" then .env = ((.env // [] | map(select(.name != "SERVER_PORT"))) + [{name:"SERVER_PORT",value:$port}])
+        else . end)' | kubectl apply -f -
+}
+for manifest in client/kafka/kafka-daemonset.yaml server/datastore/minio-server-deployment.yaml server/server/server-deployment.yaml client/datastore/datastore-daemonset.yaml client/orchestrator/orchestrator-daemonset.yaml client/preprocessor/preprocessor-daemonset.yaml client/trainer/trainer-daemonset.yaml; do
+  apply_workload "$manifest"
 done
-
-# Check if Minio server datastore deployment exists
-if kubectl get deployment minio-server-deployment -n aide-fl >/dev/null 2>&1; then
-  echo "'minio-server-deployment' exists. Deleting..."
-  kubectl delete deployment minio-server-deployment -n aide-fl
-fi
-
-# Create Minio server datastore deployment
-echo "Creating server datastore deployment..."
-kubectl apply -f ${DIR}/server/datastore/minio-server-deployment.yaml
-
-# Check if flower-superlink + flower-serverapp + server-logic deployment exists
-if kubectl get deployment server-deployment -n aide-fl >/dev/null 2>&1; then
-  echo "'server-deployment' exists. Deleting..."
-  kubectl delete deployment server-deployment -n aide-fl
-fi
-
-# Create flower-superlink + flower-serverapp + server-logic deployment
-echo "Creating server deployment..."
-kubectl apply -f ${DIR}/server/server/server-deployment.yaml
-
-# Check if configmap with server's IP exists
-if kubectl get configmap server-ip -n aide-fl >/dev/null 2>&1; then
-  echo "'server-deployment' exists. Deleting..."
-  kubectl delete configmap server-ip -n aide-fl
-fi
-
-# Create configmap with server's IP
-echo "Creating server's IP configmap..."
-SERVER_IP=$(kubectl get nodes -l fl-role=server -o json | jq -r '.items[0].status.addresses[] | select(.type=="InternalIP") | .address')
-kubectl create configmap server-ip --from-literal=SERVER_IP=$SERVER_IP -n aide-fl
-
-# Check if Minio + datastore-logic daemonset exists
-if kubectl get daemonset datastore-daemonset -n aide-fl >/dev/null 2>&1; then
-  echo "'datastore-daemonset' exists. Deleting..."
-  kubectl delete daemonset datastore-daemonset -n aide-fl
-fi
-
-# Create Minio + datastore-logic daemonset
-echo "Creating client datastore daemonset..."
-kubectl apply -f ${DIR}/client/datastore/datastore-daemonset.yaml
-
-# Check if orchestrator daemonset exists
-if kubectl get daemonset orchestrator-daemonset -n aide-fl >/dev/null 2>&1; then
-  echo "'orchestrator-daemonset' exists. Deleting..."
-  kubectl delete daemonset orchestrator-daemonset -n aide-fl
-fi
-
-# Create orchestrator daemonset
-echo "Creating orchestrator daemonset..."
-kubectl apply -f ${DIR}/client/orchestrator/orchestrator-daemonset.yaml
-
-# Check if redis configmap exists
-if kubectl get configmap redis-config -n aide-fl >/dev/null 2>&1; then
-  echo "'redis-config' exists. Deleting..."
-  kubectl delete configmap redis-config -n aide-fl
-fi
-
-# Create redis configmap for Redis config
-echo "Creating redis configmap..."
-kubectl apply -f ${DIR}/client/preprocessor/redis-configmap.yaml
-
-# Check if preprocessor daemonset exists
-if kubectl get daemonset preprocessor-daemonset -n aide-fl >/dev/null 2>&1; then
-  echo "'preprocessor-daemonset' exists. Deleting..."
-  kubectl delete daemonset preprocessor-daemonset -n aide-fl
-fi
-
-# Create preprocessor daemonset
-echo "Creating preprocessor daemonset..."
-kubectl apply -f ${DIR}/client/preprocessor/preprocessor-daemonset.yaml
-
-# Check if flower-superlink + flower-clientapp + trainer-logic daemonset exists
-if kubectl get daemonset trainer-daemonset -n aide-fl >/dev/null 2>&1; then
-  echo "'trainer-daemonset' exists. Deleting..."
-  kubectl delete daemonset trainer-daemonset -n aide-fl
-fi
-
-# Create flower-superlink + flower-clientapp + trainer-logic daemonset
-echo "Creating trainer daemonset..."
-kubectl apply -f ${DIR}/client/trainer/trainer-daemonset.yaml
-
-echo "Done"
-
-echo "Patching custom images to ${IMAGE_REPO}:$IMAGE_TAG ..."
-"${DIR}/scripts/set-custom-images.sh" \
-  --namespace aide-fl \
-  --image-repo "$IMAGE_REPO" \
-  --image-tag "$IMAGE_TAG" \
-  --component all
+for resource in daemonset/kafka-daemonset deployment/minio-server-deployment deployment/server-deployment daemonset/datastore-daemonset daemonset/orchestrator-daemonset daemonset/preprocessor-daemonset daemonset/trainer-daemonset; do
+  kubectl rollout status -n aide-fl "$resource" --timeout="$ROLLOUT_TIMEOUT"
+done
+echo "Deployment ready. API: http://${SERVER_IP}:${API_PORT}"

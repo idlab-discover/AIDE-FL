@@ -22,10 +22,10 @@ The scripts guides you through the following steps:
 - A kubeconfig context must be set which points to the correct k8s instance.
 - There should be exactly one k8s node with label `fl-role=server` and at least one node with label `fl-role=client`.
 - The `certs` folder is created containing certificates for secure Flower TLS communication.
-- A Weights & Biases API key is needed to log metrics.
+- W&B runs offline by default. Supplying `WANDB_API_KEY` selects online logging; `--wandb-mode disabled` disables it.
 - For an empty cluster, the script creates the `aide-fl` namespace and deploys all pods.
 
-The script can be reused for a full redeployment to apply updated containers.
+Rerunning the script applies updates and preserves existing Flower certificates and W&B credentials. Each workload rollout has a timeout, controlled by `ROLLOUT_TIMEOUT` with a default of `300s`. Use `--yes` to skip the cluster confirmation.
 
 If you want to deploy a specific published image set instead of whatever `:latest` currently points to, pass an explicit image tag:
 
@@ -33,7 +33,9 @@ If you want to deploy a specific published image set instead of whatever `:lates
 ./deploy.sh --image-tag sha-<git-sha>
 ```
 
-The deploy script patches the custom AIDE-FL images after applying the manifests, so the cluster can be pinned to a reproducible image set without editing the YAML files.
+The deploy script sets the custom image tags before applying workloads.
+
+If port 80 is already occupied, for example by k3s Traefik, use `--api-port 8081`. Pass `--server-url http://<server-node-ip>:8081` to `health-check.sh` and `demo-runner.sh`. On an intentionally shared control-plane node, set `ALLOW_CONTROL_PLANE=true` when running these checks. The default rejects application labels on control-plane nodes. For a two-node smoke run, use `--expected-clients 1` and a scenario with `min_available_clients` set to `1`. This checks execution only; it does not establish multi-client learning performance.
 
 ## Container packages
 

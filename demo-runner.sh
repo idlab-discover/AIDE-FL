@@ -115,7 +115,7 @@ if [[ "$connected_count" -lt "$EXPECTED_CLIENTS" ]]; then
 fi
 
 if [[ "$SKIP_HEALTHCHECK" -eq 0 ]]; then
-  ./health-check.sh \
+  ALLOW_CONTROL_PLANE="${ALLOW_CONTROL_PLANE:-false}" ./health-check.sh \
     --kubeconfig "$KUBECONFIG_PATH" \
     --namespace "$NAMESPACE" \
     --expected-clients "$EXPECTED_CLIENTS" \
