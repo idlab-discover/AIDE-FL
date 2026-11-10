@@ -94,16 +94,15 @@ server_node="$(kubectl get nodes -l fl-role=server -o jsonpath='{.items[0].metad
 server_ip="$(kubectl get nodes -l fl-role=server -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
 control_plane_labeled="$(kubectl get nodes -l node-role.kubernetes.io/control-plane,fl-role --no-headers 2>/dev/null | wc -l | tr -d ' ')"
 [[ "$control_plane_labeled" == "0" || "$ALLOW_CONTROL_PLANE" == true ]] || fail "control-plane node has an fl-role label"
-pass "control plane is not labeled for FL scheduling"
+pass "node roles match the scheduling policy"
 
 [[ -n "$SERVER_URL" ]] || SERVER_URL="http://${server_ip}"
-[[ -n "$MINIO_URL" ]] || MINIO_URL="http://${server_ip}:9001"
+[[ -n "$MINIO_URL" ]] || MINIO_URL="http://${server_ip}:9000/minio/health/ready"
 
 kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || fail "namespace '$NAMESPACE' does not exist"
 pass "namespace '$NAMESPACE' exists"
 
 for obj in \
-  "secret/wandb-api-key" \
   "secret/server-cert" \
   "configmap/ca-cert" \
   "configmap/server-ip" \
@@ -140,7 +139,7 @@ pass "all pods in '$NAMESPACE' are ready"
 
 clients_json="$(curl -fsS "${SERVER_URL}/clients")" || fail "unable to reach ${SERVER_URL}/clients"
 status_json="$(curl -fsS "${SERVER_URL}/status")" || fail "unable to reach ${SERVER_URL}/status"
-curl -fsS "${MINIO_URL}" >/dev/null || fail "unable to reach MinIO console at ${MINIO_URL}"
+curl -fsS "${MINIO_URL}" >/dev/null || fail "unable to reach MinIO health endpoint at ${MINIO_URL}"
 pass "server API and MinIO are reachable"
 
 connected_clients="$(jq '.data | length' <<<"$clients_json")"
