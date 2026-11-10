@@ -1,8 +1,8 @@
-flwr==1.27.0
-tensorflow>=2.19.1,<2.20.0
-scikit-learn>=1.7.0
-joblib>=1.5.0
-xgboost>=3.0.0
-pandas>=2.2.3
-pyarrow>=20.0.0
-safetensors>=0.5.3
+flwr==1.35.0
+tensorflow==2.20.0
+scikit-learn==1.9.1
+joblib==1.6.0
+xgboost==3.4.1
+pandas==3.1.1
+pyarrow==26.0.1
+safetensors==0.8.0

@@ -21,7 +21,7 @@ spec:
       containers:
 
       - name: flower-supernode
-        image: flwr/supernode:1.27.0
+        image: flwr/supernode:1.35.0
         ports:
         - containerPort: 9094
           name: clientappio-api
@@ -31,7 +31,7 @@ spec:
             configMapKeyRef:
               name: server-ip
               key: SERVER_IP
-        args: ["--root-certificates", "certs/ca.crt", "--superlink", "$(SERVER_IP):9092", "--clientappio-api-address", "0.0.0.0:9094", "--isolation", "process"]
+        args: ["--root-certificates", "certs/ca.crt", "--superlink", "$(SERVER_IP):9092", "--host", "127.0.0.1", "--port", "9094", "--isolation", "process"]
         volumeMounts:
         - name: ca-cert
           mountPath: /app/certs
@@ -41,7 +41,7 @@ spec:
         volumeMounts:
         - mountPath: /app/share
           name: trainer-share
-        args: ["--insecure", "--clientappio-api-address", "localhost:9094"]
+        args: ["--insecure", "--appio-api-address", "localhost:9094"]
 
       - name: trainer-logic
         image: ghcr.io/idlab-discover/aide-fl/trainer-logic:dev

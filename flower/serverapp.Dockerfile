@@ -6,7 +6,7 @@ ENV FLWR_HOME=/app/.flwr
 
 COPY --chown=49999:49999 main.py .
 COPY --chown=49999:49999 config.toml /app/.flwr/config.toml
-COPY --chown=49999:49999 pyproject.toml .
+COPY --chown=49999:49999 pyproject.toml LICENSE ./
 COPY --chown=49999:49999 flower ./flower
 
 ENTRYPOINT ["python", "main.py"]

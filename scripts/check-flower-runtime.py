@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""Run one isolated Flower round over TLS using the installed Python environment."""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+
+
+APP = '''import numpy as np
+from flwr.app import ArrayRecord, RecordDict, Message, MetricRecord
+from flwr.serverapp import ServerApp
+from flwr.clientapp import ClientApp
+from flwr.serverapp.strategy import FedAvg
+server = ServerApp()
+client = ClientApp()
+@server.main()
+def main(grid, context):
+    result = FedAvg(min_available_nodes=1, min_train_nodes=1, min_evaluate_nodes=1).start(
+        grid=grid, initial_arrays=ArrayRecord([np.array([1.0])]), num_rounds=1)
+    assert float(result.arrays.to_numpy_ndarrays()[0][0]) == 2.0
+    print("TRANSPORT_TRAINING_PASSED")
+@client.train()
+def train(message, context):
+    arrays = message.content["arrays"].to_numpy_ndarrays()
+    return Message(RecordDict({"arrays": ArrayRecord([a + 1 for a in arrays]),
+        "metrics": MetricRecord({"num-examples": 1, "loss": 0.5})}), reply_to=message)
+@client.evaluate()
+def evaluate(message, context):
+    return Message(RecordDict({"metrics": MetricRecord({"num-examples": 1, "loss": 0.4})}),
+        reply_to=message)
+'''
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="aide-flower-tls-") as tmp:
+        root = Path(tmp)
+        ports = []
+        sockets = []
+        for _ in range(4):
+            sock = socket.socket()
+            sock.bind(("127.0.0.1", 0))
+            sockets.append(sock)
+            ports.append(sock.getsockname()[1])
+        runtime, fleet, control, client_runtime = ports
+        for sock in sockets:
+            sock.close()
+        env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+                   FLWR_HOME=str(root), FLWR_TELEMETRY_ENABLED="0")
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+                        "-keyout", str(root / "server.key"), "-out", str(root / "ca.crt"),
+                        "-days", "1", "-subj", "/CN=localhost", "-addext",
+                        "subjectAltName=IP:127.0.0.1,DNS:localhost"], check=True, capture_output=True)
+        (root / "config.toml").write_text(
+            f'[superlink.deployment]\naddress = "127.0.0.1:{control}"\n'
+            f'root-certificates = "{root / "ca.crt"}"\n')
+        app = root / "app"
+        app.mkdir()
+        (app / "LICENSE").write_text("Apache-2.0\n")
+        (app / "app.py").write_text(APP)
+        (app / "pyproject.toml").write_text('''[project]
+name = "transport-smoke"
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["flwr>=1.35.0,<1.36.0"]
+[tool.flwr.app]
+publisher = "aide"
+fab-format-version = 1
+flwr-version-target = "1.35.0"
+[tool.flwr.app.components]
+serverapp = "app:server"
+clientapp = "app:client"
+''')
+        commands = [
+            ["flower-superlink", "--ssl-ca-certfile", str(root / "ca.crt"),
+             "--ssl-certfile", str(root / "ca.crt"), "--ssl-keyfile", str(root / "server.key"),
+             "--isolation", "process", "--host", "127.0.0.1", "--port", str(runtime),
+             "--fleet-api-address", f"127.0.0.1:{fleet}", "--control-api-address", f"127.0.0.1:{control}",
+             "--disable-runtime-dependency-installation"],
+            ["flower-supernode", "--root-certificates", str(root / "ca.crt"),
+             "--superlink", f"127.0.0.1:{fleet}", "--host", "127.0.0.1", "--port", str(client_runtime),
+             "--isolation", "process"],
+            ["flower-superexec", "--insecure", "--plugin-type", "serverapp",
+             "--appio-api-address", f"127.0.0.1:{runtime}"],
+            ["flower-superexec", "--insecure", "--plugin-type", "clientapp",
+             "--appio-api-address", f"127.0.0.1:{client_runtime}"],
+        ]
+        processes, logs = [], []
+
+        def cli(*command):
+            result = subprocess.run(["flwr", *command], env=env, capture_output=True, text=True, timeout=30)
+            result.check_returncode()
+            return result.stdout
+
+        try:
+            for index, command in enumerate(commands):
+                log = (args.output_dir / f"process-{index}.log").open("w")
+                logs.append(log)
+                processes.append(subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT))
+                time.sleep(1)
+            response = json.loads(cli("run", str(app), "deployment", "--format", "json"))
+            if not response.get("success"):
+                raise RuntimeError(response)
+            (args.output_dir / "submission.json").write_text(json.dumps(response, indent=2))
+            run_id = str(response["run-id"])
+            deadline = time.monotonic() + 90
+            while time.monotonic() < deadline:
+                if any(process.poll() is not None for process in processes):
+                    raise RuntimeError("A Flower service exited; inspect process logs")
+                status = json.loads(cli("ls", "--run-id", run_id, "deployment", "--format", "json"))
+                (args.output_dir / "status.json").write_text(json.dumps(status, indent=2))
+                if any(run["status"].startswith("finished") for run in status.get("runs", [])):
+                    break
+                time.sleep(1)
+            else:
+                raise TimeoutError("Flower run did not finish within 90 seconds")
+            run_log = cli("log", run_id, "deployment", "--show")
+            (args.output_dir / "run.log").write_text(run_log)
+            if not any(run["status"] == "finished:completed" for run in status.get("runs", [])):
+                raise RuntimeError("Flower run failed; inspect run.log")
+            if "TRANSPORT_TRAINING_PASSED" not in run_log:
+                raise RuntimeError("Missing assertion that the aggregated weight equals 2.0")
+            shutil.copytree(app, args.output_dir / "app", dirs_exist_ok=True)
+            print(f"TLS training/evaluation passed: run {run_id}; evidence {args.output_dir}")
+        finally:
+            for process in processes:
+                process.terminate()
+            for process in processes:
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            for log in logs:
+                log.close()
+
+
+if __name__ == "__main__":
+    main()

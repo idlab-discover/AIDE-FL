@@ -24,7 +24,7 @@ spec:
       containers:
 
       - name: flower-superlink
-        image: flwr/superlink:1.27.0
+        image: flwr/superlink:1.35.0
         ports:
         - containerPort: 9091
           name: serverappio-api
@@ -32,7 +32,7 @@ spec:
           name: fleet-api
         - containerPort: 9093
           name: deployment-engn
-        args: ["--ssl-ca-certfile", "certs/ca.crt", "--ssl-certfile", "certs/server.pem", "--ssl-keyfile", "certs/server.key", "--isolation", "process"]
+        args: ["--ssl-ca-certfile", "certs/ca.crt", "--ssl-certfile", "certs/server.pem", "--ssl-keyfile", "certs/server.key", "--isolation", "process", "--host", "127.0.0.1", "--port", "9091", "--disable-runtime-dependency-installation"]
         volumeMounts:
         - name: all-certs
           mountPath: /app/certs

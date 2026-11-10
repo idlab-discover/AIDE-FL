@@ -6,18 +6,22 @@ build-backend = "hatchling.build"
 name = "flower"
 version = "1.0.0"
 description = ""
-license = "Apache-2.0"
+requires-python = ">=3.12,<3.14"
+license = {file = "LICENSE"}
+# Keep Fleet/Control gRPC and TLS deployment compatibility. Flower 1.43 requires
+# a separate HTTP transport migration; 1.35 includes native DP and accounting.
+# TensorFlow 2.20 matches Flower's upstream TensorFlow quickstart.
 dependencies = [
-    "flwr==1.27.0",
-    "tensorflow>=2.19.1,<2.20.0",
-    "scikit-learn>=1.7.0",
-    "joblib>=1.5.0",
-    "xgboost>=3.0.0",
-    "flask>=3.1.1",
-    "pandas>=2.2.3",
-    "pyarrow>=20.0.0",
-    "wandb>=0.20.1",
-    "safetensors>=0.5.3"
+    "flwr[dp]>=1.35.0,<1.36.0",
+    "tensorflow==2.20.0",
+    "scikit-learn==1.9.1",
+    "joblib==1.6.0",
+    "xgboost==3.4.1",
+    "flask==3.1.3",
+    "pandas==3.1.1",
+    "pyarrow==26.0.1",
+    "wandb==0.31.0",
+    "safetensors==0.8.0"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -25,6 +29,8 @@ packages = ["."]
 
 [tool.flwr.app]
 publisher = "flower"
+fab-format-version = 1
+flwr-version-target = "1.35.0"
 
 [tool.flwr.app.components]
 serverapp = "flower.server_app:app"

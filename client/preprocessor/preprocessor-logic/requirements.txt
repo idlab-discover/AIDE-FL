@@ -1,7 +1,7 @@
-load_dotenv
-confluent_kafka
-minio
-scikit-learn
-pandas
-pyarrow
-redis
+python-dotenv==1.2.4
+confluent-kafka==2.16.1
+minio==7.2.20
+scikit-learn==1.9.1
+pandas==3.1.1
+pyarrow==26.0.1
+redis==8.1.0
