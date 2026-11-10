@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/str-gen/flower-serverapp-base:latest
+ARG BASE_IMAGE=ghcr.io/idlab-discover/aide-fl/flower-serverapp-base:latest
 FROM ${BASE_IMAGE}
 
 WORKDIR /app
@@ -11,4 +11,4 @@ COPY --chown=49999:49999 flower ./flower
 
 ENTRYPOINT ["python", "main.py"]
 
-LABEL org.opencontainers.image.source=https://github.com/Str-Gen/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/idlab-discover/AIDE-FL

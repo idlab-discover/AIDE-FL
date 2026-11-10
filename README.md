@@ -9,7 +9,7 @@ The `deploy.sh` script in the root of the repo should guide you through the nece
 The only requirement for the k8s cluster is to have at least two worker nodes. Three is recommended.
 
 ```sh
-git clone https://github.com/Str-Gen/AIDE-FL.git
+git clone https://github.com/idlab-discover/AIDE-FL.git
 
 cd AIDE-FL
 
@@ -35,19 +35,27 @@ If you want to deploy a specific published image set instead of whatever `:lates
 
 The deploy script patches the custom AIDE-FL images after applying the manifests, so the cluster can be pinned to a reproducible image set without editing the YAML files.
 
-## Image Publishing
+## Container packages
 
-The repository now contains a GitHub Actions workflow at [`.github/workflows/publish-images.yml`](/home/strgenix/postdoc/projects/AIDE-FL/.github/workflows/publish-images.yml) which publishes all custom images to GHCR.
+The canonical repository is https://github.com/idlab-discover/AIDE-FL. GitHub Actions builds and publishes nine Linux amd64 container packages under `ghcr.io/idlab-discover/aide-fl`:
 
-Published image tags include:
+- `server-logic`, `orchestrator`, `datastore-logic`, `preprocessor-logic`, `trainer-logic`
+- `flower-serverapp`, `flower-clientapp`
+- `flower-serverapp-base`, `flower-clientapp-base`
 
-- `sha-<git-sha>` for immutable deployment/testing
-- branch tags for convenience
-- `latest` on the default branch
+The workflow runs on `main`, version tags and manual dispatch. Every build publishes `sha-<full-40-character-commit>` tags. Default-branch builds also publish `latest`; version-tag builds publish the version tag. The Flower applications use base images from the same commit. Registry authentication uses the repository's `GITHUB_TOKEN`.
 
-For reliable cluster testing, prefer immutable `sha-*` tags over `latest`.
+Deploy a retained revision with:
 
-The workflow publishes with `GITHUB_TOKEN` by default. If an existing GHCR package does not grant that token write access, add repository secrets `GHCR_PAT` and optionally `GHCR_USERNAME` to authenticate the publish step with a classic personal access token carrying `write:packages`. The token is only used for the registry login step and is not passed into Docker builds.
+```sh
+./deploy.sh --kubeconfig /path/to/config \
+  --image-repo ghcr.io/idlab-discover/aide-fl \
+  --image-tag sha-<full-40-character-commit>
+```
+
+The packages must be public to allow anonymous pulls. Package administrators set this once in GitHub package settings after the initial publication. Verify anonymous access before distributing a release. The deployment also pulls upstream Flower, MinIO, Kafka and Redis images.
+
+The initial Python implementation remains in Git history. Its final original revision is `11183c52bac6ee9ad55c7e10760a33e24a203221`; the service-based implementation supersedes it on `main`.
 
 ## Scenarios
 

@@ -46,7 +46,7 @@ spec:
           failureThreshold: 30
           periodSeconds: 5
       - name: datastore-logic
-        image: ghcr.io/str-gen/datastore-logic:dev
+        image: ghcr.io/idlab-discover/aide-fl/datastore-logic:dev
       volumes:
       - name: localvolume
         hostPath:

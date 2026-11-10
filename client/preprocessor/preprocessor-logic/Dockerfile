@@ -14,4 +14,4 @@ COPY .env.example .env
 
 CMD ["python", "main.py"]
 
-LABEL org.opencontainers.image.source=https://github.com/Str-Gen/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/idlab-discover/AIDE-FL

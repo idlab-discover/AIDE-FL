@@ -37,14 +37,14 @@ spec:
           mountPath: /app/certs
 
       - name: flower-clientapp
-        image: ghcr.io/str-gen/flower-clientapp:dev
+        image: ghcr.io/idlab-discover/aide-fl/flower-clientapp:dev
         volumeMounts:
         - mountPath: /app/share
           name: trainer-share
         args: ["--insecure", "--clientappio-api-address", "localhost:9094"]
 
       - name: trainer-logic
-        image: ghcr.io/str-gen/trainer-logic:dev
+        image: ghcr.io/idlab-discover/aide-fl/trainer-logic:dev
         volumeMounts:
         - mountPath: /app/share
           name: trainer-share

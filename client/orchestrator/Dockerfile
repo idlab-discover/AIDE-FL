@@ -18,4 +18,4 @@ COPY --from=builder /orchestrator /app/orchestrator
 COPY --from=builder /app/.env /app/.env
 CMD ["/app/orchestrator"]
 
-LABEL org.opencontainers.image.source=https://github.com/Str-Gen/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/idlab-discover/AIDE-FL

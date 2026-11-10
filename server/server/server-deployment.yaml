@@ -39,7 +39,7 @@ spec:
           readOnly: true
 
       - name: flower-serverapp
-        image: ghcr.io/str-gen/flower-serverapp:latest
+        image: ghcr.io/idlab-discover/aide-fl/flower-serverapp:latest
         args: ["--insecure", "--serverappio-api-address", "localhost:9091"]
         env:
         - name: WANDB_API_KEY
@@ -55,7 +55,7 @@ spec:
           readOnly: true
 
       - name: server-logic
-        image: ghcr.io/str-gen/server-logic:latest
+        image: ghcr.io/idlab-discover/aide-fl/server-logic:latest
         volumeMounts:
         - name: server-share
           mountPath: /app/share

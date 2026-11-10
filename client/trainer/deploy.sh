@@ -3,7 +3,7 @@
 set -e
 
 DIR=$(dirname "$0")
-IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
+IMAGE_REPO="${IMAGE_REPO:-ghcr.io/idlab-discover/aide-fl}"
 IMAGE_TAG="${IMAGE_TAG:-}"
 
 if [[ -z "$IMAGE_TAG" && "$1" == "prod" ]]; then

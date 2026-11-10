@@ -19,4 +19,4 @@ COPY --from=builder /server-logic /app/server-logic
 COPY --from=builder /app/.env /app/.env
 CMD ["/app/server-logic"]
 
-LABEL org.opencontainers.image.source=https://github.com/Str-Gen/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/idlab-discover/AIDE-FL

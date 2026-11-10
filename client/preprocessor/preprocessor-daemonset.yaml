@@ -37,7 +37,7 @@ spec:
           name: config
 
       - name: preprocessor-logic
-        image: ghcr.io/str-gen/preprocessor-logic:latest
+        image: ghcr.io/idlab-discover/aide-fl/preprocessor-logic:latest
         env:
         - name: SERVER_IP
           valueFrom:

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 NAMESPACE="${NAMESPACE:-aide-fl}"
-IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
+IMAGE_REPO="${IMAGE_REPO:-ghcr.io/idlab-discover/aide-fl}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 COMPONENT="${COMPONENT:-all}"
 

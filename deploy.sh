@@ -7,7 +7,7 @@ DIR=$(dirname "$0")
 DEFAULT_KUBECONFIG="${HOME}/.kube/aide"
 KUBECONFIG_PATH="${KUBECONFIG_PATH:-${KUBECONFIG:-$DEFAULT_KUBECONFIG}}"
 WANDB_KEY_VALUE="${WANDB_API_KEY:-}"
-IMAGE_REPO="${IMAGE_REPO:-ghcr.io/str-gen}"
+IMAGE_REPO="${IMAGE_REPO:-ghcr.io/idlab-discover/aide-fl}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 usage() {
@@ -18,7 +18,7 @@ Options:
   --kubeconfig PATH   Path to kubeconfig file. Defaults to \$KUBECONFIG_PATH,
                       then \$KUBECONFIG, then ${DEFAULT_KUBECONFIG}.
   --wandb-api-key KEY Weights & Biases API key. Defaults to \$WANDB_API_KEY.
-  --image-repo REPO   Custom image repository. Defaults to \$IMAGE_REPO or ghcr.io/str-gen.
+  --image-repo REPO   Custom image repository. Defaults to \$IMAGE_REPO or ghcr.io/idlab-discover/aide-fl.
   --image-tag TAG     Custom image tag to deploy. Defaults to \$IMAGE_TAG or latest.
 EOF
 }

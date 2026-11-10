@@ -20,7 +20,7 @@ spec:
       hostNetwork: true
       containers:
       - name: orchestrator
-        image: ghcr.io/str-gen/orchestrator:latest
+        image: ghcr.io/idlab-discover/aide-fl/orchestrator:latest
         env:
         - name: SERVER_IP
           valueFrom:

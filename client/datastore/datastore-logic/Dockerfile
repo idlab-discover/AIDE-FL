@@ -19,4 +19,4 @@ COPY --from=builder /datastore-logic /app/datastore-logic
 COPY --from=builder /app/.env /app/.env
 CMD ["/app/datastore-logic"]
 
-LABEL org.opencontainers.image.source=https://github.com/Str-Gen/AIDE-FL
+LABEL org.opencontainers.image.source=https://github.com/idlab-discover/AIDE-FL
