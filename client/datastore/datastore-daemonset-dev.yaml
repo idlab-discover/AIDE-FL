@@ -20,7 +20,7 @@ spec:
       hostNetwork: true
       containers:
       - name: minio
-        image: quay.io/minio/minio:latest
+        image: ghcr.io/idlab-discover/aide-fl/minio:latest
         env:
         - name: MINIO_ROOT_USER
           value: aide-fl1

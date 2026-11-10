@@ -82,7 +82,9 @@ apply_workload() {
     jq --arg repo "$IMAGE_REPO" --arg tag "$IMAGE_TAG" --arg port ":$API_PORT" --arg mode "$WANDB_MODE_VALUE" '
       .spec.template.spec.containers |= map(
         if (.name | IN("flower-serverapp", "server-logic", "orchestrator", "datastore-logic", "preprocessor-logic", "flower-clientapp", "trainer-logic"))
-        then .image = ($repo + "/" + .name + ":" + $tag) else . end |
+        then .image = ($repo + "/" + .name + ":" + $tag)
+        elif (.name | IN("minio", "minio-server")) then .image = ($repo + "/minio:" + $tag)
+        else . end |
         if .name == "flower-serverapp" then .env = ((.env // [] | map(select(.name != "WANDB_MODE"))) + [{name:"WANDB_MODE",value:$mode}])
         elif .name == "server-logic" then .env = ((.env // [] | map(select(.name != "LISTEN_PORT"))) + [{name:"LISTEN_PORT",value:$port}])
         elif .name == "orchestrator" then .env = ((.env // [] | map(select(.name != "SERVER_PORT"))) + [{name:"SERVER_PORT",value:$port}])

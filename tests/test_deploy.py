@@ -24,7 +24,7 @@ elif args[0] == 'get':
 elif args[0] == 'create':
     if '-f' in args:
         name = args[args.index('-f') + 1].split('/')[-1]
-        names = {'server-deployment.yaml': ['flower-serverapp', 'server-logic', 'flower-superlink'], 'orchestrator-daemonset.yaml': ['orchestrator'], 'trainer-daemonset.yaml': ['trainer-logic', 'flower-clientapp']}.get(name, ['other'])
+        names = {'minio-server-deployment.yaml': ['minio-server'], 'datastore-daemonset.yaml': ['minio', 'datastore-logic'], 'server-deployment.yaml': ['flower-serverapp', 'server-logic', 'flower-superlink'], 'orchestrator-daemonset.yaml': ['orchestrator'], 'trainer-daemonset.yaml': ['trainer-logic', 'flower-clientapp']}.get(name, ['other'])
         print(json.dumps({'spec': {'template': {'spec': {'containers': [{'name': n, 'image': 'original'} for n in names]}}}}))
     else:
         print('{}')
@@ -65,6 +65,9 @@ class TestDeploy(unittest.TestCase):
             self.assertTrue(all('--timeout=300s' in c for c in rollouts))
             documents = [json.loads(line) for line in (directory / 'applied').read_text().splitlines()]
             containers = [c for d in documents if 'spec' in d for c in d['spec']['template']['spec']['containers']]
+            minio_containers = [c for c in containers if c['name'] in ('minio', 'minio-server')]
+            self.assertEqual(len(minio_containers), 4)
+            self.assertTrue(all(c['image'] == 'ghcr.io/idlab-discover/aide-fl/minio:sha-test' for c in minio_containers))
             for name, variable, value in [('flower-serverapp', 'WANDB_MODE', 'offline'), ('server-logic', 'LISTEN_PORT', ':8081'), ('orchestrator', 'SERVER_PORT', ':8081')]:
                 matches = [c for c in containers if c['name'] == name]
                 self.assertEqual(len(matches), 2)

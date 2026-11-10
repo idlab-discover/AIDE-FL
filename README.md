@@ -39,9 +39,9 @@ If port 80 is already occupied, for example by k3s Traefik, use `--api-port 8081
 
 ## Container packages
 
-The canonical repository is https://github.com/idlab-discover/AIDE-FL. GitHub Actions builds and publishes nine Linux amd64 container packages under `ghcr.io/idlab-discover/aide-fl`:
+The canonical repository is https://github.com/idlab-discover/AIDE-FL. GitHub Actions builds and publishes ten Linux amd64 container packages under `ghcr.io/idlab-discover/aide-fl`:
 
-- `server-logic`, `orchestrator`, `datastore-logic`, `preprocessor-logic`, `trainer-logic`
+- `server-logic`, `orchestrator`, `datastore-logic`, `preprocessor-logic`, `trainer-logic`, `minio`
 - `flower-serverapp`, `flower-clientapp`
 - `flower-serverapp-base`, `flower-clientapp-base`
 
@@ -55,7 +55,9 @@ Deploy a retained revision with:
   --image-tag sha-<full-40-character-commit>
 ```
 
-The packages must be public to allow anonymous pulls. Package administrators set this once in GitHub package settings after the initial publication. Verify anonymous access before distributing a release. The deployment also pulls upstream Flower, MinIO, Kafka and Redis images.
+The packages must be public to allow anonymous pulls. Package administrators set this once in GitHub package settings after the initial publication. Verify anonymous access before distributing a release. The deployment also pulls upstream Flower, Kafka and Redis images.
+
+The `minio` package builds official MinIO source release `RELEASE.2025-10-15T17-29-55Z`, pinned and checked at commit `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a`. Upstream Community Edition container distribution is no longer available; its repository is archived. This package is an AIDE-FL build, not an upstream-maintained image. MinIO remains licensed under GNU AGPLv3, separately from AIDE-FL; the image includes its LICENSE and CREDITS in `/usr/share/licenses/minio`. Corresponding source is available at https://github.com/minio/minio/tree/9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a; the build recipe is `minio/Dockerfile`.
 
 The initial Python implementation remains in Git history. Its final original revision is `11183c52bac6ee9ad55c7e10760a33e24a203221`; the service-based implementation supersedes it on `main`.
 
