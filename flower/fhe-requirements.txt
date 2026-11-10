@@ -1,0 +1,2 @@
+# Optional, isolated experimental CKKS FedAvg; not installed in deployment images.
+tenseal==0.3.16

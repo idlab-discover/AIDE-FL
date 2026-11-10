@@ -7,6 +7,7 @@ from flwr.app import (
     Error,
     Message,
     RecordDict,
+    MetricRecord,
 )
 from flwr.clientapp import ClientApp
 
@@ -86,6 +87,7 @@ def train(message: Message, context: Context) -> Message:
     try:
         config = _require_config(message)
         _ensure_client_state(context, config)
+        private = config.get("privacy-mode") == "central_dp"
 
         result = adapter.train(
             model,
@@ -99,16 +101,16 @@ def train(message: Message, context: Context) -> Message:
                 y_test=y_test,
             ),
             config,
-            verbose=context.run_config.get("verbose"),
+            verbose=0 if private else context.run_config.get("verbose"),
         )
 
         reply = RecordDict(
             {
                 ARRAYS_KEY: result.arrays,
-                METRICS_KEY: result.metrics,
+                METRICS_KEY: MetricRecord({"num-examples": 1}) if private else result.metrics,
             }
         )
-        if result.history is not None:
+        if result.history is not None and not private:
             reply[HISTORY_KEY] = ConfigRecord({"history": json.dumps(result.history)})
         return message.create_reply(reply)
     except Exception as exc:
@@ -121,6 +123,8 @@ def evaluate(message: Message, context: Context) -> Message:
 
     try:
         config = _require_config(message)
+        if config.get("privacy-mode") == "central_dp":
+            raise ValueError("client evaluation metrics are disabled for central_dp")
         _ensure_client_state(context, config)
 
         metrics = adapter.evaluate(

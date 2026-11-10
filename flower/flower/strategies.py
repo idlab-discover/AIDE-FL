@@ -19,6 +19,7 @@ from flwr.serverapp.strategy import (
 )
 
 from flower.frameworks.base import FrameworkAdapter
+from flower.privacy import PrivateFedAvg, make_private_strategy, validate_privacy
 
 ARRAYS_KEY = "arrays"
 CONFIG_KEY = "config"
@@ -167,6 +168,23 @@ class SaveModelStrategy(SaveModelStrategyMixin):
 
 class SaveModelFedAvg(SaveModelStrategy, FedAvg):
     pass
+
+
+class SavePrivateFedAvg(SaveModelStrategyMixin, PrivateFedAvg):
+    def aggregate_train(self, server_round, replies):
+        arrays, metrics = PrivateFedAvg.aggregate_train(self, server_round, replies)
+        spent = self.privacy_spent()
+        self._write_json(f"{self.scenario_name}_privacy.json", {
+            "mode": "central_dp", "epsilon": spent.epsilon, "delta": spent.delta,
+            "num_releases": spent.num_releases, "sampling": "no-amplification",
+            "neighboring_relation": "add-or-remove-one", "uniform_client_weights": True,
+            "scope": "model releases only; trusted server sees individual updates",
+        })
+        wandb.log({"privacy/epsilon": spent.epsilon, "privacy/delta": spent.delta}, step=server_round)
+        return self._save_train_results(server_round, arrays, metrics)
+
+    def aggregate_evaluate(self, server_round, replies):
+        return None
 
 
 class SaveModelFedMedian(SaveModelStrategy, FedMedian):
@@ -391,6 +409,14 @@ def build_strategy(
         "min_train_nodes": 1,
         "min_evaluate_nodes": 1,
     }
+
+    privacy = validate_privacy(aggregation, adapter.name)
+    if privacy is not None:
+        return make_private_strategy(
+            privacy, fedavg_kwargs, strategy_type=SavePrivateFedAvg,
+            scenario_name=scenario_name, model=model, adapter=adapter,
+            share_dir=share_dir, server_rounds=server_rounds,
+        )
 
     if strategy_name == "fedavg":
         return SaveModelFedAvg(

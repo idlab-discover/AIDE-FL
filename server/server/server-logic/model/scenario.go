@@ -1,5 +1,10 @@
 package model
 
+import (
+	"bytes"
+	"encoding/json"
+)
+
 type Scenario struct {
 	Name               string                `json:"name" validate:"required"`
 	Framework          string                `json:"framework" validate:"required"`
@@ -75,17 +80,43 @@ type Training struct {
 }
 
 type Aggregation struct {
-	Strategy            string   `json:"strategy" validate:"required"`
-	FractionFit         float64  `json:"fraction_fit" validate:"required,gt=0,lte=1.0"`
-	FractionEvaluate    float64  `json:"fraction_evaluate" validate:"required,gt=0,lte=1.0"`
-	MinAvailableClients int      `json:"min_available_clients" validate:"required,gte=1"`
-	NumMaliciousNodes   int      `json:"num_malicious_nodes,omitempty" validate:"gte=0"`
-	ProximalMu          *float64 `json:"proximal_mu,omitempty" validate:"omitempty,gte=0"`
-	Eta                 *float64 `json:"eta,omitempty" validate:"omitempty,gt=0"`
-	EtaL                *float64 `json:"eta_l,omitempty" validate:"omitempty,gt=0"`
-	Beta1               *float64 `json:"beta_1,omitempty" validate:"omitempty,gt=0,lt=1"`
-	Beta2               *float64 `json:"beta_2,omitempty" validate:"omitempty,gt=0,lt=1"`
-	Tau                 *float64 `json:"tau,omitempty" validate:"omitempty,gt=0"`
+	Privacy             *PrivacyConfig `json:"privacy,omitempty"`
+	Strategy            string         `json:"strategy" validate:"required"`
+	FractionFit         float64        `json:"fraction_fit" validate:"required,gt=0,lte=1.0"`
+	FractionEvaluate    float64        `json:"fraction_evaluate" validate:"required,gt=0,lte=1.0"`
+	MinAvailableClients int            `json:"min_available_clients" validate:"required,gte=1"`
+	NumMaliciousNodes   int            `json:"num_malicious_nodes,omitempty" validate:"gte=0"`
+	ProximalMu          *float64       `json:"proximal_mu,omitempty" validate:"omitempty,gte=0"`
+	Eta                 *float64       `json:"eta,omitempty" validate:"omitempty,gt=0"`
+	EtaL                *float64       `json:"eta_l,omitempty" validate:"omitempty,gt=0"`
+	Beta1               *float64       `json:"beta_1,omitempty" validate:"omitempty,gt=0,lt=1"`
+	Beta2               *float64       `json:"beta_2,omitempty" validate:"omitempty,gt=0,lt=1"`
+	Tau                 *float64       `json:"tau,omitempty" validate:"omitempty,gt=0"`
+}
+
+// PrivacyConfig configures the client-level central DP mechanism in Flower.
+// The Flower boundary validates mechanism and framework compatibility.
+type PrivacyConfig struct {
+	Mode              string   `json:"mode"`
+	NoiseMultiplier   float64  `json:"noise_multiplier"`
+	ClippingNorm      float64  `json:"clipping_norm"`
+	NumSampledClients int      `json:"num_sampled_clients"`
+	PopulationSize    int      `json:"population_size"`
+	TargetDelta       float64  `json:"target_delta"`
+	MaxEpsilon        *float64 `json:"max_epsilon,omitempty"`
+}
+
+// UnmarshalJSON rejects misspelled privacy options rather than silently dropping them.
+func (p *PrivacyConfig) UnmarshalJSON(data []byte) error {
+	type config PrivacyConfig
+	var decoded config
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&decoded); err != nil {
+		return err
+	}
+	*p = PrivacyConfig(decoded)
+	return nil
 }
 
 type LegacyAggregation struct {

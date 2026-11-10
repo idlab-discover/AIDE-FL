@@ -9,6 +9,7 @@ from flower.frameworks import get_adapter_for_scenario
 from flower.frameworks.base import HoldOutDataset
 from flower.strategies import build_strategy
 from flower.task import load_server_config, load_server_data
+from flower.privacy import validate_privacy
 
 
 def get_centralised_evaluation_fn(adapter, model, x_hold_out, y_hold_out):
@@ -33,6 +34,9 @@ app = ServerApp()
 def main(grid: Grid, context: Context) -> None:
     del context
     scenario = load_server_config()
+    privacy = validate_privacy(scenario["aggregation"], scenario["framework"])
+    if privacy is not None and scenario.get("hold_out_dataset"):
+        raise ValueError("central_dp disables holdout evaluation because its metrics are not accounted")
     adapter = get_adapter_for_scenario(scenario)
 
     scenario_name = scenario["name"]
