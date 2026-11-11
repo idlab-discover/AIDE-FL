@@ -1,0 +1,12 @@
+{
+  "url": "https://forge.coreweave.com/wandb/strgen/aide-wp4-smoke/runs/69cfd552815d88a8",
+  "path": "strgen/aide-wp4-smoke/69cfd552815d88a8",
+  "id": "69cfd552815d88a8",
+  "artifacts": [
+    "strgen/aide-wp4-smoke/pytorch-training-69cfd552815d88a8:v0",
+    "strgen/aide-wp4-smoke/pytorch-transport-69cfd552815d88a8:v0"
+  ],
+  "verified_state": "finished",
+  "verified_history_rounds": 5,
+  "downloaded_artifact_hashes_verified": true
+}

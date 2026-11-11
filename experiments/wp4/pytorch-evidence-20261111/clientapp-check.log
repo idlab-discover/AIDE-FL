@@ -1,0 +1,3 @@
+{'num-examples': 4, 'loss': 0.6098389029502869, 'accuracy': 0.5}
+{'torch': '2.14.1+cpu', 'flwr': '1.43.0', 'numpy': '2.5.4', 'safetensors': '0.8.0'}
+CONTAINER_PYTORCH_TRAIN_EVALUATE_RELOAD_PASSED

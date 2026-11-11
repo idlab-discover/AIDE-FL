@@ -1,0 +1,4 @@
+{
+  "status": 401,
+  "body": "{\"code\":1008,\"detail\":\"Authentication failed.\"}"
+}

@@ -1,0 +1,14 @@
+partition,client,Fire Alarm,0
+embargo,-1,0,60
+embargo,-1,1,120
+holdout,-1,0,5773
+holdout,-1,1,3622
+test,0,1,4667
+test,1,1,4667
+train,0,0,4718
+train,0,1,10909
+train,1,0,4718
+train,1,1,10909
+validation,0,0,2602
+validation,0,1,3631
+validation,1,1,6232

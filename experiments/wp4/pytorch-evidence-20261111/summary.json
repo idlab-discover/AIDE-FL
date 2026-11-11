@@ -1,0 +1,45 @@
+{
+  "initial_holdout": {
+    "loss": 0.681597888469696,
+    "accuracy": 0.6090473532676697
+  },
+  "final_holdout": {
+    "accuracy": 0.6893028206492815,
+    "balanced_accuracy": 0.689423445631203,
+    "f1": 0.6312997347480106,
+    "roc_auc": 0.712242141318767,
+    "logloss": 2.3985140323638916,
+    "confusion_matrix": [
+      [
+        3977,
+        1796
+      ],
+      [
+        1123,
+        2499
+      ]
+    ]
+  },
+  "majority_baseline": {
+    "accuracy": 0.38552421500798295,
+    "balanced_accuracy": 0.5,
+    "f1": 0.5565030344933548,
+    "roc_auc": 0.5,
+    "logloss": 22.147952210257937,
+    "confusion_matrix": [
+      [
+        0,
+        5773
+      ],
+      [
+        0,
+        3622
+      ]
+    ]
+  },
+  "reload_predictions_identical": true,
+  "weighted_aggregation_verified": true,
+  "clients": 2,
+  "rounds": 5,
+  "scope": "Local multi-client experiment; not cluster deployment or privacy verification"
+}

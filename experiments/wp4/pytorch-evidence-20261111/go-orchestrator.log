@@ -1,0 +1,9 @@
+?   	github.com/idlab-discover/AIDE-FL/client/orchestrator	[no test files]
+?   	github.com/idlab-discover/AIDE-FL/client/orchestrator/configuration	[no test files]
+ok  	github.com/idlab-discover/AIDE-FL/client/orchestrator/controller	(cached)
+?   	github.com/idlab-discover/AIDE-FL/client/orchestrator/exception	[no test files]
+ok  	github.com/idlab-discover/AIDE-FL/client/orchestrator/model	0.002s
+?   	github.com/idlab-discover/AIDE-FL/client/orchestrator/repository	[no test files]
+?   	github.com/idlab-discover/AIDE-FL/client/orchestrator/repository/impl	[no test files]
+?   	github.com/idlab-discover/AIDE-FL/client/orchestrator/service	[no test files]
+ok  	github.com/idlab-discover/AIDE-FL/client/orchestrator/service/impl	(cached)

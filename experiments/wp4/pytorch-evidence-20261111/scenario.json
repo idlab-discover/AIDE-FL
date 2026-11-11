@@ -1,0 +1,72 @@
+{
+  "name": "smoke-pytorch",
+  "framework": "pytorch",
+  "dataset": "smoke-sensors-prepared",
+  "hold_out_dataset": "smoke-holdout",
+  "label_column": "Fire Alarm",
+  "preprocessing": {
+    "drop_columns": [],
+    "drop_rows": 0,
+    "shuffle": false,
+    "split": {
+      "train": 0.7,
+      "eval": 0.15,
+      "test": 0.15
+    }
+  },
+  "training": {
+    "server_rounds": 5,
+    "local_epochs": 2,
+    "batch_size": 128
+  },
+  "aggregation": {
+    "strategy": "fedavg",
+    "fraction_fit": 1.0,
+    "fraction_evaluate": 1.0,
+    "min_available_clients": 2
+  },
+  "pytorch": {
+    "model": {
+      "kind": "mlp",
+      "n_features": 12,
+      "hidden_sizes": [
+        32,
+        16
+      ],
+      "seed": 42,
+      "feature_mean": [
+        11.339474659243617,
+        49.08219299929609,
+        1935.1608754079477,
+        598.1240161259359,
+        12942.243584821143,
+        19746.948838548666,
+        938.7882360977794,
+        76.11581269597492,
+        129.93240353234785,
+        396.110778140398,
+        142.508214468548,
+        51.205545242209
+      ],
+      "feature_scale": [
+        16.634435905508166,
+        7.97551219955172,
+        7816.524079720066,
+        1579.6878170465573,
+        264.9701610276186,
+        602.3573669801705,
+        0.8322391794022206,
+        778.7680535735449,
+        1526.0775617119778,
+        3873.8543974961653,
+        1699.155875355382,
+        777.7245622336845
+      ]
+    },
+    "optimizer": {
+      "kind": "adam",
+      "learning_rate": 0.001,
+      "weight_decay": 0.0
+    }
+  }
+}

@@ -125,7 +125,7 @@ A scenario follows a certain JSON template:
 ```
 
 - `name`: Name for the scenario. This is the UID for the scenario. Change the name of the scenario if modifications are made. If a training session is started with a different scenario but with the same name as a previous one, the previous scenario will be used.
-- `framework`: The ML framework/runtime family. Current in-repo support includes TensorFlow via `framework: "tensorflow"` with a matching `tensorflow` block, scikit-learn logistic regression via `framework: "scikit_learn"` with a matching `scikit_learn` block, and XGBoost bagging via `framework: "xgboost"` with a matching `xgboost` block.
+- `framework`: The ML framework/runtime family. Current in-repo support includes TensorFlow via `framework: "tensorflow"` with a matching `tensorflow` block, scikit-learn logistic regression via `framework: "scikit_learn"` with a matching `scikit_learn` block, XGBoost bagging via `framework: "xgboost"` with a matching `xgboost` block, and binary PyTorch logistic regression or MLPs via `framework: "pytorch"` with a matching `pytorch` block. See the [PyTorch adapter guide](flower/PYTORCH.md) for configuration, persistence, buffer policy and reproducible verification.
 - `dataset` (mutually exclusive with `datasets`): Uses the parquet dataset in each client's Minio datastore with matching name (under `datasets/[datasetname].parquet`), or tries downloading the dataset from Kaggle (e.g. `dhoogla-nfunswnb15v2` matches Kaggle dataset `nfunswnb15v2` of user `dhoogla`, and `samybtt-ermds-x` matches `ermds-x` of user `samybtt`) and uploads it to the Minio datastore.
 - `dataset_file`: Optional parquet member name to extract from a downloaded Kaggle zip when the archive contains multiple parquet files.
 - `datasets` (mutually exclusive with `dataset`): Similar to `dataset` but with the ability to define a dataset per client (clients are identified by the node's name on which they run). Value must be a dictionary (e.g. `{"client1": "some-dataset"}`). The length of `datasets` must be greater than or equal to `aggregation.min_available_clients`.
@@ -140,7 +140,7 @@ A scenario follows a certain JSON template:
 - `training.server_rounds`: Amount of aggregating rounds between clients and server.
 - `training.local_epochs`: Amount of local epochs to perform by clients between aggregations.
 - `training.batch_size`: Batch size for local epochs.
-- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg`, `fedmedian`, `fedprox`, `fedadam`, `fedadagrad`, `fedyogi`, or `bulyan` for TensorFlow, `fedavg`, `fedmedian`, `fedadam`, `fedadagrad`, `fedyogi`, or `bulyan` for scikit-learn, and `fedxgbbagging` or `fedxgbcyclic` for XGBoost.
+- `aggregation.strategy`: Aggregation strategy. Current supported values are `fedavg`, `fedmedian`, `fedprox`, `fedadam`, `fedadagrad`, `fedyogi`, or `bulyan` for TensorFlow, `fedavg`, `fedmedian`, `fedadam`, `fedadagrad`, `fedyogi`, or `bulyan` for scikit-learn, `fedxgbbagging` or `fedxgbcyclic` for XGBoost, and `fedavg` for PyTorch.
 - `aggregation.fraction_fit`: Percentage of available clients that are required for fitting.
 - `aggregation.fraction_evaluate`: Percentage of available clients that are required for evaluation.
 - `aggregation.min_available_clients`: Minimum amount of clients that need to be available/connected for a training sessions.

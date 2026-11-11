@@ -1,0 +1,9 @@
+?   	github.com/idlab-discover/AIDE-FL/server/server/server-logic	[no test files]
+?   	github.com/idlab-discover/AIDE-FL/server/server/server-logic/configuration	[no test files]
+ok  	github.com/idlab-discover/AIDE-FL/server/server/server-logic/controller	0.003s
+?   	github.com/idlab-discover/AIDE-FL/server/server/server-logic/exception	[no test files]
+ok  	github.com/idlab-discover/AIDE-FL/server/server/server-logic/model	0.003s
+?   	github.com/idlab-discover/AIDE-FL/server/server/server-logic/repository	[no test files]
+ok  	github.com/idlab-discover/AIDE-FL/server/server/server-logic/repository/impl	(cached)
+?   	github.com/idlab-discover/AIDE-FL/server/server/server-logic/service	[no test files]
+ok  	github.com/idlab-discover/AIDE-FL/server/server/server-logic/service/impl	0.005s

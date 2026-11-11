@@ -66,3 +66,12 @@ Install the separately pinned optional `tenseal==0.3.16` and add `--fhe` to incl
 This is a correctness experiment in one process. It deliberately retains a plaintext reference and ordinary training metrics. It provides no deployment privacy guarantee, threshold decryption, malicious-client protection or private preprocessing. CKKS supports the additions needed here; this experiment does not demonstrate arbitrary-depth or bootstrapped FHE. Secret keys and ciphertexts are not persisted in the run artifacts.
 
 Add `--secagg --clients 3` for a separate native Flower SecAgg+ protocol comparison. It executes four protocol stages per round with isolated participant state and checks that replies expose no plaintext model arrays. The runner verifies the quantized result against ordinary Flower FedAvg within `1e-4` before using it for the next round. It records protocol-stage counts, reply counts and the discrepancy. This is in-process protocol validation. The comparison process still holds the plaintext reference and metrics, and the split/scaler retain their stated limitations. This is secure aggregation, not a general-purpose MPC implementation.
+
+## PyTorch integration
+
+The [PyTorch adapter guide](../../flower/PYTORCH.md) describes a separate runnable
+sensor experiment and an isolated production-app TLS check. Its
+[11 November verification report](RESULTS-PYTORCH-20261111.md) includes W&B
+artifacts, test/build results, model-quality limitations and the exact privacy
+scope. These results were produced after release `v2026.11.11` and do not modify
+that release.

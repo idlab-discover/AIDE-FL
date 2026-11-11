@@ -1,0 +1,10 @@
+{
+  "source_url": "https://www.kaggle.com/api/v1/datasets/download/deepcontractor/smoke-detection-dataset",
+  "dataset_page": "https://www.kaggle.com/datasets/deepcontractor/smoke-detection-dataset",
+  "archive_sha256": "9c1fb61d38f5efa0293c3f2c36f7c4af2556ee0a177653adaaaeb1ea78aceff8",
+  "csv_sha256": "7bbf5deaab4c94746b344cee7bfec493f69b7d624ea63f35fabcd3c4a4e6eb7d",
+  "source_rows": 62630,
+  "unique_rows": 62628,
+  "dropped_duplicate_sensor_rows": 2,
+  "retrieved_at": "2026-11-11T16:23:44.711652+00:00"
+}

@@ -1,0 +1,58 @@
+Using SuperLink: deployment (127.0.0.1:52113)
+INFO :      Start `flwr-serverapp` process
+Successfully installed transport-smoke to /tmp/aide-flower-tls-bkcokbio/apps/aide.transport-smoke.1.0.0.86712bc0.
+Reloaded config
+Dropping columns: []
+Hold-out dataset loaded from file
+INFO :      Starting SaveModelFedAvg strategy:
+INFO :      	├── Number of rounds: 1
+INFO :      	├── ArrayRecord (0.00 MB)
+INFO :      	├── ConfigRecord (train): {'framework': pytorch, 'model_config': {"feature_mean": [11.339474659243617, 49.08219299929609, 1935.1608754079477, 598.1240161259359, 12942.243584821143, 19746.948838548666, 938.7882360977794, 76.11581269597492, 129.93240353234785, 396.110778140398, 142.508214468548, 51.205545242209], "feature_scale": [16.634435905508166, 7.97551219955172, 7816.524079720066, 1579.6878170465573, 264.9701610276186, 602.3573669801705, 0.8322391794022206, 778.7680535735449, 1526.0775617119778, 3873.8543974961653, 1699.155875355382, 777.7245622336845], "hidden_sizes": [32, 16], "kind": "mlp", "n_features": 12, "seed": 42}, 'label_column': Fire Alarm, 'local_epochs': 2, 'batch_size': 128, 'optimizer': adam, 'learning_rate': 0.001, 'weight_decay': 0.0}
+INFO :      	├── ConfigRecord (evaluate): {'framework': pytorch, 'model_config': {"feature_mean": [11.339474659243617, 49.08219299929609, 1935.1608754079477, 598.1240161259359, 12942.243584821143, 19746.948838548666, 938.7882360977794, 76.11581269597492, 129.93240353234785, 396.110778140398, 142.508214468548, 51.205545242209], "feature_scale": [16.634435905508166, 7.97551219955172, 7816.524079720066, 1579.6878170465573, 264.9701610276186, 602.3573669801705, 0.8322391794022206, 778.7680535735449, 1526.0775617119778, 3873.8543974961653, 1699.155875355382, 777.7245622336845], "hidden_sizes": [32, 16], "kind": "mlp", "n_features": 12, "seed": 42}, 'label_column': Fire Alarm, 'local_epochs': 2, 'batch_size': 128, 'optimizer': adam, 'learning_rate': 0.001, 'weight_decay': 0.0}
+INFO :      	├──> Sampling:
+INFO :      	│	├──Fraction: train (1.00) | evaluate ( 1.00)
+INFO :      	│	├──Minimum nodes: train (1) | evaluate (1)
+INFO :      	│	└──Minimum available nodes: 1
+INFO :      	└──> Keys in records:
+INFO :      		├── Weighted by: 'num-examples'
+INFO :      		├── ArrayRecord key: 'arrays'
+INFO :      		└── ConfigRecord key: 'config'
+INFO :
+INFO :      Initial global evaluation results: {'loss': 0.681597888469696, 'accuracy': 0.6090473532676697}
+INFO :
+INFO :      [ROUND 1/1]
+INFO :      configure_train: Sampled 1 nodes (out of 1)
+INFO :      aggregate_train: Received 1 results and 0 failures
+INFO :      aggregate_train: Received 1 results and 0 failures
+Updated smoke-pytorch_fitted_validated_metrics.json in share/smoke-pytorch_fitted_validated_metrics.json
+INFO :      	└──> Aggregated MetricRecord: {'num-examples': 15627, 'train-loss': 0.13007509644993315, 'train-val-loss': 2.2869791984558105}
+INFO :      configure_evaluate: Sampled 1 nodes (out of 1)
+INFO :      aggregate_evaluate: Received 1 results and 0 failures
+Updated smoke-pytorch_distributed_metrics.json in share/smoke-pytorch_distributed_metrics.json
+INFO :      	└──> Aggregated MetricRecord: {'num-examples': 4667, 'loss': 0.4058833122253418, 'accuracy': 0.9080780148506165}
+INFO :      Global evaluation
+INFO :      	└──> MetricRecord: {'loss': 1.4285207986831665, 'accuracy': 0.8310803771018982}
+INFO :
+INFO :      Strategy execution finished in 10.26s
+INFO :
+INFO :      Final results:
+INFO :
+INFO :      	Global Arrays:
+INFO :      		ArrayRecord (0.004 MB)
+INFO :
+INFO :      	Aggregated ClientApp-side Train Metrics:
+INFO :      	{ 1: { 'num-examples': '15627',
+INFO :      	       'train-loss': '1.3008e-01',
+INFO :      	       'train-val-loss': '2.2870e+00'}}
+INFO :
+INFO :      	Aggregated ClientApp-side Evaluate Metrics:
+INFO :      	{1: {'accuracy': '9.0808e-01', 'loss': '4.0588e-01', 'num-examples': '4667'}}
+INFO :
+INFO :      	ServerApp-side Evaluate Metrics:
+INFO :      	{ 0: {'accuracy': '6.0905e-01', 'loss': '6.8160e-01'},
+INFO :      	  1: {'accuracy': '8.3108e-01', 'loss': '1.4285e+00'}}
+INFO :
+Updated centralised metrics in share/smoke-pytorch_centralised_metrics.json
+PYTORCH_PRODUCTION_APPS_AND_AGGREGATE_VERIFIED
+TRANSPORT_TRAINING_PASSED
+INFO :

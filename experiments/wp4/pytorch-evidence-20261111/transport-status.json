@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "runs": [
+    {
+      "run-id": "12796554799196599977",
+      "federation-id": "@none/default",
+      "fab-id": "aide/transport-smoke",
+      "fab-name": "transport-smoke",
+      "fab-version": "1.0.0",
+      "fab-hash": "86712bc025e58a77be6b3444314d19274c0ca29176a9a68bca2a0c4abad338e9",
+      "status": "finished:completed",
+      "status-details": "N/A",
+      "elapsed": 12.802111,
+      "pending-at": "2026-11-11 16:47:38Z",
+      "starting-at": "2026-11-11 16:47:39Z",
+      "running-at": "2026-11-11 16:47:39Z",
+      "finished-at": "2026-11-11 16:47:52Z",
+      "network-traffic": {
+        "inbound-bytes": 9715,
+        "outbound-bytes": 19439,
+        "total-bytes": 29154
+      },
+      "compute-time": {
+        "serverapp-seconds": 12.802111,
+        "clientapp-seconds": 3.960475206375122,
+        "total-seconds": 16.762586206375122
+      }
+    }
+  ]
+}
