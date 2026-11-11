@@ -70,7 +70,7 @@ class TestFlowerMain(unittest.TestCase):
             self.module.main()
             self.assertEqual(self.module.os.environ["WANDB_MODE"], "offline")
             login.assert_not_called()
-            run.assert_called_once_with(["flower-superexec", "--plugin-type", "serverapp", "--insecure"])
+            run.assert_called_once_with(["flower-superexec", "--insecure"])
 
     def test_explicit_local_modes_do_not_login_even_with_a_key(self):
         for mode in ("offline", "disabled"):
@@ -133,20 +133,19 @@ class TestFlowerMain(unittest.TestCase):
             ["flwr", "ls", "--run-id", "run-123", "deployment", "--format", "json"],
         )
 
-    def test_build_serverapp_command_normalizes_appio_arg_name(self):
+    def test_build_serverapp_command_passes_runtime_tls_options(self):
         command = self.module.build_serverapp_command(
-            ["--insecure", "--serverappio-api-address", "localhost:9091"]
+            ["--root-certificates", "/app/certs/ca.crt", "--runtime-api-address", "localhost:9092"]
         )
 
         self.assertEqual(
             command,
             [
                 "flower-superexec",
-                "--plugin-type",
-                "serverapp",
-                "--insecure",
-                "--appio-api-address",
-                "localhost:9091",
+                "--root-certificates",
+                "/app/certs/ca.crt",
+                "--runtime-api-address",
+                "localhost:9092",
             ],
         )
 

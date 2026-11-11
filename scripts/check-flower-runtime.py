@@ -7,10 +7,13 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import ssl
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 
 
 APP = '''import numpy as np
@@ -47,12 +50,12 @@ def main():
         root = Path(tmp)
         ports = []
         sockets = []
-        for _ in range(4):
+        for _ in range(2):
             sock = socket.socket()
             sock.bind(("127.0.0.1", 0))
             sockets.append(sock)
             ports.append(sock.getsockname()[1])
-        runtime, fleet, control, client_runtime = ports
+        runtime, client_runtime = ports
         for sock in sockets:
             sock.close()
         env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
@@ -62,8 +65,11 @@ def main():
                         "-days", "1", "-subj", "/CN=localhost", "-addext",
                         "subjectAltName=IP:127.0.0.1,DNS:localhost"], check=True, capture_output=True)
         (root / "config.toml").write_text(
-            f'[superlink.deployment]\naddress = "127.0.0.1:{control}"\n'
+            f'[superlink.deployment]\naddress = "127.0.0.1:{runtime}"\n'
             f'root-certificates = "{root / "ca.crt"}"\n')
+        secret = root / "superexec.secret"
+        secret.write_bytes(os.urandom(32))
+        secret.chmod(0o600)
         app = root / "app"
         app.mkdir()
         (app / "LICENSE").write_text("Apache-2.0\n")
@@ -72,11 +78,11 @@ def main():
 name = "transport-smoke"
 version = "1.0.0"
 license = {file = "LICENSE"}
-dependencies = ["flwr>=1.35.0,<1.36.0"]
+dependencies = ["flwr>=1.43.0,<1.44.0"]
 [tool.flwr.app]
 publisher = "aide"
 fab-format-version = 1
-flwr-version-target = "1.35.0"
+flwr-version-target = "1.43.0"
 [tool.flwr.app.components]
 serverapp = "app:server"
 clientapp = "app:client"
@@ -85,15 +91,15 @@ clientapp = "app:client"
             ["flower-superlink", "--ssl-ca-certfile", str(root / "ca.crt"),
              "--ssl-certfile", str(root / "ca.crt"), "--ssl-keyfile", str(root / "server.key"),
              "--isolation", "process", "--host", "127.0.0.1", "--port", str(runtime),
-             "--fleet-api-address", f"127.0.0.1:{fleet}", "--control-api-address", f"127.0.0.1:{control}",
+             "--superexec-auth-secret-file", str(secret),
              "--disable-runtime-dependency-installation"],
             ["flower-supernode", "--root-certificates", str(root / "ca.crt"),
-             "--superlink", f"127.0.0.1:{fleet}", "--host", "127.0.0.1", "--port", str(client_runtime),
+             "--superlink", f"127.0.0.1:{runtime}", "--host", "127.0.0.1", "--port", str(client_runtime),
              "--isolation", "process"],
-            ["flower-superexec", "--insecure", "--plugin-type", "serverapp",
-             "--appio-api-address", f"127.0.0.1:{runtime}"],
-            ["flower-superexec", "--insecure", "--plugin-type", "clientapp",
-             "--appio-api-address", f"127.0.0.1:{client_runtime}"],
+            ["flower-superexec", "--root-certificates", str(root / "ca.crt"),
+             "--runtime-api-address", f"127.0.0.1:{runtime}",
+             "--superexec-auth-secret-file", str(secret)],
+            ["flower-superexec", "--insecure", "--runtime-api-address", f"127.0.0.1:{client_runtime}"],
         ]
         processes, logs = [], []
 
@@ -108,6 +114,21 @@ clientapp = "app:client"
                 logs.append(log)
                 processes.append(subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT))
                 time.sleep(1)
+            # A client with the CA but without the worker secret cannot acquire tasks.
+            from flwr.supercore.runtime_version_compatibility import RuntimeVersionMetadata
+            headers = dict(RuntimeVersionMetadata.from_local_component("SuperExec").as_metadata())
+            headers["Content-Type"] = "application/protobuf"
+            request = urllib.request.Request(
+                f"https://127.0.0.1:{runtime}/v1/runtime/acquire-task", data=b"", headers=headers)
+            try:
+                urllib.request.urlopen(request, context=ssl.create_default_context(cafile=str(root / "ca.crt")), timeout=5)
+            except urllib.error.HTTPError as exc:
+                body = exc.read().decode()
+                if exc.code not in (401, 403) or "auth" not in body.lower():
+                    raise RuntimeError(f"Unexpected worker-auth rejection: {exc.code} {body}") from exc
+                (args.output_dir / "worker-auth.json").write_text(json.dumps({"status": exc.code, "body": body}, indent=2))
+            else:
+                raise RuntimeError("Unauthenticated worker unexpectedly acquired a task")
             response = json.loads(cli("run", str(app), "deployment", "--format", "json"))
             if not response.get("success"):
                 raise RuntimeError(response)

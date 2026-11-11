@@ -24,23 +24,22 @@ spec:
       containers:
 
       - name: flower-superlink
-        image: flwr/superlink:1.35.0
+        image: flwr/superlink:1.43.0
         ports:
-        - containerPort: 9091
-          name: serverappio-api
         - containerPort: 9092
-          name: fleet-api
-        - containerPort: 9093
-          name: deployment-engn
-        args: ["--ssl-ca-certfile", "certs/ca.crt", "--ssl-certfile", "certs/server.pem", "--ssl-keyfile", "certs/server.key", "--isolation", "process", "--host", "127.0.0.1", "--port", "9091", "--disable-runtime-dependency-installation"]
+          name: flower-https
+        args: ["--ssl-ca-certfile", "certs/ca.crt", "--ssl-certfile", "certs/server.pem", "--ssl-keyfile", "certs/server.key", "--isolation", "process", "--host", "0.0.0.0", "--port", "9092", "--superexec-auth-secret-file", "/app/superexec-auth/secret", "--disable-runtime-dependency-installation"]
         volumeMounts:
+        - name: superexec-auth
+          mountPath: /app/superexec-auth
+          readOnly: true
         - name: all-certs
           mountPath: /app/certs
           readOnly: true
 
       - name: flower-serverapp
         image: ghcr.io/idlab-discover/aide-fl/flower-serverapp:dev
-        args: ["--insecure", "--serverappio-api-address", "localhost:9091"]
+        args: ["--root-certificates", "/app/certs/ca.crt", "--runtime-api-address", "localhost:9092", "--superexec-auth-secret-file", "/app/superexec-auth/secret"]
         env:
         - name: WANDB_API_KEY
           valueFrom:
@@ -48,6 +47,9 @@ spec:
               name: wandb-api-key
               key: WANDB_API_KEY
         volumeMounts:
+        - name: superexec-auth
+          mountPath: /app/superexec-auth
+          readOnly: true
         - name: server-share
           mountPath: /app/share
         - name: ca-cert
@@ -61,6 +63,9 @@ spec:
           mountPath: /app/share
 
       volumes:
+      - name: superexec-auth
+        secret:
+          secretName: flower-superexec-auth
       - name: server-share
         emptyDir: {}
       - name: all-certs

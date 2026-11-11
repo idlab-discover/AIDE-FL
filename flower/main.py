@@ -84,16 +84,8 @@ def build_ls_command(run_id: str | None = None) -> list[str]:
 
 
 def build_serverapp_command(args: list[str]) -> list[str]:
-    command = ["flower-superexec", "--plugin-type", "serverapp"]
+    return ["flower-superexec", *args]
 
-    normalized_args: list[str] = []
-    for arg in args:
-        if arg == "--serverappio-api-address":
-            normalized_args.append("--appio-api-address")
-            continue
-        normalized_args.append(arg)
-
-    return command + normalized_args
 
 def setup_flask():
     flask_app = Flask(__name__)

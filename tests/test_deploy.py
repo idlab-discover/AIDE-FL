@@ -19,6 +19,8 @@ elif args[:2] == ['config', 'view']:
 elif args[:2] == ['get', 'nodes']:
     print(json.dumps({'items': [{'metadata': {'labels': {'fl-role': role}}, 'status': {'addresses': [{'type': 'InternalIP', 'address': '192.0.2.1'}]}} for role in ['server', 'client']]}))
 elif args[0] == 'get':
+    if args[1:3] == ['secret', 'flower-superexec-auth'] and os.environ.get('MISSING_WORKER_SECRET'):
+        sys.exit(1)
     if args[1:3] == ['secret', 'server-cert'] and os.environ.get('MISSING_CERT'):
         sys.exit(1)
 elif args[0] == 'create':
@@ -74,6 +76,18 @@ class TestDeploy(unittest.TestCase):
                 for container in matches:
                     self.assertEqual(container['image'], f'ghcr.io/idlab-discover/aide-fl/{name}:sha-test')
                     self.assertIn({'name': variable, 'value': value}, container['env'])
+
+    def test_missing_worker_secret_is_created_without_putting_bytes_in_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            self.prepare(directory)
+            result = self.run_deploy(directory, MISSING_WORKER_SECRET='1')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls = [json.loads(line) for line in (directory / 'calls').read_text().splitlines()]
+            creations = [c for c in calls if c[:4] == ['create', 'secret', 'generic', 'flower-superexec-auth']]
+            self.assertEqual(len(creations), 1)
+            self.assertIn('--from-file=secret=/dev/stdin', creations[0])
+            self.assertFalse(any('--from-literal=' in arg for arg in creations[0]))
 
     def test_incomplete_certificates_fail_without_rotation(self):
         with tempfile.TemporaryDirectory() as tmp:

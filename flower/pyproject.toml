@@ -8,11 +8,10 @@ version = "1.0.0"
 description = ""
 requires-python = ">=3.12,<3.14"
 license = {file = "LICENSE"}
-# Keep Fleet/Control gRPC and TLS deployment compatibility. Flower 1.43 requires
-# a separate HTTP transport migration; 1.35 includes native DP and accounting.
+# Match the unified HTTPS runtime in the deployment manifests.
 # TensorFlow 2.20 matches Flower's upstream TensorFlow quickstart.
 dependencies = [
-    "flwr[dp]>=1.35.0,<1.36.0",
+    "flwr[dp]>=1.43.0,<1.44.0",
     "tensorflow==2.20.0",
     "scikit-learn==1.9.1",
     "joblib==1.6.0",
@@ -30,7 +29,7 @@ packages = ["."]
 [tool.flwr.app]
 publisher = "flower"
 fab-format-version = 1
-flwr-version-target = "1.35.0"
+flwr-version-target = "1.43.0"
 
 [tool.flwr.app.components]
 serverapp = "flower.server_app:app"

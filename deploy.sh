@@ -74,6 +74,10 @@ if ! "$ca_exists"; then
   kubectl create secret tls server-cert -n aide-fl --cert="$DIR/certs/server.pem" --key="$DIR/certs/server.key" --dry-run=client -o yaml | kubectl apply -f -
   kubectl create configmap ca-cert -n aide-fl --from-file="$DIR/certs/ca.crt" --dry-run=client -o yaml | kubectl apply -f -
 fi
+# Preserve the server worker credential across reruns. Never expose its bytes in argv.
+if ! kubectl get secret flower-superexec-auth -n aide-fl >/dev/null 2>&1; then
+  openssl rand 32 | kubectl create secret generic flower-superexec-auth -n aide-fl --from-file=secret=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
+fi
 kubectl create configmap server-ip -n aide-fl --from-literal="SERVER_IP=$SERVER_IP" --from-literal="SERVER_PORT=:$API_PORT" --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f "$DIR/client/kafka/kafka-configmap.yaml" -f "$DIR/client/preprocessor/redis-configmap.yaml"
 # Render images and runtime settings before creating or updating any workload.

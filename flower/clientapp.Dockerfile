@@ -6,6 +6,6 @@ WORKDIR /app
 COPY --chown=49999:49999 pyproject.toml LICENSE ./
 COPY --chown=49999:49999 flower ./flower
 
-ENTRYPOINT ["flower-superexec", "--plugin-type", "clientapp"]
+ENTRYPOINT ["flower-superexec"]
 
 LABEL org.opencontainers.image.source=https://github.com/idlab-discover/AIDE-FL
