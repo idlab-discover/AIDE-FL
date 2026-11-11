@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.metadata
+import io
 import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import urllib.request
 import warnings
 import zipfile
@@ -29,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'flower'))
 from flower.frameworks.base import ClientDatasets
 from flower.frameworks.scikit_learn_adapter import ScikitLearnAdapter
+from flower.local_experiment import local_task_identity
 
 SOURCE = 'https://www.kaggle.com/api/v1/datasets/download/deepcontractor/smoke-detection-dataset'
 DATASET_PAGE = 'https://www.kaggle.com/datasets/deepcontractor/smoke-detection-dataset'
@@ -48,13 +51,16 @@ def save_json(path, value):
 def source_data(cache: Path):
     cache.mkdir(parents=True, exist_ok=True)
     archive = cache / 'smoke-detection-kaggle.zip'
-    csv = cache / 'smoke_detection_iot.csv'
     if not archive.exists():
         with urllib.request.urlopen(SOURCE, timeout=120) as response:
-            archive.write_bytes(response.read())
+            downloaded = response.read()
+        # Publish complete archives atomically when parallel runs share the cache.
+        with tempfile.NamedTemporaryFile(dir=cache, delete=False) as temporary:
+            temporary.write(downloaded)
+        Path(temporary.name).replace(archive)
     with zipfile.ZipFile(archive) as z:
-        csv.write_bytes(z.read('smoke_detection_iot.csv'))
-    frame = pd.read_csv(csv)
+        csv_bytes = z.read('smoke_detection_iot.csv')
+    frame = pd.read_csv(io.BytesIO(csv_bytes))
     required = FEATURES + [LABEL, 'UTC']
     if not set(required).issubset(frame.columns):
         raise ValueError('Smoke source does not have the expected sensor schema')
@@ -64,7 +70,7 @@ def source_data(cache: Path):
     original_count = len(frame)
     frame = frame.sort_values(['UTC', 'row_id']).drop_duplicates(FEATURES, keep='first')
     return frame, {'source_url': SOURCE, 'dataset_page': DATASET_PAGE,
-                   'archive_sha256': sha256(archive), 'csv_sha256': sha256(csv),
+                   'archive_sha256': sha256(archive), 'csv_sha256': hashlib.sha256(csv_bytes).hexdigest(),
                    'source_rows': original_count, 'unique_rows': len(frame),
                    'dropped_duplicate_sensor_rows': original_count - len(frame),
                    'retrieved_at': datetime.fromtimestamp(archive.stat().st_mtime, timezone.utc).isoformat()}
@@ -112,6 +118,7 @@ def metrics(model, x, y, prefix):
     }.items()}
 
 
+@local_task_identity()
 def run_method(output, prepared, config):
     output.mkdir(parents=True, exist_ok=False)
     save_json(output / 'config.json', config)
@@ -128,7 +135,9 @@ def run_method(output, prepared, config):
     test = prepared[prepared.partition == 'test']
     # The common transform uses training-only moments; all methods use this same transform.
     scaler = StandardScaler().fit(train[FEATURES])
+    x_train, y_train = scaler.transform(train[FEATURES]), train[LABEL].to_numpy()
     x_val, y_val = scaler.transform(validation[FEATURES]), validation[LABEL].to_numpy()
+    initial_validation = metrics(model, x_val, y_val, 'initial_validation')
     method = config['method']
     if method == 'centralised':
         subsets = [train]
@@ -160,9 +169,9 @@ def run_method(output, prepared, config):
                     result = adapter.train(local, arrays, data, train_config, False)
                 convergence_warnings += sum(issubclass(w.category, ConvergenceWarning) for w in caught)
                 if method == 'secagg-fedavg':
-                    secure_updates.append((result.arrays.to_numpy_ndarrays()[:2], len(data.x_train)))
+                    secure_updates.append((result.arrays.to_numpy_ndarrays(), len(data.x_train)))
                 if method == 'fhe-fedavg':
-                    encrypted_updates.append(encrypt_weights(public_context, result.arrays.to_numpy_ndarrays()[:2], len(data.x_train)))
+                    encrypted_updates.append(encrypt_weights(public_context, result.arrays.to_numpy_ndarrays(), len(data.x_train)))
                 request = Message(RecordDict(), dst_node_id=client + 1, message_type='train')
                 replies.append(Message(RecordDict({'arrays': result.arrays, 'metrics': result.metrics}), reply_to=request))
             arrays, training_metrics = strategy.aggregate_train(rnd, replies)
@@ -172,10 +181,10 @@ def run_method(output, prepared, config):
             if method == 'secagg-fedavg':
                 plaintext_reference = arrays.to_numpy_ndarrays()
                 secure_arrays, protocol = aggregate_secagg(secure_updates)
-                max_error = max(float(np.max(np.abs(a - b))) for a, b in zip(secure_arrays, plaintext_reference[:2]))
+                max_error = max(float(np.max(np.abs(a - b))) for a, b in zip(secure_arrays, plaintext_reference))
                 if max_error > 1e-4:
                     raise RuntimeError(f'SecAgg quantization error exceeds tolerance: {max_error}')
-                arrays = ArrayRecord([*secure_arrays, plaintext_reference[2]])
+                arrays = ArrayRecord(secure_arrays)
                 encryption_metrics = {'secagg_max_absolute_error': max_error,
                                       'secagg_stages': protocol['stages'],
                                       'secagg_message_replies': protocol['message_replies'],
@@ -184,20 +193,24 @@ def run_method(output, prepared, config):
                 plaintext_reference = arrays.to_numpy_ndarrays()
                 encrypted = aggregate_encrypted(public_context, encrypted_updates)
                 decrypted = decrypt_weights(private_context, encrypted)
-                max_error = max(float(np.max(np.abs(a - b))) for a, b in zip(decrypted, plaintext_reference[:2]))
+                max_error = max(float(np.max(np.abs(a - b))) for a, b in zip(decrypted, plaintext_reference))
                 if max_error > 1e-5:
                     raise RuntimeError(f'CKKS aggregation error exceeds tolerance: {max_error}')
-                arrays = ArrayRecord([*decrypted, plaintext_reference[2]])
+                arrays = ArrayRecord(decrypted)
                 encryption_metrics = {'ckks_max_absolute_error': max_error,
                                       'encrypted_upload_bytes': sum(len(c) for u in encrypted_updates for c in u.ciphertexts)}
             adapter._set_model_params(model, arrays.to_numpy_ndarrays())
-            row = {'round': rnd, **dict(training_metrics), **encryption_metrics, **metrics(model, x_val, y_val, 'validation')}
+            row = {'round': rnd, **dict(training_metrics), **encryption_metrics,
+                   **metrics(model, x_train, y_train, 'global_train'),
+                   **metrics(model, x_val, y_val, 'validation')}
             log.write(json.dumps(row, allow_nan=False) + '\n')
             log.flush()
     x_test, y_test = scaler.transform(test[FEATURES]), test[LABEL].to_numpy()
     majority = int(train[LABEL].mode().iloc[0])
     dummy = np.full(len(y_test), majority)
-    summary = {**metrics(model, x_test, y_test, 'test'),
+    summary = {**initial_validation, **metrics(model, x_val, y_val, 'validation'),
+               **metrics(model, x_test, y_test, 'test'),
+               'coefficient_l2_norm': float(np.linalg.norm(model.coef_)),
                'majority_baseline_label': majority,
                'majority_baseline_test_accuracy': float(accuracy_score(y_test, dummy)),
                'majority_baseline_test_balanced_accuracy': float(balanced_accuracy_score(y_test, dummy)),
@@ -238,7 +251,9 @@ def main():
     dirty = bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True).strip())
     (args.output / 'working-tree.diff').write_bytes(subprocess.check_output(['git', 'diff', 'HEAD'], cwd=ROOT))
     adapter_path = ROOT / 'flower/flower/frameworks/scikit_learn_adapter.py'
-    source_hashes = {'runner': sha256(__file__), 'adapter': sha256(adapter_path)}
+    identity_path = ROOT / 'flower/flower/local_experiment.py'
+    source_hashes = {'runner': sha256(__file__), 'adapter': sha256(adapter_path),
+                     'local_experiment': sha256(identity_path)}
     if args.fhe:
         versions['tenseal'] = importlib.metadata.version('tenseal')
         source_hashes['fhe'] = sha256(ROOT / 'flower/flower/experimental_fhe.py')
@@ -248,6 +263,7 @@ def main():
     source_dir.mkdir()
     (source_dir / 'smoke.py').write_bytes(Path(__file__).read_bytes())
     (source_dir / 'scikit_learn_adapter.py').write_bytes(adapter_path.read_bytes())
+    (source_dir / 'local_experiment.py').write_bytes(identity_path.read_bytes())
     if args.fhe:
         (source_dir / 'experimental_fhe.py').write_bytes((ROOT / 'flower/flower/experimental_fhe.py').read_bytes())
     if args.secagg:

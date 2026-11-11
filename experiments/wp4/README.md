@@ -20,7 +20,11 @@ python experiments/wp4/smoke.py \
   --rounds 20 --local-epochs 5
 ```
 
+To study participant count with fixed total training data, repeat the IID command with `--clients 2`, `--clients 4` and `--clients 8`, each with its own output directory. This measures the model's sensitivity to splitting one dataset among more simulated participants. It does not measure system scaling or additional sites. Class labels come from the scenario configuration and are never averaged as model parameters; this avoids rounding errors when participants have unequal numbers of rows.
+
 Each seed trains every client-local baseline, one centralised baseline and FedAvg. Each participating sample receives the same maximum solver iterations, `rounds * local_epochs`. SAGA may not converge within each deliberately bounded local update; the run summary counts convergence warnings. Models use the same logistic-regression configuration and default regularisation. Local baselines see fewer rows, and centralised training has more solver updates per round because it sees all training rows. These are training comparisons, not wall-time benchmarks.
+
+The per-round `train_*` values are sample-weighted client metrics measured before aggregation. The `global_train_*` values evaluate the resulting model on the pooled training rows after aggregation. These answer different questions, particularly when clients have different data distributions. For local-only baselines, `global_train_*` also includes other clients' training rows for diagnosis; those rows do not update the local model. Summaries retain zero-initialisation validation scores, final-round validation scores and coefficient norms so that an executed training run can be distinguished from an untrained baseline. The untouched test period is still evaluated only after the fixed final round.
 
 Use `publish.py` to retain finished results in W&B and generate figures. The runner itself does not read credentials or upload data.
 
@@ -31,6 +35,13 @@ python experiments/wp4/publish.py \
 ```
 
 Without `--online`, this command only generates PNG and PDF figures. Online publication uses the `aide-wp4-smoke` project by default. It uploads each run's metrics, model, predictions, partitions, source snapshots and figures, then reads the remote run state and history to verify completion. `wandb-receipts.json` records the verified links. The key is read into the process environment and is not included in any artifact.
+
+Publication first checks saved-file hashes and complete, ordered training rounds.
+Remote verification compares every retained history measurement and summary value,
+allowing only floating-point serialization rounding. New runs also produce
+`figures/training-validation.pdf` and PNG, comparing the resulting model's training
+and validation balanced accuracy. The [11 November results](RESULTS-20261111.md)
+report the participant-count and privacy comparisons with their limitations.
 
 ## Dataset and split
 

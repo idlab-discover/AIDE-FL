@@ -5,9 +5,46 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import time
 from pathlib import Path
+
+
+def same_measurement(actual, expected):
+    if isinstance(expected, float) and isinstance(actual, (float, int)):
+        return math.isclose(actual, expected, rel_tol=1e-12, abs_tol=1e-12)
+    if isinstance(expected, list) and isinstance(actual, list):
+        return len(actual) == len(expected) and all(
+            same_measurement(a, e) for a, e in zip(actual, expected))
+    return actual == expected
+
+
+def summary_items(summary, prefix=""):
+    # W&B's public API flattens nested summary mappings into dotted keys.
+    for key, value in summary.items():
+        name = f"{prefix}{key}"
+        if isinstance(value, dict):
+            yield from summary_items(value, name + ".")
+        else:
+            yield name, value
+
+
+def validate_evidence(directory, config, metrics):
+    """Refuse incomplete or changed results before plotting or uploading."""
+    rounds = [row.get("round") for row in metrics]
+    if rounds != list(range(1, config["rounds"] + 1)):
+        raise ValueError(f"Incomplete or duplicate training rounds in {directory}")
+    checksums = json.loads((directory / "checksums.json").read_text())
+    for required in ("config.json", "metrics.jsonl", "summary.json"):
+        if required not in checksums:
+            raise ValueError(f"Missing checksum for {directory / required}")
+    for name, expected in checksums.items():
+        path = directory / name
+        if path.parent != directory or not path.is_file():
+            raise ValueError(f"Invalid evidence file: {path}")
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError(f"Evidence checksum mismatch: {path}")
 
 
 def read_runs(root):
@@ -19,6 +56,7 @@ def read_runs(root):
         metrics = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
         if not metrics:
             raise ValueError(f"No measurements in {path}")
+        validate_evidence(directory, config, metrics)
         runs.append((directory, config, summary, metrics))
     if not runs:
         raise ValueError(f"No completed runs in {root}")
@@ -71,6 +109,24 @@ def plot_runs(root, runs):
     for extension in ("png", "pdf"):
         fig.savefig(figures / f"heldout-comparison.{extension}", dpi=180)
     plt.close(fig)
+    if all("global_train_balanced_accuracy" in rows[0] for _, _, _, rows in runs):
+        fig, axes = plt.subplots(1, 2, figsize=(11, 4), constrained_layout=True)
+        for _, config, _, rows in runs:
+            for ax, metric, title in zip(
+                    axes, ["global_train_balanced_accuracy", "validation_balanced_accuracy"],
+                    ["Training balanced accuracy", "Validation balanced accuracy"]):
+                ax.plot([row["round"] for row in rows], [row[metric] for row in rows],
+                        color=colors[config["method"]], alpha=.65, label=config["method"])
+                ax.set(xlabel="Training round", ylabel=title, ylim=(0, 1))
+                ax.axhline(.5, color="grey", linestyle="--", linewidth=1)
+                ax.grid(alpha=.2)
+        handles, labels = axes[0].get_legend_handles_labels()
+        unique = dict(zip(labels, handles))
+        axes[0].legend(unique.values(), unique.keys(), fontsize=8)
+        fig.suptitle("Global model on training and later validation periods")
+        for extension in ("png", "pdf"):
+            fig.savefig(figures / f"training-validation.{extension}", dpi=180)
+        plt.close(fig)
     return figures
 
 
@@ -120,6 +176,8 @@ def publish(root, runs, figures, args):
             run.log_artifact(artifact).wait()
             run.log({"figures/validation": wandb.Image(str(figures / "validation-curves.png")),
                      "figures/heldout": wandb.Image(str(figures / "heldout-comparison.png"))})
+            if (figures / "training-validation.png").is_file():
+                run.log({"figures/training-validation": wandb.Image(str(figures / "training-validation.png"))})
             receipts.append({"directory": str(directory), "id": run.id, "url": run.url,
                              "path": run.path, "metrics_sha256": digest})
         (root / "wandb-receipts.json").write_text(json.dumps(receipts, indent=2) + "\n")
@@ -149,8 +207,22 @@ def verify(root, receipts):
         receipt["remote_history_rows"] = sum("round" in row for row in history)
         local_summary = json.loads((Path(receipt["directory"]) / "summary.json").read_text())
         rounds = json.loads((Path(receipt["directory"]) / "config.json").read_text())["rounds"]
-        if receipt["remote_test_f1"] != local_summary["test_f1"] or receipt["remote_history_rows"] < rounds:
+        if not same_measurement(receipt["remote_test_f1"], local_summary["test_f1"]) or receipt["remote_history_rows"] < rounds:
             raise RuntimeError(f"W&B run is missing retained metrics: {receipt['url']}")
+        local_metrics = [json.loads(line) for line in
+                         (Path(receipt["directory"]) / "metrics.jsonl").read_text().splitlines()
+                         if line.strip()]
+        by_round = {}
+        for row in history:
+            if "round" in row:
+                by_round.setdefault(row["round"], {}).update(row)
+        for row in local_metrics:
+            if any(not same_measurement(by_round.get(row["round"], {}).get(key), value)
+                   for key, value in row.items()):
+                raise RuntimeError(f"W&B history differs from local evidence: {receipt['url']}")
+        for key, value in summary_items(local_summary):
+            if not same_measurement(remote.summary_metrics.get(key), value):
+                raise RuntimeError(f"W&B summary differs for {key}: {receipt['url']}")
         receipt["committed_artifacts"] = [artifact.name for artifact in remote.logged_artifacts()
                                           if artifact.state == "COMMITTED"]
         if not receipt["committed_artifacts"]:
