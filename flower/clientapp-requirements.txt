@@ -6,3 +6,5 @@ xgboost==3.4.1
 pandas==3.1.1
 pyarrow==26.0.1
 safetensors==0.8.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu

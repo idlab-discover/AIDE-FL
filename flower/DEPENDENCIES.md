@@ -72,3 +72,11 @@ is retained alongside the transport logs.
 TensorFlow CPU `train_on_batch`, scikit-learn logistic-regression `fit/predict`
 and XGBoost `fit/predict` also completed with these installed versions. GPU
 execution and rebuilt deployment containers were not tested.
+
+## PyTorch review branch
+
+The PyTorch integration adds `torch==2.14.1+cpu` from the official CPU wheel index
+to both base images, retaining Flower 1.43.0. Application metadata uses public
+version `2.14.1`, which accepts its CPU local-version wheel. See
+[PyTorch configuration and verification](PYTORCH.md). This is a post-release
+integration for review; it does not change or backdate release `v2026.11.11`.

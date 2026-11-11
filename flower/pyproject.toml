@@ -13,6 +13,7 @@ license = {file = "LICENSE"}
 dependencies = [
     "flwr[dp]>=1.43.0,<1.44.0",
     "tensorflow==2.20.0",
+    "torch==2.14.1",
     "scikit-learn==1.9.1",
     "joblib==1.6.0",
     "xgboost==3.4.1",
