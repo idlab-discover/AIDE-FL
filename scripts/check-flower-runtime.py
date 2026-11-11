@@ -44,6 +44,7 @@ def evaluate(message, context):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--app-dir", type=Path, help="Use a prepared app instead of the scalar transport fixture")
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="aide-flower-tls-") as tmp:
@@ -87,6 +88,8 @@ flwr-version-target = "1.43.0"
 serverapp = "app:server"
 clientapp = "app:client"
 ''')
+        if args.app_dir:
+            shutil.copytree(args.app_dir, app, dirs_exist_ok=True)
         commands = [
             ["flower-superlink", "--ssl-ca-certfile", str(root / "ca.crt"),
              "--ssl-certfile", str(root / "ca.crt"), "--ssl-keyfile", str(root / "server.key"),
@@ -150,7 +153,7 @@ clientapp = "app:client"
             if not any(run["status"] == "finished:completed" for run in status.get("runs", [])):
                 raise RuntimeError("Flower run failed; inspect run.log")
             if "TRANSPORT_TRAINING_PASSED" not in run_log:
-                raise RuntimeError("Missing assertion that the aggregated weight equals 2.0")
+                raise RuntimeError("Missing transport success assertion")
             shutil.copytree(app, args.output_dir / "app", dirs_exist_ok=True)
             print(f"TLS training/evaluation passed: run {run_id}; evidence {args.output_dir}")
         finally:
