@@ -8,6 +8,7 @@ security, ciphertext authentication, or differential privacy is provided.
 
 from dataclasses import dataclass
 from hashlib import sha256
+import math
 
 import numpy as np
 
@@ -55,8 +56,10 @@ def encrypt_weights(public_context, arrays, num_examples):
     if not arrays or any(array.size == 0 or array.dtype.kind != "f" or not np.isfinite(array).all() for array in arrays):
         raise ValueError("encrypted FedAvg accepts only nonempty finite floating-point weights")
     # Preweight before encryption: the server performs only ciphertext additions.
-    ciphertexts = tuple(ts.ckks_vector(context, (array.ravel().astype(np.float64) * num_examples).tolist()).serialize()
-                        for array in arrays)
+    weighted = [array.ravel().astype(np.float64) * num_examples for array in arrays]
+    if any(not np.isfinite(array).all() for array in weighted):
+        raise ValueError("sample weighting overflows the encryption input")
+    ciphertexts = tuple(ts.ckks_vector(context, array.tolist()).serialize() for array in weighted)
     return EncryptedUpdate(sha256(public_context).hexdigest(),
                            tuple(array.shape for array in arrays),
                            tuple(array.dtype.str for array in arrays), ciphertexts, num_examples)
@@ -76,11 +79,20 @@ def aggregate_encrypted(public_context, updates):
             raise ValueError("encrypted updates use a different public context")
         if (update.shapes, update.dtypes) != (reference.shapes, reference.dtypes):
             raise ValueError("encrypted model layouts differ")
-        if len(update.ciphertexts) != len(reference.shapes) or update.num_examples <= 0 or update.contributors != 1:
+        if (not update.shapes or len(update.dtypes) != len(update.shapes)
+                or len(update.ciphertexts) != len(update.shapes)
+                or isinstance(update.num_examples, bool) or not isinstance(update.num_examples, int)
+                or update.num_examples <= 0 or update.contributors != 1):
             raise ValueError("invalid individual encrypted contribution")
+        for shape, dtype in zip(update.shapes, update.dtypes, strict=True):
+            if (any(isinstance(size, bool) or not isinstance(size, int) or size <= 0 for size in shape)
+                    or np.dtype(dtype).kind != "f"):
+                raise ValueError("invalid encrypted model layout")
     sums = []
     for i in range(len(reference.shapes)):
         vectors = [ts.ckks_vector_from(context, update.ciphertexts[i]) for update in updates]
+        if any(vector.size() != math.prod(reference.shapes[i]) for vector in vectors):
+            raise ValueError("ciphertext size does not match model layout")
         summed = vectors[0]
         for vector in vectors[1:]:
             summed += vector

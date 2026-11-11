@@ -17,12 +17,13 @@ os.environ.setdefault("WANDB_MODE", "disabled")
 import numpy as np
 import tensorflow as tf
 from flwr.app import ArrayRecord, ConfigRecord, MetricRecord, RecordDict
-from flwr.serverapp.strategy import FedAvg
+from flwr.serverapp.strategy import DifferentialPrivacyServerSideFixedClipping, FedAvg
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, confusion_matrix, f1_score, log_loss, roc_auc_score
 
 from smoke import FEATURES, LABEL, save_json, sha256, source_data, split_data
 from flower.frameworks.tensorflow_adapter import TensorFlowAdapter
 from flower.strategies import build_strategy
+from flower.local_experiment import local_task_identity
 
 # Fixed unit conversion, independent of all participant samples and labels.
 SCALES = np.array([100, 100, 10000, 10000, 100000, 100000, 1000, 100, 100, 100, 100, 100], dtype=np.float32)
@@ -81,6 +82,7 @@ def main():
     source_dir = args.output / "source"
     source_dir.mkdir()
     for path in [Path(__file__), Path(__file__).with_name("smoke.py"),
+                 Path(__file__).parents[2] / "flower/flower/local_experiment.py",
                  Path(__file__).parents[2] / "flower/flower/privacy.py",
                  Path(__file__).parents[2] / "flower/flower/strategies.py",
                  Path(__file__).parents[2] / "flower/flower/frameworks/tensorflow_adapter.py"]:
@@ -88,8 +90,10 @@ def main():
     validation = prepared[prepared.partition == "validation"]
     test = prepared[prepared.partition == "test"]
     adapter = TensorFlowAdapter()
-    for noise in [None, 0.5, 1.0]:
-        method = "tensorflow-fedavg" if noise is None else f"tensorflow-dp-noise-{noise}"
+    for noise in [None, 0.0, 0.5, 1.0]:
+        accounted = noise is not None and noise > 0
+        method = ("tensorflow-fedavg" if noise is None else
+                  "tensorflow-clipped-fedavg" if noise == 0 else f"tensorflow-dp-noise-{noise}")
         directory = args.output / f"{method}-seed-{args.seed}"
         directory.mkdir()
         config = {"method": method, "seed": args.seed, "rounds": args.rounds, "clients": 3,
@@ -104,6 +108,10 @@ def main():
         save_json(directory / "model-scenario.json", json.loads(global_model.to_json()))
         if noise is None:
             strategy = FedAvg(min_available_nodes=3, fraction_evaluate=0.0)
+        elif noise == 0:
+            strategy = DifferentialPrivacyServerSideFixedClipping(
+                strategy=FedAvg(min_available_nodes=3, fraction_evaluate=0.0),
+                noise_multiplier=0.0, clipping_norm=0.2, num_sampled_clients=3)
         else:
             strategy = build_strategy({"strategy": "fedavg", "fraction_fit": 1.0,
                 "fraction_evaluate": 1.0, "min_available_clients": 3,
@@ -128,14 +136,14 @@ def main():
                         local.train_on_batch(x[batch], y[batch])
                     replies.append(request.create_reply(RecordDict({"arrays": ArrayRecord(local.get_weights()),
                                                         "metrics": MetricRecord({"num-examples": 1})})))
-                if noise is not None:
+                if accounted:
                     # Keras initialization seeds NumPy globally. Re-seed from OS
                     # entropy before native Flower Gaussian noise, never the run seed.
                     np.random.seed(None)
                 arrays, _ = strategy.aggregate_train(rnd, replies)
                 global_model.set_weights(arrays.to_numpy_ndarrays())
                 row = {"round": rnd, **evaluate(global_model, validation, "validation")}
-                if noise is not None:
+                if accounted:
                     spent = strategy.privacy_spent()
                     row.update(privacy_epsilon=spent.epsilon, privacy_delta=spent.delta)
                 log.write(json.dumps(row) + "\n")
@@ -158,7 +166,7 @@ def main():
             test_confusion_matrix=confusion_matrix(y_test, predictions, labels=[0, 1]).tolist(),
             test_confusion_matrix_labels=[0, 1],
         )
-        if noise is not None:
+        if accounted:
             spent = strategy.privacy_spent()
             summary.update(privacy_epsilon=spent.epsilon, privacy_delta=spent.delta, private_model_releases=spent.num_releases)
         global_model.save(directory / "model.keras")
@@ -172,4 +180,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    with local_task_identity():
+        main()

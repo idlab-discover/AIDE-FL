@@ -14,6 +14,14 @@ from flower.experimental_fhe import (
 )
 
 
+@pytest.fixture(autouse=True)
+def local_flower_identity():
+    from flower.local_experiment import local_task_identity
+
+    with local_task_identity():
+        yield
+
+
 def privacy_config():
     return dict(mode="central_dp", noise_multiplier=1.0, clipping_norm=1.0,
                 num_sampled_clients=2, population_size=2, target_delta=1e-5)
@@ -182,3 +190,46 @@ def test_native_secagg_masks_individual_weights_and_matches_fedavg():
     assert protocol["plaintext_array_values_in_replies"] == 0
     with pytest.raises(ValueError, match="at least three"):
         aggregate_secagg(updates[:2])
+
+
+def test_native_secagg_recovers_after_a_client_drops_before_upload():
+    from flower.experimental_secagg import aggregate_secagg
+
+    updates = [([np.array([float(i), 0.1, -0.5])], i) for i in [1, 2, 3, 4]]
+    actual, protocol = aggregate_secagg(updates, drop_before_upload=[2])
+    survivors = [updates[i] for i in [0, 2, 3]]
+    expected = sum(arrays[0] * count for arrays, count in survivors) / 8
+    np.testing.assert_allclose(actual[0], expected, atol=3e-5)
+    assert protocol["surviving_clients"] == 3
+    assert protocol["dropped_before_upload"] == [2]
+    assert protocol["replies_per_stage"] == {
+        "setup": 4, "share_keys": 4, "collect_masked_vectors": 3, "unmask": 3}
+    assert protocol["plaintext_array_values_in_replies"] == 0
+    with pytest.raises(ValueError, match="three surviving"):
+        aggregate_secagg(updates, drop_before_upload=[1, 2])
+
+
+@pytest.mark.parametrize("clipping_range", [0, -1, float("nan"), float("inf"), True])
+def test_secagg_rejects_invalid_clipping_range(clipping_range):
+    from flower.experimental_secagg import aggregate_secagg
+
+    updates = [([np.array([1.0])], 1)] * 3
+    with pytest.raises(ValueError, match="positive and finite"):
+        aggregate_secagg(updates, clipping_range=clipping_range)
+
+
+def test_encrypted_fedavg_rejects_layout_and_weight_tampering():
+    from dataclasses import replace
+
+    pytest.importorskip("tenseal")
+    public = public_context_bytes(create_private_context())
+    update = encrypt_weights(public, [np.array([1., 2.])], 2)
+    for count in [True, 1.5, 0]:
+        with pytest.raises(ValueError, match="invalid individual"):
+            aggregate_encrypted(public, [update, replace(update, num_examples=count)])
+    forged = replace(update, shapes=((3,),))
+    with pytest.raises(ValueError, match="ciphertext size"):
+        aggregate_encrypted(public, [forged, forged])
+    integer = replace(update, dtypes=("<i8",))
+    with pytest.raises(ValueError, match="invalid encrypted model layout"):
+        aggregate_encrypted(public, [integer, integer])

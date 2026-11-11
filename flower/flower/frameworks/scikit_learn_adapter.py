@@ -10,6 +10,7 @@ import numpy as np
 from flwr.app import ArrayRecord, ConfigRecord, MetricRecord
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, log_loss, precision_score, recall_score
+from sklearn.utils.multiclass import unique_labels
 
 from flower.frameworks.base import ClientDatasets, FrameworkAdapter, HoldOutDataset, TrainResult
 
@@ -67,6 +68,10 @@ class ScikitLearnAdapter(FrameworkAdapter):
             kwargs["multi_class"] = model_config["multi_class"]
 
         model = LogisticRegression(**kwargs)
+        classes = np.asarray(model_config["classes"])
+        if len(classes) < 2 or not np.array_equal(classes, unique_labels(classes)):
+            raise ValueError("scikit_learn classes must be sorted, distinct classification labels")
+        model.classes_ = classes.copy()
         self._set_model_params(
             model,
             self._zero_arrays(model_config["n_features"], model_config["classes"]),
@@ -129,6 +134,8 @@ class ScikitLearnAdapter(FrameworkAdapter):
 
     def train(self, model, arrays: ArrayRecord, datasets: ClientDatasets, config: ConfigRecord, verbose: Any) -> TrainResult:
         del verbose
+        if not np.array_equal(unique_labels(datasets.y_train), model.classes_):
+            raise ValueError("each scikit_learn training partition must contain all configured classes")
         self._set_model_params(model, arrays.to_numpy_ndarrays())
         model.max_iter = int(config["local_epochs"])
         model.fit(datasets.x_train, datasets.y_train)
@@ -199,12 +206,18 @@ class ScikitLearnAdapter(FrameworkAdapter):
         return [
             np.asarray(model.coef_, dtype=np.float64),
             np.asarray(model.intercept_, dtype=np.float64),
-            np.asarray(model.classes_),
         ]
 
     def _set_model_params(self, model, ndarrays: list[np.ndarray]) -> None:
-        coef, intercept, classes = ndarrays
-        model.classes_ = np.asarray(classes)
+        if len(ndarrays) != 2:
+            raise ValueError("scikit_learn updates must contain only coefficients and intercepts")
+        coef, intercept = ndarrays
+        rows = 1 if len(model.classes_) == 2 else len(model.classes_)
+        if (coef.ndim != 2 or coef.shape[0] != rows or intercept.shape != (rows,)
+                or not np.isfinite(coef).all() or not np.isfinite(intercept).all()):
+            raise ValueError("scikit_learn update has an invalid parameter layout")
+        if hasattr(model, "n_features_in_") and coef.shape[1] != model.n_features_in_:
+            raise ValueError("scikit_learn update changes the feature count")
         model.coef_ = np.asarray(coef, dtype=np.float64)
         model.intercept_ = np.asarray(intercept, dtype=np.float64)
         model.n_features_in_ = model.coef_.shape[1]
@@ -222,5 +235,4 @@ class ScikitLearnAdapter(FrameworkAdapter):
         return [
             np.zeros(coef_shape, dtype=np.float64),
             np.zeros(intercept_shape, dtype=np.float64),
-            class_values,
         ]

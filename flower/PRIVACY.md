@@ -53,7 +53,9 @@ python experiments/wp4/privacy_comparison.py --output /tmp/wp4-dp --rounds 5
 ```
 
 It trains a small TensorFlow classifier on the smoke sensor dataset with three
-disjoint training partitions and compares uniform FedAvg against two noise levels.
+disjoint training partitions and compares uniform FedAvg, clipped FedAvg without
+noise, and two noise levels. The clipped control is not differentially private;
+it distinguishes the effect of clipping from the effect of adding noise.
 All methods use fixed feature scales without pooling private sample statistics.
 The common chronological validation/test data are treated as public benchmark
 data for this diagnostic. Their published metrics are not private-client releases.
@@ -70,9 +72,12 @@ delivery. It checks that protocol replies contain no nonempty model ArrayRecords
 The result approximates sample-weighted FedAvg because the protocol quantizes
 floating-point values. It rejects weights outside the configured clipping range.
 
-The experiment uses at least three clients, all-to-all shares and reconstruction
-threshold two. It has not validated dropouts, collusion, malicious clients or a
-network deployment. The current application uses the modern Message strategy;
+The experiment uses at least three surviving clients, all-to-all shares and
+reconstruction threshold two. `drop_before_upload=[2]` simulates one-based client
+2 dropping out after sharing keys. A four-client test recovers the weighted average
+of the remaining three clients and records replies for each protocol stage.
+This checks one dropout timing; it has not validated arbitrary dropout patterns,
+collusion, malicious clients or a network deployment. The current application uses the modern Message strategy;
 SecAgg+ still requires Flower's legacy workflow context, so this experiment uses an
 explicit local bridge. Do not label it a deployed secure runtime or a generic MPC
 engine. Flower's native protocol is the MPC-style secure-sum capability examined here.
@@ -98,14 +103,31 @@ boundary. Keys are generated in memory and are not saved in experiment artifacts
 
 The smoke runner's `--fhe` option compares real trained weights with plaintext
 FedAvg, checks numerical error and stores ciphertext sizes and utility metrics.
+The aggregator checks ciphertext vector sizes and rejects invalid public sample
+counts and model layouts. These checks catch malformed inputs; they do not
+authenticate ciphertexts or prove a client encrypted its claimed model.
+
+## Local runtime and model compatibility
+
+Flower 1.43 requires a task identity when constructing messages. Local experiments
+use `flower.local_experiment.local_task_identity` to supply it and restore caller
+state afterward. This process-wide helper is for synchronous local experiments,
+not concurrent tasks or deployed application identity management.
+
+Scikit-learn aggregation now sends only coefficients and intercepts. Class labels
+remain in the validated scenario configuration, so weighted averaging cannot turn
+integer classes into fractional labels. Client training requires every configured
+class to be present to preserve coefficient alignment. Previous three-array updates
+that included class labels are incompatible with this two-array format; update all
+participants together. Existing joblib models retain their labels and remain loadable.
 
 ## Verification and sources
 
 `python -m pytest tests/test_privacy.py` exercises clipping/noise/accounting,
 budget refusal, missing-client failure, private metric suppression, noisy-only
-checkpoint persistence, native SecAgg+ masked exchanges and encrypted/plaintext
+checkpoint persistence, native SecAgg+ masked exchanges and dropout recovery, and encrypted/plaintext
 weighted-average agreement. The TenSEAL test skips if the optional package is absent.
 
-- [Flower 1.35 differential privacy](https://flower.ai/docs/framework/1.35/en/how-to-use-differential-privacy.html)
-- [Flower 1.35 secure aggregation protocols](https://flower.ai/docs/framework/1.35/en/explanation-ref-secure-aggregation-protocols.html)
+- [Flower differential privacy](https://flower.ai/docs/framework/main/en/how-to-use-differential-privacy.html)
+- [Flower secure aggregation protocols](https://flower.ai/docs/framework/main/en/explanation-ref-secure-aggregation-protocols.html)
 - [TenSEAL source and CKKS examples](https://github.com/OpenMined/TenSEAL)
