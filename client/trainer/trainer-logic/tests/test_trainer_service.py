@@ -84,6 +84,15 @@ class TrainerServiceTest(unittest.TestCase):
     def write_test_parquet(self, frame: pd.DataFrame):
         frame.to_parquet(Path("share") / "test.parquet")
 
+    def test_validate_pytorch_feature_count(self):
+        self.write_test_parquet(pd.DataFrame({"a": [1., 2.], "b": [3., 4.], "label": [0., 1.]}))
+        scenario = {"framework": "pytorch", "label_column": "label",
+                    "pytorch": {"model": {"kind": "mlp", "n_features": 2, "hidden_sizes": [8]}}}
+        self.service.validate(scenario)
+        scenario["pytorch"]["model"]["n_features"] = 3
+        with self.assertRaisesRegex(ValueError, "n_features"):
+            self.service.validate(scenario)
+
     def test_validate_ignores_named_index_columns(self):
         frame = pd.DataFrame(
             {

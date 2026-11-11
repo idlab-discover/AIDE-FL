@@ -19,7 +19,7 @@
     },
     "framework": {
       "type": "string",
-      "enum": ["tensorflow", "scikit_learn", "xgboost"]
+      "enum": ["tensorflow", "scikit_learn", "xgboost", "pytorch"]
     },
     "dataset": {
       "type": "string",
@@ -158,6 +158,108 @@
         "tau": {
           "type": "number",
           "exclusiveMinimum": 0
+        }
+      }
+    },
+    "pytorch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model"
+      ],
+      "properties": {
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "n_features"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "logistic_regression",
+                "mlp"
+              ]
+            },
+            "n_features": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "hidden_sizes": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "feature_mean": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "feature_scale": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "mlp"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "hidden_sizes"
+                ],
+                "properties": {
+                  "hidden_sizes": {
+                    "minItems": 1
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "hidden_sizes": {
+                    "maxItems": 0
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "optimizer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "adam",
+                "sgd"
+              ]
+            },
+            "learning_rate": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "weight_decay": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
         }
       }
     },
@@ -304,6 +406,29 @@
       },
       "then": {
         "required": ["xgboost"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "framework": {
+            "const": "pytorch"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "pytorch"
+        ],
+        "properties": {
+          "aggregation": {
+            "properties": {
+              "strategy": {
+                "const": "fedavg"
+              }
+            }
+          }
+        }
       }
     }
   ]

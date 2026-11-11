@@ -161,6 +161,9 @@ class SaveModelStrategyMixin:
 class SaveModelStrategy(SaveModelStrategyMixin):
     def aggregate_train(self, server_round, replies):
         valid_replies, _ = self._check_and_log_replies(replies, is_train=True)
+        if self.adapter.name == "pytorch":
+            for reply in valid_replies:
+                self.adapter.validate_arrays(self.model, reply.content[ARRAYS_KEY])
         arrays, metrics = super().aggregate_train(server_round, valid_replies)
         self._record_train_histories(server_round, valid_replies, metrics)
         return self._save_train_results(server_round, arrays, metrics)
@@ -393,6 +396,8 @@ def build_strategy(
         return kwargs
 
     strategy_name = aggregation["strategy"]
+    if adapter.name == "pytorch" and strategy_name != "fedavg":
+        raise ValueError("pytorch currently supports FedAvg only")
     num_malicious_nodes = int(aggregation.get("num_malicious_nodes", 0))
     base_kwargs = {
         "fraction_train": aggregation["fraction_fit"],

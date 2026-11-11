@@ -4,6 +4,7 @@ from flower.frameworks.base import FrameworkAdapter
 
 
 _ADAPTER_TYPES: dict[str, tuple[str, str]] = {
+    "pytorch": ("flower.frameworks.pytorch_adapter", "PyTorchAdapter"),
     "tensorflow": ("flower.frameworks.tensorflow_adapter", "TensorFlowAdapter"),
     "scikit_learn": ("flower.frameworks.scikit_learn_adapter", "ScikitLearnAdapter"),
     "xgboost": ("flower.frameworks.xgboost_adapter", "XGBoostAdapter"),

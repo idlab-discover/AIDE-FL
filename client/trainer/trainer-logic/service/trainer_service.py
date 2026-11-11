@@ -13,6 +13,8 @@ class TrainerService:
         if framework:
             return framework
 
+        if isinstance(scenario.get("pytorch"), dict):
+            return "pytorch"
         if isinstance(scenario.get("tensorflow"), dict):
             return "tensorflow"
         if isinstance(scenario.get("scikit_learn"), dict):
@@ -39,6 +41,11 @@ class TrainerService:
 
     def _get_model_config(self, scenario: dict):
         framework = self._get_framework(scenario)
+        if framework == "pytorch":
+            model = scenario.get("pytorch", {}).get("model")
+            if not isinstance(model, dict) or model.get("kind") not in ("mlp", "logistic_regression"):
+                raise ValueError("scenario is missing a supported pytorch model")
+            return model
         if framework == "tensorflow":
             return self._get_tensorflow_model_config(scenario)
         if framework == "scikit_learn":
@@ -169,6 +176,13 @@ class TrainerService:
             classes = model_config.get("classes")
             if not isinstance(classes, list) or len(classes) < 2:
                 raise ValueError("scenario scikit_learn model must define at least two classes")
+            return
+
+        if framework == "pytorch":
+            model_config = self._get_model_config(scenario)
+            expected_features = model_config.get("n_features")
+            if type(expected_features) is not int or expected_features < 1 or num_columns != expected_features:
+                raise ValueError("PyTorch model n_features does not match dataset columns")
             return
 
         if framework == "xgboost":

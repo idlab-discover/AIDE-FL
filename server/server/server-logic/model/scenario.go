@@ -20,6 +20,7 @@ type Scenario struct {
 	Aggregation        Aggregation           `json:"aggregation" validate:"required"`
 	TensorFlow         *TensorFlowFramework  `json:"tensorflow,omitempty"`
 	ScikitLearn        *ScikitLearnFramework `json:"scikit_learn,omitempty"`
+	PyTorch            *PyTorchFramework     `json:"pytorch,omitempty"`
 	XGBoost            *XGBoostFramework     `json:"xgboost,omitempty"`
 
 	LegacyHyper     *Training              `json:"hyper,omitempty"`
@@ -123,4 +124,38 @@ type LegacyAggregation struct {
 	FractionFit         float64 `json:"fraction_fit" validate:"required,gt=0,lte=1.0"`
 	FractionEvaluate    float64 `json:"fraction_evaluate" validate:"required,gt=0,lte=1.0"`
 	MinAvailableClients int     `json:"min_available_clients" validate:"required,gte=1"`
+}
+
+// PyTorchFramework describes the supported binary tabular classifiers.
+type PyTorchFramework struct {
+	Model     PyTorchModel      `json:"model" validate:"required"`
+	Optimizer *PyTorchOptimizer `json:"optimizer,omitempty"`
+}
+
+type PyTorchModel struct {
+	Kind         string    `json:"kind" validate:"oneof=logistic_regression mlp"`
+	NFeatures    int       `json:"n_features" validate:"gte=1"`
+	HiddenSizes  []int     `json:"hidden_sizes,omitempty" validate:"dive,gt=0"`
+	Seed         *int64    `json:"seed,omitempty" validate:"omitempty,gte=0,lt=4294967296"`
+	FeatureMean  []float64 `json:"feature_mean,omitempty"`
+	FeatureScale []float64 `json:"feature_scale,omitempty"`
+}
+
+type PyTorchOptimizer struct {
+	Kind         string   `json:"kind,omitempty" validate:"omitempty,oneof=adam sgd"`
+	LearningRate *float64 `json:"learning_rate,omitempty" validate:"omitempty,gt=0"`
+	WeightDecay  *float64 `json:"weight_decay,omitempty" validate:"omitempty,gte=0"`
+}
+
+// UnmarshalJSON prevents unsupported model and optimizer settings being discarded.
+func (p *PyTorchFramework) UnmarshalJSON(data []byte) error {
+	type config PyTorchFramework
+	var decoded config
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&decoded); err != nil {
+		return err
+	}
+	*p = PyTorchFramework(decoded)
+	return nil
 }

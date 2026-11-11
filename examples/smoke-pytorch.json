@@ -1,0 +1,44 @@
+{
+  "name": "smoke-pytorch",
+  "framework": "pytorch",
+  "dataset": "smoke-sensors-prepared",
+  "hold_out_dataset": "smoke-holdout",
+  "label_column": "Fire Alarm",
+  "preprocessing": {
+    "drop_columns": [],
+    "drop_rows": 0,
+    "shuffle": false,
+    "split": {
+      "train": 0.7,
+      "eval": 0.15,
+      "test": 0.15
+    }
+  },
+  "training": {
+    "server_rounds": 5,
+    "local_epochs": 2,
+    "batch_size": 128
+  },
+  "aggregation": {
+    "strategy": "fedavg",
+    "fraction_fit": 1.0,
+    "fraction_evaluate": 1.0,
+    "min_available_clients": 2
+  },
+  "pytorch": {
+    "model": {
+      "kind": "mlp",
+      "n_features": 12,
+      "hidden_sizes": [
+        32,
+        16
+      ],
+      "seed": 42
+    },
+    "optimizer": {
+      "kind": "adam",
+      "learning_rate": 0.001,
+      "weight_decay": 0.0
+    }
+  }
+}

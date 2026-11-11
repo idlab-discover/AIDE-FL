@@ -78,6 +78,31 @@ func datasetsValidation(sl validator.StructLevel) {
 		} else if len(scenario.TensorFlow.Model.Config) == 0 && scenario.TensorFlow.Model.ConfigFile == "" {
 			sl.ReportError(scenario.TensorFlow.Model, "Model", "tensorflow.model", "required", "")
 		}
+	case "pytorch":
+		if scenario.PyTorch == nil {
+			sl.ReportError(scenario.PyTorch, "PyTorch", "pytorch", "required", "")
+		} else {
+			config := scenario.PyTorch.Model
+			if (config.Kind == "mlp") != (len(config.HiddenSizes) > 0) {
+				sl.ReportError(config.HiddenSizes, "HiddenSizes", "pytorch.model.hidden_sizes", "invalid", "")
+			}
+			if len(config.FeatureMean) > 0 || len(config.FeatureScale) > 0 {
+				if len(config.FeatureMean) != config.NFeatures || len(config.FeatureScale) != config.NFeatures {
+					sl.ReportError(config.FeatureMean, "FeatureMean", "pytorch.model.feature_mean", "invalid", "")
+				}
+				for _, scale := range config.FeatureScale {
+					if scale <= 0 {
+						sl.ReportError(scale, "FeatureScale", "pytorch.model.feature_scale", "invalid", "")
+					}
+				}
+			}
+		}
+		if scenario.Aggregation.Strategy != "fedavg" || scenario.Aggregation.Privacy != nil {
+			sl.ReportError(scenario.Aggregation, "Aggregation", "aggregation", "unsupported", "")
+		}
+		if scenario.Training.LocalEpochs < 1 || scenario.Training.BatchSize < 1 || scenario.Training.ServerRounds < 1 {
+			sl.ReportError(scenario.Training, "Training", "training", "invalid", "")
+		}
 	case "scikit_learn":
 		if scenario.ScikitLearn == nil {
 			sl.ReportError(scenario.ScikitLearn, "ScikitLearn", "scikit_learn", "required", "")
@@ -113,6 +138,9 @@ func datasetsValidation(sl validator.StructLevel) {
 		sl.ReportError(scenario.Framework, "Framework", "framework", "unsupported", "")
 	}
 
+	if scenario.Framework != "pytorch" && scenario.PyTorch != nil {
+		sl.ReportError(scenario.PyTorch, "PyTorch", "pytorch", "forbidden", "")
+	}
 	if scenario.Framework != defaultFramework && scenario.TensorFlow != nil {
 		sl.ReportError(scenario.TensorFlow, "TensorFlow", "tensorflow", "forbidden", "")
 	}

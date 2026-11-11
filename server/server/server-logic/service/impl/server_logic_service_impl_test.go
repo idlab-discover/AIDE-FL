@@ -616,3 +616,46 @@ func TestSetFlowerConfigWritesCurrentScenarioShape(t *testing.T) {
 		}
 	}
 }
+
+func TestValidatePyTorchScenario(t *testing.T) {
+	service := &serverLogicServiceImpl{}
+	service.Validate = validator.New()
+	service.Validate.RegisterStructValidation(datasetsValidation, model.Scenario{})
+	scenario := &model.Scenario{
+		Name: "torch", Framework: "pytorch", Dataset: "sensor", LabelColumn: "label",
+		Preprocessing: model.Preprocessing{DropColumns: []string{}, Split: model.SplitConfig{Train: .7, Eval: .2, Test: .1}},
+		Training:      model.Training{ServerRounds: 1, LocalEpochs: 1, BatchSize: 16},
+		Aggregation:   model.Aggregation{Strategy: "fedavg", FractionFit: 1, FractionEvaluate: 1, MinAvailableClients: 2},
+		PyTorch:       &model.PyTorchFramework{Model: model.PyTorchModel{Kind: "mlp", NFeatures: 12, HiddenSizes: []int{16}}},
+	}
+	if err := service.ValidateScenario(scenario); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(scenario)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored model.Scenario
+	if err := json.Unmarshal(data, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if restored.PyTorch == nil || restored.PyTorch.Model.HiddenSizes[0] != 16 {
+		t.Fatal("lost PyTorch configuration")
+	}
+	for _, strategy := range []string{"fedprox", "fedxgbbagging"} {
+		scenario.Aggregation.Strategy = strategy
+		if err := service.ValidateScenario(scenario); err == nil {
+			t.Fatalf("accepted %s", strategy)
+		}
+	}
+	scenario.Aggregation.Strategy = "fedavg"
+	scenario.Aggregation.Privacy = &model.PrivacyConfig{Mode: "central_dp"}
+	if err := service.ValidateScenario(scenario); err == nil {
+		t.Fatal("accepted untested privacy mode")
+	}
+	scenario.Aggregation.Privacy = nil
+	scenario.PyTorch.Model.HiddenSizes = nil
+	if err := service.ValidateScenario(scenario); err == nil {
+		t.Fatal("accepted MLP without hidden layers")
+	}
+}

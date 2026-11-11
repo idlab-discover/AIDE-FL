@@ -15,5 +15,6 @@ type Scenario struct {
 	Aggregation        map[string]interface{} `json:"aggregation"`
 	TensorFlow         map[string]interface{} `json:"tensorflow,omitempty"`
 	ScikitLearn        map[string]interface{} `json:"scikit_learn,omitempty"`
+	PyTorch            map[string]interface{} `json:"pytorch,omitempty"`
 	XGBoost            map[string]interface{} `json:"xgboost,omitempty"`
 }
